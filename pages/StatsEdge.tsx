@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Zap, TrendingUp, AlertTriangle, ArrowRight, Calculator, CheckCircle2, XCircle, User, Activity, ChevronDown, Radar, RefreshCw, Trophy, Layers, Search, Loader2 } from 'lucide-react';
+import { Zap, TrendingUp, AlertTriangle, ArrowRight, Calculator, CheckCircle2, XCircle, User, Activity, ChevronDown, Radar, RefreshCw, Trophy, Layers, Search, Loader2, Settings2 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { supabase } from '../lib/supabase';
 
@@ -16,8 +16,16 @@ const FIXED_PLATFORMS = [
     { name: 'PrizePicks Flex', implied: -119, label: 'PP Flex' },
     { name: 'PrizePicks Power', implied: -137, label: 'PP Power' },
     { name: 'Underdog 3-Slip', implied: -122, label: 'UD 3-Slip' },
-    { name: 'DK Pick6', implied: -125, label: 'DK Pick6' }
+    { name: 'DK Pick6', implied: -125, label: 'DK Pick6' },
+    { name: 'Betr 2-Pick', implied: -119, label: 'Betr 2-Leg' }
 ];
+
+// Payout Presets based on Leg Count
+const PAYOUT_PRESETS: Record<string, Record<number, number>> = {
+    'Standard': { 2: 3.0, 3: 6.0, 4: 10.0, 5: 20.0, 6: 25.0 }, // PP Power / Generic
+    'Flex': { 2: 2.0, 3: 2.25, 4: 5.0, 5: 10.0, 6: 25.0 }, // Conservative / Flex Max (Approx)
+    'Underdog': { 2: 3.0, 3: 6.0, 4: 10.0, 5: 20.0 }, // UD Standard
+};
 
 interface ScannerRow {
     id: string;
@@ -36,6 +44,8 @@ export const StatsEdge: React.FC = () => {
   // --- PARLAY SCENARIO BUILDER STATE ---
   const [legs, setLegs] = useState<string[]>(['-110', '-110']);
   const [dfsMultiplier, setDfsMultiplier] = useState(3.0); // 3x for 2 legs
+  const [payoutMode, setPayoutMode] = useState<'Standard' | 'Flex' | 'Underdog' | 'Custom'>('Standard');
+  
   const [metrics, setMetrics] = useState({
     trueProbability: 0,
     trueDecimal: 0,
@@ -80,13 +90,27 @@ export const StatsEdge: React.FC = () => {
     setLegs(newLegs);
   };
 
+  // Smart Multiplier Update Logic
   useEffect(() => {
-    if (legs.length === 2) setDfsMultiplier(3.0);
-    if (legs.length === 3) setDfsMultiplier(6.0);
-    if (legs.length === 4) setDfsMultiplier(10.0);
-    if (legs.length === 5) setDfsMultiplier(20.0);
-    if (legs.length === 6) setDfsMultiplier(25.0);
-  }, [legs.length]);
+    // Only auto-update if not in Custom mode
+    if (payoutMode !== 'Custom') {
+        const count = legs.length;
+        const preset = PAYOUT_PRESETS[payoutMode];
+        if (preset && preset[count]) {
+            setDfsMultiplier(preset[count]);
+        }
+    }
+  }, [legs.length, payoutMode]);
+
+  const handleMultiplierChange = (val: number) => {
+      setDfsMultiplier(val);
+      setPayoutMode('Custom');
+  };
+
+  useEffect(() => {
+    if (legs.length === 2 && payoutMode === 'Standard') setDfsMultiplier(3.0);
+    // Removed strict dependency logic to favor the payoutMode effect above
+  }, []); // Run once on mount
 
   // --- PARLAY CALC ---
   useEffect(() => {
@@ -222,7 +246,7 @@ export const StatsEdge: React.FC = () => {
             let bestPlatformName = '';
             let bestImplied = 0;
 
-            // 1. Check Fixed Payout Sites (PrizePicks, Underdog)
+            // 1. Check Fixed Payout Sites (PrizePicks, Underdog, Betr, DK Pick6)
             FIXED_PLATFORMS.forEach(platform => {
                 const dfsDec = (100 / Math.abs(platform.implied)) + 1;
                 const profit = dfsDec - 1;
@@ -236,29 +260,35 @@ export const StatsEdge: React.FC = () => {
             });
 
             // 2. Check Sleeper (Dynamic Pricing Simulation)
-            // Sleeper doesn't have fixed odds. They use dynamic multipliers.
-            // We simulate Sleeper by offering a multiplier slightly worse than the Sharp Book
-            // (e.g. if Book is -150, Sleeper might offer 1.55x, which is ~ -180 implied)
-            // BUT sometimes Sleeper lags or offers a promo.
-            const sleeperVig = 0.05 + (Math.random() * 0.05); // 5-10% extra vig
-            const simulatedSleeperDec = bookDec - sleeperVig; 
+            // Sleeper uses dynamic multipliers.
+            // We simulate a multiplier that is typically "Sharp Odds + Vig", but occasionally better (lag/promo).
+            const isPromo = Math.random() > 0.95; // 5% chance of a "Sleeper Promo/Misprice"
             
-            // Convert decimal back to American for display (rough approx)
-            const sleeperImpliedProb = 1 / simulatedSleeperDec;
-            let sleeperImpliedOdds = 0;
-            if (sleeperImpliedProb > 0.5) {
-                sleeperImpliedOdds = -Math.round((sleeperImpliedProb / (1 - sleeperImpliedProb)) * 100);
-            } else {
-                sleeperImpliedOdds = Math.round(((1 - sleeperImpliedProb) / sleeperImpliedProb) * 100);
-            }
+            // Standard Sleeper Vig is ~4-8%, Promos might have negative vig relative to sharp book
+            const effectiveVig = isPromo ? -0.015 : (0.04 + Math.random() * 0.04); 
+            
+            let sleeperImpliedProb = winProb + effectiveVig;
+            // Clamp probability
+            if (sleeperImpliedProb > 0.98) sleeperImpliedProb = 0.98;
+            if (sleeperImpliedProb < 0.02) sleeperImpliedProb = 0.02;
 
-            const sleeperProfit = simulatedSleeperDec - 1;
-            const sleeperEv = (winProb * sleeperProfit) - ((1 - winProb) * 1);
+            const sleeperMultiplier = 1 / sleeperImpliedProb;
+            
+            // EV Calc for Sleeper: (WinProb * (Multiplier - 1)) - (LossProb * 1)
+            const sleeperEv = (winProb * (sleeperMultiplier - 1)) - ((1 - winProb) * 1);
+
+            // Calculate "Implied Odds" for display comparison (American format of the multiplier)
+            let sleeperImpliedOddsDisplay = 0;
+            if (sleeperImpliedProb > 0.5) {
+                sleeperImpliedOddsDisplay = -Math.round((sleeperImpliedProb / (1 - sleeperImpliedProb)) * 100);
+            } else {
+                sleeperImpliedOddsDisplay = Math.round(((1 - sleeperImpliedProb) / sleeperImpliedProb) * 100);
+            }
 
             if (sleeperEv > bestEv) {
                 bestEv = sleeperEv;
-                bestPlatformName = 'Sleeper (Dyn)';
-                bestImplied = sleeperImpliedOdds;
+                bestPlatformName = isPromo ? 'Sleeper (Promo)' : 'Sleeper (Dyn)';
+                bestImplied = sleeperImpliedOddsDisplay;
             }
             
             rows.push({
@@ -382,18 +412,50 @@ export const StatsEdge: React.FC = () => {
                         </div>
                         <div className="h-px bg-slate-800 mb-6"></div>
                         <div>
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block flex justify-between">
-                                <span>DFS Payout Multiplier</span>
-                                <span className="text-yellow-500">Fixed Odds Site</span>
-                            </label>
+                            <div className="flex justify-between items-center mb-3">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">DFS Payout Multiplier</label>
+                                
+                                {/* Platform Selector */}
+                                <div className="flex bg-slate-800 rounded-lg p-0.5">
+                                    {(['Standard', 'Flex', 'Underdog', 'Custom'] as const).map(mode => (
+                                        <button
+                                            key={mode}
+                                            onClick={() => setPayoutMode(mode)}
+                                            className={clsx(
+                                                "px-2 py-1 text-[10px] font-bold rounded uppercase transition-colors",
+                                                payoutMode === mode 
+                                                    ? "bg-yellow-500 text-black" 
+                                                    : "text-slate-400 hover:text-white"
+                                            )}
+                                        >
+                                            {mode === 'Standard' ? 'Power' : mode}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            
                             <div className="relative">
                                 <input 
                                     type="number" 
                                     value={dfsMultiplier}
-                                    onChange={(e) => setDfsMultiplier(parseFloat(e.target.value))}
-                                    className="w-full bg-black/40 border border-yellow-500/30 rounded-lg py-4 pl-4 text-yellow-400 font-black text-2xl focus:border-yellow-500 focus:outline-none transition-colors"
+                                    onChange={(e) => handleMultiplierChange(parseFloat(e.target.value))}
+                                    className={clsx(
+                                        "w-full bg-black/40 border rounded-lg py-4 pl-4 text-yellow-400 font-black text-2xl focus:outline-none transition-colors",
+                                        payoutMode === 'Custom' ? "border-yellow-500/80" : "border-yellow-500/30"
+                                    )}
                                 />
                                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 font-black text-lg">x</span>
+                                {payoutMode === 'Custom' && (
+                                    <div className="absolute right-10 top-1/2 -translate-y-1/2 text-[10px] text-yellow-500 bg-yellow-900/30 px-2 py-0.5 rounded border border-yellow-700/50">
+                                        CUSTOM
+                                    </div>
+                                )}
+                            </div>
+                            <div className="mt-2 text-[10px] text-slate-500 text-right">
+                                {payoutMode === 'Standard' && 'Using PrizePicks Power / Standard Multipliers'}
+                                {payoutMode === 'Flex' && 'Using Conservative / Flex Max Multipliers'}
+                                {payoutMode === 'Underdog' && 'Using Underdog Standard Multipliers'}
+                                {payoutMode === 'Custom' && 'Manual Override Active'}
                             </div>
                         </div>
                     </div>

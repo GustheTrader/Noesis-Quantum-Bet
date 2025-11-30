@@ -1,5 +1,7 @@
 {
   "name": "Quantum Bets",
   "description": "High-performance NFL betting model tracker and analytics dashboard featuring real-time ROI tracking, unit management, and OCR reporting tools.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "microphone"
+  ]
 }

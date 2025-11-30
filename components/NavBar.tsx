@@ -1,12 +1,13 @@
 
 import React from 'react';
-import { LayoutDashboard, Target, FileSearch, Lock, Calculator, Zap } from 'lucide-react';
+import { LayoutDashboard, Target, FileSearch, Lock, Calculator, Zap, Infinity, MonitorPlay, ExternalLink, Mic } from 'lucide-react';
 import { APP_NAME } from '../constants';
 import { clsx } from 'clsx';
 
 interface NavBarProps {
-  currentView: 'dashboard' | 'admin' | 'picks' | 'results' | 'kelly' | 'statsedge';
-  setCurrentView: (view: 'dashboard' | 'admin' | 'picks' | 'results' | 'kelly' | 'statsedge') => void;
+  currentView: 'dashboard' | 'admin' | 'picks' | 'results' | 'kelly' | 'statsedge' | 'superposition' | 'trading-desk';
+  setCurrentView: (view: 'dashboard' | 'admin' | 'picks' | 'results' | 'kelly' | 'statsedge' | 'superposition' | 'trading-desk') => void;
+  onLaunchArby: () => void;
 }
 
 const QuantumLogo = () => (
@@ -49,18 +50,32 @@ const QuantumLogo = () => (
   </svg>
 );
 
-export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView }) => {
+export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onLaunchArby }) => {
   const getButtonClass = (isActive: boolean, colorClass: string, shadowClass: string) => {
       return clsx(
-          "flex items-center gap-2 px-5 py-2.5 rounded-sm transition-all duration-300 font-black tracking-widest text-xs uppercase border-b-2",
+          "flex items-center gap-2 px-5 py-2.5 rounded-sm transition-all duration-300 font-black tracking-widest text-xs uppercase border-b-2 relative overflow-hidden",
           isActive 
             ? `${colorClass} ${shadowClass} border-current bg-white/5` 
-            : "border-transparent text-slate-500 hover:text-white hover:bg-white/5"
+            : "border-transparent text-slate-400 hover:text-white hover:bg-white/5"
       );
   };
 
+  const launchTradingDesk = () => {
+      setCurrentView('trading-desk');
+      try {
+        if (document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen();
+        }
+      } catch (e) {
+          console.warn("Fullscreen denied", e);
+      }
+  };
+
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-[#050505]/95 backdrop-blur-xl border-b border-white/10 shadow-2xl">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-[#090a15] via-[#111322] to-[#090a15] backdrop-blur-xl border-b border-indigo-500/20 shadow-2xl">
+      {/* Top Highlight Line */}
+      <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent"></div>
+      
       <div className="max-w-[1600px] mx-auto px-6">
         <div className="flex items-center justify-between h-24">
           
@@ -82,11 +97,11 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView }) =
                     </span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <div className="h-[1px] w-8 bg-slate-700"></div>
-                    <span className="text-[10px] text-slate-400 font-mono tracking-[0.2em] uppercase">
+                    <div className="h-[1px] w-8 bg-indigo-500/50"></div>
+                    <span className="text-[10px] text-indigo-300 font-mono tracking-[0.2em] uppercase">
                         Algorithmic Trading Model
                     </span>
-                    <span className="px-1.5 py-0.5 rounded bg-cyan-900/30 border border-cyan-800 text-[9px] font-mono text-cyan-400">
+                    <span className="px-1.5 py-0.5 rounded bg-cyan-950/50 border border-cyan-500/30 text-[9px] font-mono text-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.1)]">
                         v2025.1
                     </span>
                 </div>
@@ -94,8 +109,28 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView }) =
           </div>
           
           {/* Navigation Items */}
-          <div className="hidden md:flex items-center gap-1 bg-white/5 p-1 rounded-t-lg border-b border-white/10">
+          <div className="hidden md:flex items-center gap-1 bg-black/20 p-1 rounded-t-lg border-b border-white/5">
+            {/* SPECIAL SAUCE TAB */}
             <button 
+              id="nav-superposition"
+              onClick={() => setCurrentView('superposition')}
+              className={clsx(
+                  "flex items-center gap-2 px-5 py-2.5 rounded-sm transition-all duration-300 font-black tracking-widest text-xs uppercase border-b-2 relative overflow-hidden group",
+                  currentView === 'superposition' 
+                    ? "border-indigo-500 text-white bg-indigo-500/10 shadow-[0_0_20px_rgba(99,102,241,0.5)]" 
+                    : "border-transparent text-slate-400 hover:text-white hover:bg-white/5"
+              )}
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-pink-500/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              <Infinity size={18} strokeWidth={3} className={currentView === 'superposition' ? "text-indigo-400 animate-pulse" : "group-hover:text-indigo-400"} />
+              <span className={currentView === 'superposition' ? "text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400" : ""}>
+                Superposition
+              </span>
+            </button>
+            <div className="w-px h-6 bg-white/10 mx-2"></div>
+
+            <button 
+              id="nav-picks"
               onClick={() => setCurrentView('picks')}
               className={getButtonClass(currentView === 'picks', 'text-emerald-400', 'shadow-[0_10px_20px_-10px_rgba(16,185,129,0.3)]')}
             >
@@ -103,6 +138,7 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView }) =
               Daily Picks
             </button>
             <button 
+              id="nav-statsedge"
               onClick={() => setCurrentView('statsedge')}
               className={getButtonClass(currentView === 'statsedge', 'text-yellow-400', 'shadow-[0_10px_20px_-10px_rgba(250,204,21,0.3)]')}
             >
@@ -110,6 +146,7 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView }) =
               StatsEdge
             </button>
             <button 
+              id="nav-dashboard"
               onClick={() => setCurrentView('dashboard')}
               className={getButtonClass(currentView === 'dashboard', 'text-cyan-400', 'shadow-[0_10px_20px_-10px_rgba(6,182,212,0.3)]')}
             >
@@ -117,6 +154,7 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView }) =
               Analytics
             </button>
             <button 
+              id="nav-results"
               onClick={() => setCurrentView('results')}
               className={getButtonClass(currentView === 'results', 'text-amber-400', 'shadow-[0_10px_20px_-10px_rgba(251,191,36,0.3)]')}
             >
@@ -137,6 +175,30 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView }) =
               <Lock size={14} strokeWidth={3} />
               Admin
             </button>
+          </div>
+          
+          {/* TERMINAL LAUNCHER */}
+          <div className="ml-4 pl-4 border-l border-white/10 flex items-center gap-2">
+              <button
+                onClick={onLaunchArby}
+                className="w-9 h-9 rounded-full bg-indigo-500/10 border border-indigo-500/50 flex items-center justify-center text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all shadow-[0_0_15px_rgba(99,102,241,0.3)] animate-pulse-slow"
+                title="Talk to ARBY-BOT"
+              >
+                  <Mic size={16} />
+              </button>
+
+              <button 
+                  id="nav-terminal"
+                  onClick={launchTradingDesk}
+                  className="group flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-red-950/40 to-red-900/20 border border-red-500/50 rounded hover:from-red-900/60 hover:to-red-800/40 transition-all shadow-[0_0_15px_rgba(239,68,68,0.2)]"
+                  title="Launch Trading Terminal"
+              >
+                  <MonitorPlay size={16} className="text-red-500 group-hover:animate-pulse" />
+                  <span className="text-[10px] font-black uppercase text-red-400 tracking-wider hidden xl:block">
+                      Launch Terminal
+                  </span>
+                  <ExternalLink size={10} className="text-red-500/50" />
+              </button>
           </div>
         </div>
       </div>

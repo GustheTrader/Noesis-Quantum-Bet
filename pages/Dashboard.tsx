@@ -62,7 +62,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ weeks, stats, chartData })
       </div>
 
       {/* Hero Stats */}
-      <div className="animate-in fade-in slide-in-from-bottom-2 duration-500" key={statsView}>
+      <div id="dashboard-summary" className="animate-in fade-in slide-in-from-bottom-2 duration-500" key={statsView}>
           <SummaryCards stats={stats[statsView]} />
       </div>
 

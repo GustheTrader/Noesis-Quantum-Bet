@@ -7,29 +7,38 @@ import { Picks } from './pages/Picks';
 import { Results } from './pages/Results';
 import { KellyTool } from './pages/KellyTool';
 import { StatsEdge } from './pages/StatsEdge';
+import { Superposition } from './pages/Superposition';
+import { TradingDesk } from './pages/TradingDesk';
 import { ChatBot } from './components/ChatBot';
 import { TeamTicker } from './components/TeamTicker';
-import { INITIAL_WEEK_DATA, INITIAL_PICKS_CONTENT, INITIAL_ARCHIVE, INITIAL_GAME_SUMMARIES } from './constants';
+import { OnboardingTour } from './components/OnboardingTour';
+import { VoiceAgent } from './components/VoiceAgent';
+import { INITIAL_PICKS_CONTENT } from './constants';
 import { calculateStats, generateChartData } from './utils';
 import { WeekData, PickArchiveItem, GameSummary } from './types';
 import { supabase } from './lib/supabase';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Wifi, WifiOff, AlertTriangle, RefreshCcw } from 'lucide-react';
 
 function App() {
-  const [currentView, setCurrentView] = useState<'dashboard' | 'admin' | 'picks' | 'results' | 'kelly' | 'statsedge'>('picks');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'admin' | 'picks' | 'results' | 'kelly' | 'statsedge' | 'superposition' | 'trading-desk'>('picks');
   const [isLoadingData, setIsLoadingData] = useState(true);
+  const [dataSource, setDataSource] = useState<'CLOUD' | 'DISCONNECTED'>('CLOUD');
+  const [dbError, setDbError] = useState<string | null>(null);
+  
+  // Voice Agent State
+  const [showVoiceAgent, setShowVoiceAgent] = useState(false);
 
   // --- State ---
-  const [weeks, setWeeks] = useState<WeekData[]>(INITIAL_WEEK_DATA);
+  const [weeks, setWeeks] = useState<WeekData[]>([]);
   const [picksContent, setPicksContent] = useState<string>(INITIAL_PICKS_CONTENT);
   const [picksTitle, setPicksTitle] = useState<string>("Week 6 - NFL Slate");
-  const [archives, setArchives] = useState<PickArchiveItem[]>(INITIAL_ARCHIVE);
-  const [gameSummaries, setGameSummaries] = useState<GameSummary[]>(INITIAL_GAME_SUMMARIES);
+  const [archives, setArchives] = useState<PickArchiveItem[]>([]);
+  const [gameSummaries, setGameSummaries] = useState<GameSummary[]>([]);
 
   // --- Supabase Data Loading ---
-  useEffect(() => {
-    const fetchSupabaseData = async () => {
+  const fetchSupabaseData = async () => {
       setIsLoadingData(true);
+      setDbError(null);
       try {
         // 1. Fetch Weeks
         const { data: weeksData, error: weeksError } = await supabase
@@ -37,7 +46,9 @@ function App() {
           .select('*')
           .order('created_at', { ascending: false });
         
-        if (!weeksError && weeksData && weeksData.length > 0) {
+        if (weeksError) throw weeksError;
+
+        if (weeksData) {
             setWeeks(weeksData as WeekData[]);
         }
 
@@ -47,11 +58,14 @@ function App() {
           .select('*')
           .order('created_at', { ascending: false });
 
-        if (!picksError && picksData && picksData.length > 0) {
+        if (picksError) throw picksError;
+
+        if (picksData) {
             setArchives(picksData as PickArchiveItem[]);
-            // Set current picks content to the latest one
-            setPicksContent(picksData[0].content);
-            setPicksTitle(picksData[0].title);
+            if (picksData.length > 0) {
+                setPicksContent(picksData[0].content);
+                setPicksTitle(picksData[0].title);
+            }
         }
 
         // 3. Fetch Summaries
@@ -60,17 +74,24 @@ function App() {
             .select('*')
             .order('created_at', { ascending: false });
 
-        if (!sumError && summariesData && summariesData.length > 0) {
+        if (sumError) throw sumError;
+
+        if (summariesData) {
             setGameSummaries(summariesData as GameSummary[]);
         }
+        
+        setDataSource('CLOUD');
 
-      } catch (err) {
-        console.error("Supabase load error, falling back to initial data:", err);
+      } catch (err: any) {
+        console.error("Supabase load error:", err);
+        setDbError(err.message || "Unknown DB Error");
+        setDataSource('DISCONNECTED');
       } finally {
         setIsLoadingData(false);
       }
-    };
+  };
 
+  useEffect(() => {
     fetchSupabaseData();
   }, []);
 
@@ -78,10 +99,9 @@ function App() {
   const stats = useMemo(() => calculateStats(weeks), [weeks]);
   const chartData = useMemo(() => generateChartData(weeks), [weeks]);
 
-  // --- Handlers (Now with Supabase Upsert) ---
+  // --- Handlers ---
 
   const handleDataUpload = async (newWeekData: WeekData) => {
-    // 1. Optimistic Update
     setWeeks(prev => {
       const updatedList = [newWeekData, ...prev];
       return updatedList.sort((a, b) => {
@@ -93,12 +113,11 @@ function App() {
       });
     });
 
-    // 2. Persist to Supabase
     try {
         const { error } = await supabase.from('weeks').upsert(newWeekData);
         if (error) {
-            console.error("Supabase Save Error:", error);
-            alert(`Failed to save to Database: ${error.message}. Please check RLS policies.`);
+            alert(`CRITICAL SAVE ERROR: ${error.message}. Data was NOT saved to cloud.`);
+            setDbError(error.message);
         }
     } catch (err: any) {
         alert(`Database Connection Error: ${err.message}`);
@@ -112,7 +131,6 @@ function App() {
   };
 
   const handlePicksUpdate = async (content: string, filename: string) => {
-     // Create new archive item
      const newArchive: PickArchiveItem = {
          id: `arch-${Date.now()}`,
          title: filename,
@@ -120,16 +138,13 @@ function App() {
          content: content
      };
      
-     // 1. Optimistic Update
      setArchives(prev => [newArchive, ...prev]);
      setPicksContent(content);
      setPicksTitle(filename);
 
-     // 2. Persist to Supabase
      const { error } = await supabase.from('picks').upsert(newArchive);
      if (error) {
-         console.error("Supabase Picks Error:", error);
-         alert("Failed to save Picks to DB. Check policies.");
+         alert(`CRITICAL SAVE ERROR: ${error.message}`);
      }
   };
 
@@ -137,21 +152,18 @@ function App() {
       setGameSummaries(prev => [summary, ...prev]);
       const { error } = await supabase.from('summaries').upsert(summary);
       if (error) {
-         console.error("Supabase Summary Error:", error);
-         alert("Failed to save Summary to DB. Check policies.");
-      }
+         alert(`CRITICAL SAVE ERROR: ${error.message}`);
+     }
   };
 
   const handleFactoryReset = async () => {
       if (window.confirm("WARNING: This will wipe all data from Supabase tables. Are you sure?")) {
-          // Clear Local State
-          setWeeks(INITIAL_WEEK_DATA);
-          setPicksContent(INITIAL_PICKS_CONTENT);
-          setPicksTitle("Week 6 - NFL Slate");
-          setArchives(INITIAL_ARCHIVE);
-          setGameSummaries(INITIAL_GAME_SUMMARIES);
+          setWeeks([]);
+          setPicksContent("# System Reset\n\nNo data available.");
+          setPicksTitle("No Data");
+          setArchives([]);
+          setGameSummaries([]);
 
-          // Clear Supabase Tables
           try {
             await supabase.from('weeks').delete().neq('id', '0'); 
             await supabase.from('picks').delete().neq('id', '0');
@@ -163,29 +175,48 @@ function App() {
       }
   };
 
+  // View helper to keep return clean
+  const isTradingDesk = currentView === 'trading-desk';
+
   return (
-    <div className="min-h-screen bg-black text-white selection:bg-cyan-500/30">
+    <div className="min-h-screen bg-black text-white selection:bg-cyan-500/30 flex flex-col">
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-purple-900/10 to-transparent opacity-50"></div>
         <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-cyan-500/5 blur-[120px] rounded-full"></div>
         <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-purple-600/5 blur-[100px] rounded-full"></div>
       </div>
 
-      <NavBar currentView={currentView} setCurrentView={setCurrentView} />
+      {!isTradingDesk && (
+          <NavBar 
+            currentView={currentView} 
+            setCurrentView={setCurrentView} 
+            onLaunchArby={() => setShowVoiceAgent(true)}
+          />
+      )}
 
       {/* Main Content */}
-      <main className="pt-24 relative z-10">
+      <main className={`relative z-10 flex-grow ${isTradingDesk ? '' : 'pt-24'}`}>
         
-        {/* Ticker Section - Pinned below Navbar */}
-        <div className="sticky top-24 z-30">
-            <TeamTicker />
-        </div>
+        {/* Only show ticker if NOT in Trading Desk mode */}
+        {!isTradingDesk && (
+            <div className="sticky top-24 z-30">
+                <TeamTicker />
+            </div>
+        )}
 
-        <div className="py-8">
+        {/* Global Error Banner */}
+        {dbError && (
+            <div className="bg-rose-900/80 text-white text-center py-2 px-4 font-bold uppercase text-xs tracking-widest flex items-center justify-center gap-2 border-b border-rose-500">
+                <AlertTriangle size={16} />
+                Database Error: {dbError}
+            </div>
+        )}
+
+        <div className={isTradingDesk ? "" : "py-8"}>
             {isLoadingData ? (
                 <div className="flex flex-col items-center justify-center min-h-[50vh]">
                     <Loader2 size={48} className="text-cyan-500 animate-spin mb-4" />
-                    <p className="text-slate-500 font-mono text-sm animate-pulse">Initializing Quantum Core...</p>
+                    <p className="text-slate-500 font-mono text-sm animate-pulse">Connecting to Quantum Database...</p>
                 </div>
             ) : (
                 <>
@@ -206,6 +237,10 @@ function App() {
                         <KellyTool />
                     ) : currentView === 'statsedge' ? (
                         <StatsEdge />
+                    ) : currentView === 'superposition' ? (
+                        <Superposition />
+                    ) : currentView === 'trading-desk' ? (
+                        <TradingDesk onClose={() => setCurrentView('dashboard')} />
                     ) : (
                         <Picks 
                             currentContent={picksContent} 
@@ -218,11 +253,42 @@ function App() {
         </div>
       </main>
 
-      <footer className="relative z-10 text-center py-8 text-slate-600 text-xs uppercase tracking-widest border-t border-slate-900 mt-8">
-        Noesis Global Trader &copy; 2025 | Proprietary Model
-      </footer>
+      {/* Footer - Hide if on Trading Desk */}
+      {!isTradingDesk && (
+        <footer className="relative z-10 py-6 bg-slate-950 border-t border-slate-900">
+            <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4">
+                <div className="text-slate-600 text-xs uppercase tracking-widest">
+                    Noesis Global Trader &copy; 2025 | Proprietary Model
+                </div>
+                
+                <div className="flex items-center gap-4">
+                    <button 
+                        onClick={fetchSupabaseData}
+                        className="flex items-center gap-2 px-3 py-1 rounded-full border border-slate-700 bg-slate-900 text-[10px] text-slate-400 font-mono hover:bg-slate-800 hover:text-white transition-all"
+                    >
+                        <RefreshCcw size={10} /> Sync DB
+                    </button>
+                    <div className={`flex items-center gap-2 px-3 py-1 rounded-full border text-[10px] font-mono uppercase tracking-wider ${
+                        dataSource === 'CLOUD' 
+                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' 
+                        : 'bg-rose-500/10 border-rose-500/30 text-rose-400'
+                    }`}>
+                        {dataSource === 'CLOUD' ? <Wifi size={12} /> : <WifiOff size={12} />}
+                        {dataSource === 'CLOUD' ? 'DB Connected' : 'DB Disconnected'}
+                    </div>
+                </div>
+            </div>
+        </footer>
+      )}
 
-      <ChatBot />
+      {/* OVERLAYS */}
+      {!isTradingDesk && !isLoadingData && (
+          <>
+            <ChatBot />
+            <OnboardingTour currentView={currentView} setCurrentView={setCurrentView} />
+            {showVoiceAgent && <VoiceAgent onClose={() => setShowVoiceAgent(false)} />}
+          </>
+      )}
     </div>
   );
 }

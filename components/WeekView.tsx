@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { WeekData, BetResult, Bet } from '../types';
-import { ChevronDown, ChevronUp, Search, TrendingUp, TrendingDown, Filter, DollarSign } from 'lucide-react';
+import { ChevronDown, ChevronUp, Search, TrendingUp, TrendingDown, Filter, DollarSign, Loader2 } from 'lucide-react';
 import { clsx } from 'clsx';
 
 interface WeekViewProps {
@@ -42,9 +42,9 @@ const CountUp: React.FC<{ end: number; duration?: number; prefix?: string; suffi
             }
         };
         
-        // Reset for new values
+        // Reset for new values to trigger animation
         startTimeRef.current = null;
-        countRef.current = 0; // Start from 0 for dramatic effect
+        countRef.current = 0; 
         requestAnimationFrame(animate);
 
     }, [end, duration]);
@@ -121,23 +121,33 @@ export const WeekView: React.FC<WeekViewProps> = ({ weeks }) => {
 
 const WeekCard: React.FC<{ week: WeekData, displayMode: 'usd' | 'unit' }> = ({ week, displayMode }) => {
     const [isOpen, setIsOpen] = useState(true);
-    const [localFilter, setLocalFilter] = useState('');
+    
+    // Filter State
+    const [inputValue, setInputValue] = useState('');
+    const [activeFilter, setActiveFilter] = useState('');
+    const [isFiltering, setIsFiltering] = useState(false);
+
+    // Debounce Logic
+    useEffect(() => {
+        if (inputValue !== activeFilter) {
+            setIsFiltering(true);
+            const handler = setTimeout(() => {
+                setActiveFilter(inputValue);
+                setIsFiltering(false);
+            }, 400); // 400ms delay for visual effect
+
+            return () => clearTimeout(handler);
+        }
+    }, [inputValue, activeFilter]);
 
     // Calculate Week Total Profit dynamically
     const weekNetProfit = week.pools.reduce((acc, pool) => acc + pool.netProfit, 0);
 
-    const formatStatic = (val: number, mode: 'usd' | 'unit') => {
-        const absVal = Math.abs(val);
-        const sign = val >= 0 ? '+' : '-';
-        if (mode === 'usd') return `${sign}$${absVal.toFixed(2)}`;
-        return `${sign}${(absVal / 100).toFixed(2)}u`;
-    };
-
-    // Filter logic specific to this card's view
+    // Filter logic specific to this card's view using the debounced activeFilter
     const visiblePools = week.pools.map(pool => ({
         ...pool,
         bets: pool.bets.filter(bet => 
-            bet.description.toLowerCase().includes(localFilter.toLowerCase())
+            bet.description.toLowerCase().includes(activeFilter.toLowerCase())
         )
     })).filter(pool => pool.bets.length > 0);
 
@@ -156,21 +166,31 @@ const WeekCard: React.FC<{ week: WeekData, displayMode: 'usd' | 'unit' }> = ({ w
                     </div>
                     
                     <div className="flex items-center gap-4 md:gap-6">
-                        {/* Net Profit Display */}
+                        {/* Net Profit Display (Animated) */}
                         <div className={`hidden md:flex flex-col items-end border-r border-white/10 pr-6`}>
                             <div className="text-[10px] uppercase text-slate-500 tracking-wider font-bold">Net Result</div>
                             <div className={`text-lg font-black font-mono ${weekNetProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                {formatStatic(weekNetProfit, displayMode)}
+                                <CountUp 
+                                    end={displayMode === 'usd' ? weekNetProfit : weekNetProfit / 100}
+                                    prefix={displayMode === 'usd' ? (weekNetProfit >= 0 ? '+$' : '-$') : (weekNetProfit >= 0 ? '+' : '-')}
+                                    suffix={displayMode === 'usd' ? '' : 'u'}
+                                    duration={2000}
+                                />
                             </div>
                         </div>
 
-                        {/* ROI Badge */}
-                        <div className={`text-lg font-black font-mono px-4 py-1 rounded border ${
+                        {/* ROI Badge (Animated) */}
+                        <div className={`text-lg font-black font-mono px-4 py-1 rounded border min-w-[120px] text-center ${
                             week.overallRoi >= 0 
                             ? 'border-emerald-500/50 text-emerald-400 bg-emerald-500/10' 
                             : 'border-rose-500/50 text-rose-400 bg-rose-500/10'
                         }`}>
-                            {week.overallRoi > 0 ? '+' : ''}{week.overallRoi}% ROI
+                            <CountUp 
+                                end={week.overallRoi}
+                                prefix={week.overallRoi > 0 ? '+' : ''}
+                                suffix="% ROI"
+                                duration={2000}
+                            />
                         </div>
                         {isOpen ? <ChevronUp className="text-slate-500" /> : <ChevronDown className="text-slate-500" />}
                     </div>
@@ -182,18 +202,29 @@ const WeekCard: React.FC<{ week: WeekData, displayMode: 'usd' | 'unit' }> = ({ w
                     {/* Local Search for specific week */}
                     <div className="flex justify-end mb-6">
                         <div className="relative group w-full max-w-[250px]">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-purple-400 transition-colors" size={14} />
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 transition-colors">
+                                {isFiltering ? (
+                                    <Loader2 size={14} className="animate-spin text-purple-400" />
+                                ) : (
+                                    <Search size={14} className="group-focus-within:text-purple-400" />
+                                )}
+                            </div>
                             <input 
                                 type="text" 
                                 placeholder="Filter bets in this week..." 
-                                value={localFilter}
-                                onChange={(e) => setLocalFilter(e.target.value)}
+                                value={inputValue}
+                                onChange={(e) => setInputValue(e.target.value)}
                                 className="w-full bg-slate-900/50 border border-slate-700/50 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-purple-500/50 focus:bg-slate-900 focus:w-full transition-all placeholder:text-slate-600"
                             />
                         </div>
                     </div>
 
-                    {visiblePools.length > 0 ? (
+                    {isFiltering ? (
+                        <div className="py-12 flex flex-col items-center justify-center text-slate-500 animate-pulse">
+                            <Loader2 size={24} className="animate-spin mb-2 text-purple-500/50" />
+                            <p className="text-xs uppercase tracking-widest">Updating View...</p>
+                        </div>
+                    ) : visiblePools.length > 0 ? (
                         visiblePools.map(pool => (
                             <div key={pool.id} className="mb-8 last:mb-0 animate-in fade-in slide-in-from-bottom-2 duration-500">
                                 <div className="flex justify-between items-end mb-4 border-b border-slate-800 pb-2">
@@ -244,7 +275,7 @@ const WeekCard: React.FC<{ week: WeekData, displayMode: 'usd' | 'unit' }> = ({ w
                                                             {/* Primary Animated Value */}
                                                             <CountUp 
                                                                 end={displayMode === 'usd' ? bet.profit : bet.profit / 100} 
-                                                                prefix={bet.profit >= 0 ? '+' : '-'} 
+                                                                prefix={displayMode === 'usd' ? (bet.profit >= 0 ? '+$' : '-$') : (bet.profit >= 0 ? '+' : '-')} 
                                                                 suffix={displayMode === 'usd' ? '' : 'u'}
                                                                 duration={1500}
                                                             />
@@ -268,7 +299,7 @@ const WeekCard: React.FC<{ week: WeekData, displayMode: 'usd' | 'unit' }> = ({ w
                     ) : (
                         <div className="text-center py-8 text-slate-500 bg-slate-900/20 rounded-lg border border-dashed border-slate-800">
                              <Filter className="mx-auto h-8 w-8 text-slate-700 mb-2" />
-                             <p className="text-sm">No bets match "{localFilter}" in this week.</p>
+                             <p className="text-sm">No bets match "{activeFilter}" in this week.</p>
                         </div>
                     )}
                 </div>
