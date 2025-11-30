@@ -1,29 +1,87 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { NavBar } from './components/NavBar';
 import { Dashboard } from './pages/Dashboard';
 import { Admin } from './pages/Admin';
 import { Picks } from './pages/Picks';
 import { Results } from './pages/Results';
 import { KellyTool } from './pages/KellyTool';
+import { StatsEdge } from './pages/StatsEdge';
 import { ChatBot } from './components/ChatBot';
-import { INITIAL_WEEK_DATA, INITIAL_PICKS_CONTENT, INITIAL_ARCHIVE } from './constants';
+import { TeamTicker } from './components/TeamTicker';
+import { INITIAL_WEEK_DATA, INITIAL_PICKS_CONTENT, INITIAL_ARCHIVE, INITIAL_GAME_SUMMARIES } from './constants';
 import { calculateStats, generateChartData } from './utils';
-import { WeekData, PickArchiveItem } from './types';
+import { WeekData, PickArchiveItem, GameSummary } from './types';
+import { supabase } from './lib/supabase';
+import { Loader2 } from 'lucide-react';
 
 function App() {
-  const [currentView, setCurrentView] = useState<'dashboard' | 'admin' | 'picks' | 'results' | 'kelly'>('picks');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'admin' | 'picks' | 'results' | 'kelly' | 'statsedge'>('picks');
+  const [isLoadingData, setIsLoadingData] = useState(true);
+
+  // --- State ---
   const [weeks, setWeeks] = useState<WeekData[]>(INITIAL_WEEK_DATA);
-  
-  // Picks State
   const [picksContent, setPicksContent] = useState<string>(INITIAL_PICKS_CONTENT);
   const [picksTitle, setPicksTitle] = useState<string>("Week 6 - NFL Slate");
   const [archives, setArchives] = useState<PickArchiveItem[]>(INITIAL_ARCHIVE);
+  const [gameSummaries, setGameSummaries] = useState<GameSummary[]>(INITIAL_GAME_SUMMARIES);
 
+  // --- Supabase Data Loading ---
+  useEffect(() => {
+    const fetchSupabaseData = async () => {
+      setIsLoadingData(true);
+      try {
+        // 1. Fetch Weeks
+        const { data: weeksData, error: weeksError } = await supabase
+          .from('weeks')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        if (!weeksError && weeksData && weeksData.length > 0) {
+            setWeeks(weeksData as WeekData[]);
+        }
+
+        // 2. Fetch Picks (Archives)
+        const { data: picksData, error: picksError } = await supabase
+          .from('picks')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (!picksError && picksData && picksData.length > 0) {
+            setArchives(picksData as PickArchiveItem[]);
+            // Set current picks content to the latest one
+            setPicksContent(picksData[0].content);
+            setPicksTitle(picksData[0].title);
+        }
+
+        // 3. Fetch Summaries
+        const { data: summariesData, error: sumError } = await supabase
+            .from('summaries')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (!sumError && summariesData && summariesData.length > 0) {
+            setGameSummaries(summariesData as GameSummary[]);
+        }
+
+      } catch (err) {
+        console.error("Supabase load error, falling back to initial data:", err);
+      } finally {
+        setIsLoadingData(false);
+      }
+    };
+
+    fetchSupabaseData();
+  }, []);
+
+  // --- Derived Stats ---
   const stats = useMemo(() => calculateStats(weeks), [weeks]);
   const chartData = useMemo(() => generateChartData(weeks), [weeks]);
 
-  const handleDataUpload = (newWeekData: WeekData) => {
+  // --- Handlers (Now with Supabase Upsert) ---
+
+  const handleDataUpload = async (newWeekData: WeekData) => {
+    // 1. Optimistic Update
     setWeeks(prev => {
       const updatedList = [newWeekData, ...prev];
       return updatedList.sort((a, b) => {
@@ -34,26 +92,75 @@ function App() {
          return getWeekNum(b.title) - getWeekNum(a.title);
       });
     });
+
+    // 2. Persist to Supabase
+    try {
+        const { error } = await supabase.from('weeks').upsert(newWeekData);
+        if (error) {
+            console.error("Supabase Save Error:", error);
+            alert(`Failed to save to Database: ${error.message}. Please check RLS policies.`);
+        }
+    } catch (err: any) {
+        alert(`Database Connection Error: ${err.message}`);
+    }
   };
 
-  const handleDataDelete = (id: string) => {
+  const handleDataDelete = async (id: string) => {
       setWeeks(prev => prev.filter(w => w.id !== id));
+      const { error } = await supabase.from('weeks').delete().eq('id', id);
+      if (error) console.error("Failed to delete week from Supabase:", error);
   };
 
-  const handlePicksUpdate = (content: string, filename: string) => {
-     // Archive the current one before updating
+  const handlePicksUpdate = async (content: string, filename: string) => {
+     // Create new archive item
      const newArchive: PickArchiveItem = {
          id: `arch-${Date.now()}`,
-         title: picksTitle,
+         title: filename,
          date: new Date().toLocaleDateString(),
-         content: picksContent
+         content: content
      };
      
+     // 1. Optimistic Update
      setArchives(prev => [newArchive, ...prev]);
-     
-     // Update to new content
      setPicksContent(content);
      setPicksTitle(filename);
+
+     // 2. Persist to Supabase
+     const { error } = await supabase.from('picks').upsert(newArchive);
+     if (error) {
+         console.error("Supabase Picks Error:", error);
+         alert("Failed to save Picks to DB. Check policies.");
+     }
+  };
+
+  const handleGameSummaryUpload = async (summary: GameSummary) => {
+      setGameSummaries(prev => [summary, ...prev]);
+      const { error } = await supabase.from('summaries').upsert(summary);
+      if (error) {
+         console.error("Supabase Summary Error:", error);
+         alert("Failed to save Summary to DB. Check policies.");
+      }
+  };
+
+  const handleFactoryReset = async () => {
+      if (window.confirm("WARNING: This will wipe all data from Supabase tables. Are you sure?")) {
+          // Clear Local State
+          setWeeks(INITIAL_WEEK_DATA);
+          setPicksContent(INITIAL_PICKS_CONTENT);
+          setPicksTitle("Week 6 - NFL Slate");
+          setArchives(INITIAL_ARCHIVE);
+          setGameSummaries(INITIAL_GAME_SUMMARIES);
+
+          // Clear Supabase Tables
+          try {
+            await supabase.from('weeks').delete().neq('id', '0'); 
+            await supabase.from('picks').delete().neq('id', '0');
+            await supabase.from('summaries').delete().neq('id', '0');
+            alert("System reset complete.");
+          } catch (err: any) {
+            alert("Reset Failed: " + err.message);
+          }
+      }
   };
 
   return (
@@ -66,23 +173,49 @@ function App() {
 
       <NavBar currentView={currentView} setCurrentView={setCurrentView} />
 
-      <main className="pt-24 pb-12 relative z-10">
-        {currentView === 'dashboard' ? (
-            <Dashboard weeks={weeks} stats={stats} chartData={chartData} />
-        ) : currentView === 'admin' ? (
-            <Admin 
-                onDataUploaded={handleDataUpload} 
-                weeks={weeks} 
-                onDeleteReport={handleDataDelete}
-                onUpdatePicks={handlePicksUpdate}
-            />
-        ) : currentView === 'results' ? (
-            <Results weeks={weeks} />
-        ) : currentView === 'kelly' ? (
-            <KellyTool />
-        ) : (
-            <Picks currentContent={picksContent} archives={archives} />
-        )}
+      {/* Main Content */}
+      <main className="pt-24 relative z-10">
+        
+        {/* Ticker Section - Pinned below Navbar */}
+        <div className="sticky top-24 z-30">
+            <TeamTicker />
+        </div>
+
+        <div className="py-8">
+            {isLoadingData ? (
+                <div className="flex flex-col items-center justify-center min-h-[50vh]">
+                    <Loader2 size={48} className="text-cyan-500 animate-spin mb-4" />
+                    <p className="text-slate-500 font-mono text-sm animate-pulse">Initializing Quantum Core...</p>
+                </div>
+            ) : (
+                <>
+                    {currentView === 'dashboard' ? (
+                        <Dashboard weeks={weeks} stats={stats} chartData={chartData} />
+                    ) : currentView === 'admin' ? (
+                        <Admin 
+                            onDataUploaded={handleDataUpload} 
+                            weeks={weeks} 
+                            onDeleteReport={handleDataDelete}
+                            onUpdatePicks={handlePicksUpdate}
+                            onUploadSummary={handleGameSummaryUpload}
+                            onFactoryReset={handleFactoryReset}
+                        />
+                    ) : currentView === 'results' ? (
+                        <Results weeks={weeks} />
+                    ) : currentView === 'kelly' ? (
+                        <KellyTool />
+                    ) : currentView === 'statsedge' ? (
+                        <StatsEdge />
+                    ) : (
+                        <Picks 
+                            currentContent={picksContent} 
+                            archives={archives} 
+                            gameSummaries={gameSummaries}
+                        />
+                    )}
+                </>
+            )}
+        </div>
       </main>
 
       <footer className="relative z-10 text-center py-8 text-slate-600 text-xs uppercase tracking-widest border-t border-slate-900 mt-8">

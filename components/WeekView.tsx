@@ -1,12 +1,60 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { WeekData, BetResult, Bet } from '../types';
-import { ChevronDown, ChevronUp, Search, TrendingUp, TrendingDown, Filter } from 'lucide-react';
+import { ChevronDown, ChevronUp, Search, TrendingUp, TrendingDown, Filter, DollarSign } from 'lucide-react';
 import { clsx } from 'clsx';
 
 interface WeekViewProps {
   weeks: WeekData[];
 }
+
+// --- Animation Helper Component ---
+const CountUp: React.FC<{ end: number; duration?: number; prefix?: string; suffix?: string; className?: string }> = ({ 
+    end, 
+    duration = 1000, 
+    prefix = '', 
+    suffix = '', 
+    className 
+}) => {
+    const [count, setCount] = useState(0);
+    const countRef = useRef(0);
+    const startTimeRef = useRef<number | null>(null);
+
+    useEffect(() => {
+        const animate = (timestamp: number) => {
+            if (!startTimeRef.current) startTimeRef.current = timestamp;
+            const progress = timestamp - startTimeRef.current;
+            
+            // Ease-out expo function for "Quantum" snappy feel
+            const easeOutExpo = (x: number): number => {
+                return x === 1 ? 1 : 1 - Math.pow(2, -10 * x);
+            };
+
+            const percentage = Math.min(progress / duration, 1);
+            const currentVal = countRef.current + (end - countRef.current) * easeOutExpo(percentage);
+            
+            setCount(currentVal);
+
+            if (progress < duration) {
+                requestAnimationFrame(animate);
+            } else {
+                setCount(end);
+            }
+        };
+        
+        // Reset for new values
+        startTimeRef.current = null;
+        countRef.current = 0; // Start from 0 for dramatic effect
+        requestAnimationFrame(animate);
+
+    }, [end, duration]);
+
+    return (
+        <span className={className}>
+            {prefix}{Math.abs(count).toFixed(2)}{suffix}
+        </span>
+    );
+};
 
 export const WeekView: React.FC<WeekViewProps> = ({ weeks }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -75,16 +123,14 @@ const WeekCard: React.FC<{ week: WeekData, displayMode: 'usd' | 'unit' }> = ({ w
     const [isOpen, setIsOpen] = useState(true);
     const [localFilter, setLocalFilter] = useState('');
 
-    const formatProfit = (profit: number, mode: 'usd' | 'unit') => {
-        const absVal = Math.abs(profit);
-        const sign = profit > 0 ? '+' : (profit < 0 ? '-' : '');
-        
-        if (mode === 'usd') {
-            return `${sign}$${absVal.toFixed(2)}`;
-        } else {
-            // Conversion rate: $100 = 1 unit
-            return `${sign}${(absVal / 100).toFixed(2)}u`;
-        }
+    // Calculate Week Total Profit dynamically
+    const weekNetProfit = week.pools.reduce((acc, pool) => acc + pool.netProfit, 0);
+
+    const formatStatic = (val: number, mode: 'usd' | 'unit') => {
+        const absVal = Math.abs(val);
+        const sign = val >= 0 ? '+' : '-';
+        if (mode === 'usd') return `${sign}$${absVal.toFixed(2)}`;
+        return `${sign}${(absVal / 100).toFixed(2)}u`;
     };
 
     // Filter logic specific to this card's view
@@ -101,14 +147,24 @@ const WeekCard: React.FC<{ week: WeekData, displayMode: 'usd' | 'unit' }> = ({ w
                 className="p-6 cursor-pointer hover:bg-white/5 transition-colors border-b border-white/5"
                 onClick={() => setIsOpen(!isOpen)}
             >
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
                     <div className="flex items-center gap-4">
                         <div className={`p-2 rounded-lg ${week.overallRoi >= 0 ? 'bg-emerald-500/20 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 'bg-rose-500/20 text-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.1)]'}`}>
                             {week.overallRoi >= 0 ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
                         </div>
                         <h2 className="text-xl font-bold text-white tracking-wide uppercase">{week.title}</h2>
                     </div>
-                    <div className="flex items-center gap-6">
+                    
+                    <div className="flex items-center gap-4 md:gap-6">
+                        {/* Net Profit Display */}
+                        <div className={`hidden md:flex flex-col items-end border-r border-white/10 pr-6`}>
+                            <div className="text-[10px] uppercase text-slate-500 tracking-wider font-bold">Net Result</div>
+                            <div className={`text-lg font-black font-mono ${weekNetProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                {formatStatic(weekNetProfit, displayMode)}
+                            </div>
+                        </div>
+
+                        {/* ROI Badge */}
                         <div className={`text-lg font-black font-mono px-4 py-1 rounded border ${
                             week.overallRoi >= 0 
                             ? 'border-emerald-500/50 text-emerald-400 bg-emerald-500/10' 
@@ -185,11 +241,20 @@ const WeekCard: React.FC<{ week: WeekData, displayMode: 'usd' | 'unit' }> = ({ w
                                                     </td>
                                                     <td className={`py-3 pr-4 text-right font-bold ${bet.profit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                                                         <div className="flex flex-col items-end leading-tight">
-                                                            <span>
-                                                                {formatProfit(bet.profit, displayMode)}
-                                                            </span>
+                                                            {/* Primary Animated Value */}
+                                                            <CountUp 
+                                                                end={displayMode === 'usd' ? bet.profit : bet.profit / 100} 
+                                                                prefix={bet.profit >= 0 ? '+' : '-'} 
+                                                                suffix={displayMode === 'usd' ? '' : 'u'}
+                                                                duration={1500}
+                                                            />
+                                                            
+                                                            {/* Secondary Static Value (Inverse of display mode) */}
                                                             <span className="text-[10px] opacity-50 font-medium">
-                                                                {formatProfit(bet.profit, displayMode === 'usd' ? 'unit' : 'usd')}
+                                                                {displayMode === 'usd' 
+                                                                    ? `${bet.profit >= 0 ? '+' : ''}${(Math.abs(bet.profit) / 100).toFixed(2)}u` 
+                                                                    : `${bet.profit >= 0 ? '+' : ''}$${Math.abs(bet.profit).toFixed(2)}`
+                                                                }
                                                             </span>
                                                         </div>
                                                     </td>

@@ -35,6 +35,7 @@ export interface WeekData {
   date?: string;
   overallRoi: number;
   pools: Pool[];
+  fileUrl?: string; // New field for PDF link
 }
 
 export interface SummaryStats {
@@ -44,6 +45,7 @@ export interface SummaryStats {
   roi: number;
   totalUnitsWagered: number;
   weightedWinRate: number;
+  winningUnitsWagered: number;
 }
 
 export interface DashboardStats {
@@ -62,5 +64,12 @@ export interface PickArchiveItem {
   id: string;
   date: string;
   title: string;
+  content: string;
+}
+
+export interface GameSummary {
+  id: string;
+  title: string;
+  date: string;
   content: string;
 }

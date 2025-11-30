@@ -1,12 +1,12 @@
 
 import React from 'react';
-import { LayoutDashboard, Target, FileSearch, Lock, Calculator } from 'lucide-react';
+import { LayoutDashboard, Target, FileSearch, Lock, Calculator, Zap } from 'lucide-react';
 import { APP_NAME } from '../constants';
 import { clsx } from 'clsx';
 
 interface NavBarProps {
-  currentView: 'dashboard' | 'admin' | 'picks' | 'results' | 'kelly';
-  setCurrentView: (view: 'dashboard' | 'admin' | 'picks' | 'results' | 'kelly') => void;
+  currentView: 'dashboard' | 'admin' | 'picks' | 'results' | 'kelly' | 'statsedge';
+  setCurrentView: (view: 'dashboard' | 'admin' | 'picks' | 'results' | 'kelly' | 'statsedge') => void;
 }
 
 const QuantumLogo = () => (
@@ -101,6 +101,13 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView }) =
             >
               <Target size={16} strokeWidth={3} />
               Daily Picks
+            </button>
+            <button 
+              onClick={() => setCurrentView('statsedge')}
+              className={getButtonClass(currentView === 'statsedge', 'text-yellow-400', 'shadow-[0_10px_20px_-10px_rgba(250,204,21,0.3)]')}
+            >
+              <Zap size={16} strokeWidth={3} />
+              StatsEdge
             </button>
             <button 
               onClick={() => setCurrentView('dashboard')}

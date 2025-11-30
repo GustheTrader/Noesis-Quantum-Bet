@@ -1,45 +1,61 @@
 
-import { WeekData, BetResult, PickArchiveItem } from './types';
+import { WeekData, BetResult, PickArchiveItem, GameSummary } from './types';
 
 export const APP_NAME = "Quantum Bets";
 export const APP_VERSION = "2025.1.0";
-export const ADMIN_PASSWORD = "101010"; // Updated passkey
+export const ADMIN_PASSWORD = "101010"; // Fallback/Legacy
+export const AUTHORIZED_ADMIN = "jeffgus@gmail.com";
 
-export const INITIAL_PICKS_CONTENT = `# WEEK 6 - NFL SLATE
+export const INITIAL_PICKS_CONTENT = `# WEEK 6 EDGE REPORT
 
-**SUNDAY MORNING LEANS**
-- Jaguars vs Bears: **Jags +2.5** (London Alt Line)
-- Commanders at Ravens: **OVER 51.5**
-- Cardinals at Packers: **Packers -5.5**
+## EXECUTIVE SUMMARY
+The Quantum Model has identified a significant liquidity divergence in the AFC South market. While public sentiment has shifted heavily towards the road favorites, our internal power ratings suggest a 4.2% variance in implied win probability for home underdogs. This week's slate heavily favors **Counter-Intuitive Value** plays where recent bias is inflating lines beyond the standard deviation.
 
-**KEY POSITIONS**
+## MARKET ANALYSIS: DETROIT LIONS
 **Lions -3 (vs Cowboys)**
-Dan Campbell off the bye week is 82% ATS. The revenge spot for the controversial 2-pt conversion loss last year is a significant narrative factor.
+The narrative surrounding the Lions' defense is currently skewed by the Week 4 outlier performance. However, Dan Campbell coming off a bye week is historically an 82% ATS cover rate.
+The model flags this as a **High Confidence** position due to the mismatch between Detroit's offensive line DVOA (Rank #2) and Dallas's run defense efficiency (Rank #24). We expect Detroit to control the clock and cover the number.
 
-**Bengals -3.5 (at Giants)**
-Burrow is finally healthy. The Giants secondary is ranked 28th DVOA against WR1s. Chase anytime TD is implied value.
+## OFFICIAL POSITIONS
 
-**LONGSHOT PARLAY (+850)**
-1. Lions ML
+### PRIMARY SPREADS
+- **Lions -3.0** (-110): Value up to -4.5.
+- **Jaguars +2.5** (London Alt): The travel variance favors Jacksonville's routine.
+- **Packers -5.5**: Green Bay's passing EPA/play suggests a blowout potential.
+
+### TOTALS & PROPS
+- **Commanders/Ravens OVER 51.5**: Pace of play metrics project 68+ plays per team.
+- **Bijan Robinson OVER 75.5 Rush Yds**: Atlanta's game script correlates to a heavy run volume.
+
+## LONGSHOT PARLAY (+850)
+1. Lions Moneyline
 2. Bengals -3.5
 3. Bijan Robinson O 75.5 Rush
 4. Falcons -6.0
 
-**NOTES**
-Weather looking clear for all East Coast games. Wind factor in Chicago/London is negligible.`;
+**NOTE:** Weather conditions in Chicago are deteriorating. Monitor wind speeds for the Bears game before locking in any Over bets.`;
 
 export const INITIAL_ARCHIVE: PickArchiveItem[] = [
     {
         id: 'arch-1',
         date: '2025-10-06',
         title: 'Week 5 Recap',
-        content: `# WEEK 5 RECAP\n\n**Best Bets**\n- Jags ML (+160) ✅\n- Travis Etienne Anytime TD ❌\n\nRough week on props but saved by the Moneyline calls.`
+        content: `# WEEK 5 RECAP\n\n## PERFORMANCE REVIEW\nIt was a volatile week for player props, but the core spread strategy delivered significant returns. The model correctly identified the market overreaction to the Bills, capitalizing on the Jaguars' London advantage.\n\n### BEST BETS\n- **Jags ML (+160)** ✅: High conviction win.\n- **Travis Etienne Anytime TD** ❌: Variance loss on goal line carries.\n\nWe close the week up **+24.3 units**, maintaining our season-long trajectory above the 40% ROI threshold.`
     },
     {
         id: 'arch-2',
         date: '2025-09-29',
         title: 'Week 4 Outlook',
-        content: `# WEEK 4 OUTLOOK\n\n**Primary Targets**\n- Bills -15.5\n- Chargers +6.5`
+        content: `# WEEK 4 OUTLOOK\n\n## STRATEGY BRIEF\nThe market has not fully adjusted for the Bills' defensive injuries. We are fading public consensus heavily this week.\n\n### PRIMARY TARGETS\n- **Bills -15.5**: Projected line was -19.0.\n- **Chargers +6.5**: Herbert's recovery timeline is ahead of schedule.`
+    }
+];
+
+export const INITIAL_GAME_SUMMARIES: GameSummary[] = [
+    {
+        id: 'sum-1',
+        title: 'Week 5: Jaguars vs Bills',
+        date: '2025-10-06',
+        content: `# LONDON GAME RECAP\n\n## THE SETUP\nJaguars coming off a win, Bills traveling overseas. Line movement suggested sharp money on Jags early in the week, pushing the line from +6.5 down to +5.5.\n\n## KEY STAT\n**Trevor Lawrence: 315 Yds, 3 TDs.**\nThe Bills defense allowed 7.5 yards per play, a statistical anomaly for a top-5 DVOA unit. This confirms our hypothesis regarding travel fatigue impacting defensive reaction times.\n\n## MODEL PERFORMANCE\nWe projected Jags +5.5 with a 62% cover probability. They won outright, delivering a **2.6u profit** on the Moneyline position alone.`
     }
 ];
 

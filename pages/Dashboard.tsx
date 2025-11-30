@@ -66,12 +66,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ weeks, stats, chartData })
           <SummaryCards stats={stats[statsView]} />
       </div>
 
+      {/* Performance Chart - Full Width */}
+      <div className="mb-8 animate-in fade-in slide-in-from-bottom-3 duration-500 delay-100">
+         <PerformanceChart data={chartData} />
+      </div>
+
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Chart & Info */}
+        {/* Left Column: Info Box */}
         <div className="lg:col-span-1 space-y-8">
-           <PerformanceChart data={chartData} />
-           
            <div className="bg-gradient-to-br from-indigo-950 to-purple-950 border border-purple-500/30 p-8 rounded-2xl relative overflow-hidden">
              <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/20 blur-3xl rounded-full pointer-events-none"></div>
              <h3 className="text-cyan-400 font-bold uppercase tracking-widest mb-4 z-10 relative">Weighted Win %</h3>

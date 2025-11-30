@@ -1,4 +1,3 @@
-
 import { WeekData, SummaryStats, ChartDataPoint, BetResult, DashboardStats, Bet } from './types';
 
 export const calculateStats = (weeks: WeekData[]): DashboardStats => {
@@ -64,7 +63,8 @@ export const calculateStats = (weeks: WeekData[]): DashboardStats => {
       netProfit: Math.round(s.netProfit),
       roi: parseFloat(roi.toFixed(1)),
       totalUnitsWagered: parseFloat(s.totalUnitsWagered.toFixed(2)),
-      weightedWinRate: parseFloat(weightedWinRate.toFixed(1))
+      weightedWinRate: parseFloat(weightedWinRate.toFixed(1)),
+      winningUnitsWagered: parseFloat(s.winningUnitsWagered.toFixed(2))
     };
   };
 
