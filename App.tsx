@@ -18,6 +18,7 @@ import { INITIAL_PICKS_CONTENT } from './constants';
 import { calculateStats, generateChartData } from './utils';
 import { WeekData, PickArchiveItem, GameSummary } from './types';
 import { supabase } from './lib/supabase';
+import { insertIngestedResult, getAllLatestIngestedResults, extractContents } from './lib/ingestion-db';
 import { Loader2, Wifi, WifiOff, AlertTriangle, RefreshCcw } from 'lucide-react';
 
 function App() {
@@ -70,45 +71,92 @@ function App() {
       setIsLoadingData(true);
       setDbError(null);
       try {
-        // 1. Fetch Weeks
-        const { data: weeksData, error: weeksError } = await supabase
-          .from('weeks')
-          .select('*')
-          .order('created_at', { ascending: false });
+        // Try new ingested_results table first, fallback to old tables
+        let weeksData: WeekData[] = [];
+        let picksData: PickArchiveItem[] = [];
+        let summariesData: GameSummary[] = [];
+
+        // 1. Fetch Weeks - Try new table first, fallback to old
+        try {
+          const { data: ingestedWeeks, error: ingestError } = await getAllLatestIngestedResults('weeks');
+          if (!ingestError && ingestedWeeks && ingestedWeeks.length > 0) {
+            weeksData = extractContents<WeekData>(ingestedWeeks);
+          } else {
+            // Fallback to old weeks table
+            const { data: oldWeeks, error: weeksError } = await supabase
+              .from('weeks')
+              .select('*')
+              .order('created_at', { ascending: false });
+            if (weeksError) throw weeksError;
+            if (oldWeeks) weeksData = oldWeeks as WeekData[];
+          }
+        } catch (err) {
+          // Final fallback to old table
+          const { data: oldWeeks, error: weeksError } = await supabase
+            .from('weeks')
+            .select('*')
+            .order('created_at', { ascending: false });
+          if (weeksError) throw weeksError;
+          if (oldWeeks) weeksData = oldWeeks as WeekData[];
+        }
         
-        if (weeksError) throw weeksError;
+        setWeeks(weeksData);
 
-        if (weeksData) {
-            setWeeks(weeksData as WeekData[]);
+        // 2. Fetch Picks (Archives) - Try new table first, fallback to old
+        try {
+          const { data: ingestedPicks, error: ingestError } = await getAllLatestIngestedResults('picks');
+          if (!ingestError && ingestedPicks && ingestedPicks.length > 0) {
+            picksData = extractContents<PickArchiveItem>(ingestedPicks);
+          } else {
+            // Fallback to old picks table
+            const { data: oldPicks, error: picksError } = await supabase
+              .from('picks')
+              .select('*')
+              .order('created_at', { ascending: false });
+            if (picksError) throw picksError;
+            if (oldPicks) picksData = oldPicks as PickArchiveItem[];
+          }
+        } catch (err) {
+          // Final fallback to old table
+          const { data: oldPicks, error: picksError } = await supabase
+            .from('picks')
+            .select('*')
+            .order('created_at', { ascending: false });
+          if (picksError) throw picksError;
+          if (oldPicks) picksData = oldPicks as PickArchiveItem[];
         }
 
-        // 2. Fetch Picks (Archives)
-        const { data: picksData, error: picksError } = await supabase
-          .from('picks')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (picksError) throw picksError;
-
-        if (picksData) {
-            setArchives(picksData as PickArchiveItem[]);
-            if (picksData.length > 0) {
-                setPicksContent(picksData[0].content);
-                setPicksTitle(picksData[0].title);
-            }
+        setArchives(picksData);
+        if (picksData.length > 0) {
+            setPicksContent(picksData[0].content);
+            setPicksTitle(picksData[0].title);
         }
 
-        // 3. Fetch Summaries
-        const { data: summariesData, error: sumError } = await supabase
+        // 3. Fetch Summaries - Try new table first, fallback to old
+        try {
+          const { data: ingestedSummaries, error: ingestError } = await getAllLatestIngestedResults('summaries');
+          if (!ingestError && ingestedSummaries && ingestedSummaries.length > 0) {
+            summariesData = extractContents<GameSummary>(ingestedSummaries);
+          } else {
+            // Fallback to old summaries table
+            const { data: oldSummaries, error: sumError } = await supabase
+              .from('summaries')
+              .select('*')
+              .order('created_at', { ascending: false });
+            if (sumError) throw sumError;
+            if (oldSummaries) summariesData = oldSummaries as GameSummary[];
+          }
+        } catch (err) {
+          // Final fallback to old table
+          const { data: oldSummaries, error: sumError } = await supabase
             .from('summaries')
             .select('*')
             .order('created_at', { ascending: false });
-
-        if (sumError) throw sumError;
-
-        if (summariesData) {
-            setGameSummaries(summariesData as GameSummary[]);
+          if (sumError) throw sumError;
+          if (oldSummaries) summariesData = oldSummaries as GameSummary[];
         }
+
+        setGameSummaries(summariesData);
         
         setDataSource('CLOUD');
 
@@ -147,11 +195,28 @@ function App() {
     });
 
     try {
-        const { error } = await supabase.from('weeks').upsert(newWeekData);
+        // Use new append-only ingestion pattern
+        const { error } = await insertIngestedResult(
+          'weeks',
+          newWeekData,
+          newWeekData.id, // Use week id as source_id for versioning
+          {
+            uploaded_at: new Date().toISOString(),
+            user_agent: navigator.userAgent
+          }
+        );
+        
         if (error) {
             const msg = formatError(error);
             alert(`CRITICAL SAVE ERROR: ${msg}. Data was NOT saved to cloud.`);
             setDbError(msg);
+        }
+        
+        // Also save to old table for backward compatibility (optional)
+        try {
+          await supabase.from('weeks').upsert(newWeekData);
+        } catch (legacyErr) {
+          console.warn('Legacy table save failed (non-critical):', legacyErr);
         }
     } catch (err: any) {
         alert(`Database Connection Error: ${formatError(err)}`);
@@ -176,18 +241,52 @@ function App() {
      setPicksContent(content);
      setPicksTitle(filename);
 
-     const { error } = await supabase.from('picks').upsert(newArchive);
+     // Use new append-only ingestion pattern
+     const { error } = await insertIngestedResult(
+       'picks',
+       newArchive,
+       newArchive.id, // Use archive id as source_id for versioning
+       {
+         uploaded_at: new Date().toISOString(),
+         filename: filename
+       }
+     );
+     
      if (error) {
          alert(`CRITICAL SAVE ERROR: ${formatError(error)}`);
+     }
+     
+     // Also save to old table for backward compatibility (optional)
+     try {
+       await supabase.from('picks').upsert(newArchive);
+     } catch (legacyErr) {
+       console.warn('Legacy table save failed (non-critical):', legacyErr);
      }
   };
 
   const handleGameSummaryUpload = async (summary: GameSummary) => {
       setGameSummaries(prev => [summary, ...prev]);
-      const { error } = await supabase.from('summaries').upsert(summary);
+      
+      // Use new append-only ingestion pattern
+      const { error } = await insertIngestedResult(
+        'summaries',
+        summary,
+        summary.id, // Use summary id as source_id for versioning
+        {
+          uploaded_at: new Date().toISOString()
+        }
+      );
+      
       if (error) {
          alert(`CRITICAL SAVE ERROR: ${formatError(error)}`);
-     }
+      }
+      
+      // Also save to old table for backward compatibility (optional)
+      try {
+        await supabase.from('summaries').upsert(summary);
+      } catch (legacyErr) {
+        console.warn('Legacy table save failed (non-critical):', legacyErr);
+      }
   };
 
   const handleFactoryReset = async () => {
