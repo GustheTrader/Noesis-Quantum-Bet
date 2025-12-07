@@ -97,10 +97,16 @@ app.use((err: any, req: Request, res: Response, next: any) => {
 });
 
 // ================================================================
-// Start server
+// Start server (when run directly, not when imported)
 // ================================================================
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Check if this module is being run directly
+const isMainModule = process.argv[1] && (
+  import.meta.url === `file://${process.argv[1]}` ||
+  import.meta.url.endsWith(process.argv[1])
+);
+
+if (isMainModule) {
   app.listen(PORT, () => {
     console.log(`\n🚀 Admin API Server running on http://localhost:${PORT}`);
     console.log(`\nAvailable endpoints:`);

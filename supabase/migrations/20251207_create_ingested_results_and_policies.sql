@@ -85,19 +85,25 @@ CREATE POLICY "Public can read ingested_results"
     USING (true);
 
 -- Policy: Only service role can INSERT
--- Note: In practice, this is enforced by using the service role client on the server
+-- NOTE: Service role operations bypass RLS, so this policy is mainly declarative.
+-- The real enforcement comes from:
+-- 1. Only the server has the service role key
+-- 2. The REVOKE statements below remove public INSERT permissions
+-- 3. Client applications use the anon key which cannot insert
 CREATE POLICY "Service role can insert ingested_results"
     ON public.ingested_results
     FOR INSERT
     WITH CHECK (auth.role() = 'service_role');
 
 -- Policy: Only service role can UPDATE
+-- NOTE: Service role operations bypass RLS (see note above)
 CREATE POLICY "Service role can update ingested_results"
     ON public.ingested_results
     FOR UPDATE
     USING (auth.role() = 'service_role');
 
 -- Policy: Only service role can DELETE
+-- NOTE: Service role operations bypass RLS (see note above)
 CREATE POLICY "Service role can delete ingested_results"
     ON public.ingested_results
     FOR DELETE

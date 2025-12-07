@@ -11,9 +11,30 @@ import * as dotenv from 'dotenv';
 
 dotenv.config();
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '101010';
-const APP_JWT_SECRET = process.env.APP_JWT_SECRET || 'change-this-secret-in-production';
+// Security-critical environment variables
+// WARNING: These should ALWAYS be set in production. Defaults are for development only.
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+const APP_JWT_SECRET = process.env.APP_JWT_SECRET;
 const APP_JWT_EXPIRY = process.env.APP_JWT_EXPIRY || '1h';
+
+// Validate critical environment variables on module load
+if (!ADMIN_PASSWORD) {
+  console.error('FATAL: ADMIN_PASSWORD is not set. This is required for admin authentication.');
+  process.exit(1);
+}
+
+if (!APP_JWT_SECRET) {
+  console.error('FATAL: APP_JWT_SECRET is not set. This is required for JWT signing.');
+  process.exit(1);
+}
+
+if (ADMIN_PASSWORD === '101010') {
+  console.warn('WARNING: Using default ADMIN_PASSWORD (101010). This is insecure! Change it in production.');
+}
+
+if (APP_JWT_SECRET === 'change-this-secret-in-production') {
+  console.warn('WARNING: Using default APP_JWT_SECRET. This is insecure! Change it in production.');
+}
 
 export interface AdminTokenPayload {
   role: 'admin';
@@ -51,9 +72,10 @@ export async function adminLogin(req: Request, res: Response): Promise<void> {
       role: 'admin'
     };
     
-    const token = jwt.sign(payload, APP_JWT_SECRET, {
-      expiresIn: APP_JWT_EXPIRY
-    });
+    // APP_JWT_SECRET is validated on module load, so we know it's defined
+    const token = jwt.sign(payload, APP_JWT_SECRET!, {
+      expiresIn: APP_JWT_EXPIRY as string
+    } as jwt.SignOptions);
     
     res.json({
       success: true,
@@ -99,8 +121,8 @@ export function verifyAdminJWT(req: Request, res: Response, next: NextFunction):
     
     const token = parts[1];
     
-    // Verify token
-    const decoded = jwt.verify(token, APP_JWT_SECRET) as AdminTokenPayload;
+    // Verify token (APP_JWT_SECRET is validated on module load)
+    const decoded = jwt.verify(token, APP_JWT_SECRET!) as AdminTokenPayload;
     
     // Check if role is admin
     if (decoded.role !== 'admin') {

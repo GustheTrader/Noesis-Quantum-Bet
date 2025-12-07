@@ -27,6 +27,14 @@ export interface IngestedResult {
   deleted: boolean;
 }
 
+// Database insert type (subset of IngestedResult)
+interface IngestedResultInsert {
+  source: string;
+  source_id: string | null;
+  content: any;
+  metadata: any;
+}
+
 /**
  * POST /api/ingest/results
  * Insert a new result into the ingested_results table
@@ -56,15 +64,19 @@ export async function ingestResult(req: Request, res: Response): Promise<void> {
     // Get server client with service role
     const supabase = getSupabaseServer();
     
+    // Prepare the insert data
+    const insertData: IngestedResultInsert = {
+      source,
+      source_id: source_id || null,
+      content,
+      metadata: metadata || {}
+    };
+    
     // Insert the new record (version will be auto-incremented by trigger)
+    // Using type assertion as Supabase doesn't have the generated types
     const { data, error } = await supabase
       .from('ingested_results')
-      .insert({
-        source,
-        source_id: source_id || null,
-        content,
-        metadata: metadata || {}
-      })
+      .insert([insertData] as any)
       .select()
       .single();
     
