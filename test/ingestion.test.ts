@@ -280,7 +280,7 @@ export async function testExtractHelpers() {
  */
 export async function runAllTests() {
   console.log('🚀 Starting Ingestion System Tests\n');
-  console.log('=' .repeat(50));
+  console.log('='.repeat(50));
   
   const tests = [
     testAppendOnlyBehavior,
@@ -309,7 +309,7 @@ export async function runAllTests() {
     }
   }
   
-  console.log('=' .repeat(50));
+  console.log('='.repeat(50));
   console.log(`\n📊 Test Results: ${passed} passed, ${failed} failed`);
   
   if (failed === 0) {
