@@ -7,6 +7,7 @@
 
 import express, { Request, Response } from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import * as dotenv from 'dotenv';
 import { adminLogin, verifyAdminJWT, checkAdminConfig } from './admin-auth';
 import { ingestResult, getLatestResult, getResultHistory } from '../api/ingest';
@@ -16,6 +17,25 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Rate limiting configuration
+// Login endpoint: stricter limit to prevent brute force attacks
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit each IP to 5 login requests per windowMs
+  message: 'Too many login attempts, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// API endpoints: general rate limiting
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: 'Too many requests, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // Middleware
 app.use(cors());
@@ -47,8 +67,9 @@ app.get('/health', (req: Request, res: Response) => {
  * POST /api/admin/login
  * Admin login endpoint - returns JWT token if password is correct
  * Body: { password: string }
+ * Rate limited to prevent brute force attacks
  */
-app.post('/api/admin/login', adminLogin);
+app.post('/api/admin/login', loginLimiter, adminLogin);
 
 // ================================================================
 // Protected Ingestion Routes (require admin JWT)
@@ -58,22 +79,25 @@ app.post('/api/admin/login', adminLogin);
  * POST /api/ingest/results
  * Insert a new result (append-only)
  * Body: { source: string, source_id?: string, content: any, metadata?: any }
+ * Rate limited and requires authentication
  */
-app.post('/api/ingest/results', verifyAdminJWT, ingestResult);
+app.post('/api/ingest/results', apiLimiter, verifyAdminJWT, ingestResult);
 
 /**
  * GET /api/ingest/results/latest
  * Get the latest version for a source+source_id
  * Query: ?source=<source>&source_id=<source_id>
+ * Rate limited and requires authentication
  */
-app.get('/api/ingest/results/latest', verifyAdminJWT, getLatestResult);
+app.get('/api/ingest/results/latest', apiLimiter, verifyAdminJWT, getLatestResult);
 
 /**
  * GET /api/ingest/results/history
  * Get all versions for a source+source_id
  * Query: ?source=<source>&source_id=<source_id>
+ * Rate limited and requires authentication
  */
-app.get('/api/ingest/results/history', verifyAdminJWT, getResultHistory);
+app.get('/api/ingest/results/history', apiLimiter, verifyAdminJWT, getResultHistory);
 
 // ================================================================
 // Error handling
