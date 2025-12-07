@@ -3,7 +3,9 @@ import { WeekData, BetResult, PickArchiveItem, GameSummary } from './types';
 
 export const APP_NAME = "Quantum Bets";
 export const APP_VERSION = "2025.1.0";
-export const ADMIN_PASSWORD = "101010"; // Fallback/Legacy
+// Admin password is now configured via ADMIN_PASSWORD environment variable
+// This constant is kept for backward compatibility but should not be used in new code
+export const ADMIN_PASSWORD = "101010"; // Fallback/Legacy - DO NOT USE
 export const AUTHORIZED_ADMIN = "jeffgus@gmail.com";
 
 export const INITIAL_PICKS_CONTENT = `# WEEK 6 EDGE REPORT
