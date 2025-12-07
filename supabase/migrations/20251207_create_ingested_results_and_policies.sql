@@ -86,7 +86,9 @@ CREATE TABLE IF NOT EXISTS admins (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     last_login_at TIMESTAMP WITH TIME ZONE,
     
-    CONSTRAINT admins_email_valid CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$')
+    -- Basic email format validation (not comprehensive, but sufficient for most cases)
+    -- For production, consider additional application-level validation
+    CONSTRAINT admins_email_valid CHECK (email ~* '^.+@.+\..+$')
 );
 
 -- Enable RLS on admins table

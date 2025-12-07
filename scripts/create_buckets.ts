@@ -21,7 +21,11 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     console.error('❌ ERROR: Missing required environment variables');
-    console.error('Please ensure SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set in .env file');
+    console.error('   SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set');
+    console.error('   You can set them via:');
+    console.error('   - .env file');
+    console.error('   - System environment variables');
+    console.error('   - Shell export: export SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=...');
     process.exit(1);
 }
 

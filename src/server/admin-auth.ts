@@ -18,13 +18,23 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '101010';
 const APP_JWT_SECRET = process.env.APP_JWT_SECRET || 'replace_this_with_a_strong_random_secret_key';
 const TOKEN_EXPIRY = '1h'; // Short-lived tokens
 
-// Warning if using default secrets
-if (APP_JWT_SECRET === 'replace_this_with_a_strong_random_secret_key') {
-    console.warn('⚠️  WARNING: Using default APP_JWT_SECRET. Please set a strong secret in production!');
+// Validate environment variables - fail in production if not set properly
+if (!process.env.APP_JWT_SECRET || APP_JWT_SECRET === 'replace_this_with_a_strong_random_secret_key') {
+    console.error('❌ ERROR: APP_JWT_SECRET not set or using default value!');
+    console.error('   Set APP_JWT_SECRET environment variable to a strong random secret (32+ characters)');
+    if (process.env.NODE_ENV === 'production') {
+        throw new Error('APP_JWT_SECRET must be set in production');
+    }
+    console.warn('⚠️  WARNING: Using default APP_JWT_SECRET in development only!');
 }
 
-if (ADMIN_PASSWORD === '101010') {
-    console.warn('⚠️  WARNING: Using default ADMIN_PASSWORD (101010). Please change in production!');
+if (!process.env.ADMIN_PASSWORD || ADMIN_PASSWORD === '101010') {
+    console.error('❌ ERROR: ADMIN_PASSWORD not set or using default value (101010)!');
+    console.error('   Set ADMIN_PASSWORD environment variable to a strong password');
+    if (process.env.NODE_ENV === 'production') {
+        throw new Error('ADMIN_PASSWORD must be set in production');
+    }
+    console.warn('⚠️  WARNING: Using default ADMIN_PASSWORD in development only!');
 }
 
 /**
