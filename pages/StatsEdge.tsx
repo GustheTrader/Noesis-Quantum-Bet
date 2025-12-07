@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Zap, TrendingUp, AlertTriangle, ArrowRight, Calculator, CheckCircle2, XCircle, User, Activity, ChevronDown, Radar, RefreshCw, Trophy, Layers, Search, Loader2, Settings2 } from 'lucide-react';
+import { Zap, TrendingUp, AlertTriangle, ArrowRight, Calculator, CheckCircle2, XCircle, User, Activity, ChevronDown, Radar, RefreshCw, Trophy, Layers, Search, Loader2, Settings2, List } from 'lucide-react';
 import { clsx } from 'clsx';
 import { supabase } from '../lib/supabase';
 
@@ -722,6 +722,64 @@ export const StatsEdge: React.FC = () => {
                         DATA SOURCE: {dataSource}
                      </span>
                      <span>Scanning: PrizePicks, Underdog, Sleeper, DraftKings</span>
+                 </div>
+             </div>
+        </div>
+
+        {/* =========================================
+            SECTION 4: PLAYER PROP BETS (DETAILED)
+           ========================================= */}
+        <div>
+             <h2 className="text-2xl font-bold text-white mb-6 border-l-4 border-emerald-500 pl-4 uppercase tracking-widest flex items-center gap-2">
+                <List className="text-emerald-400" /> 
+                4. Player Prop Bets
+            </h2>
+
+             <div className="glass-panel rounded-2xl border border-emerald-500/20 overflow-hidden">
+                 <div className="overflow-x-auto">
+                     <table className="w-full text-left border-collapse">
+                         <thead>
+                             <tr className="bg-slate-900/80 text-xs uppercase text-slate-500 border-b border-slate-700">
+                                 <th className="py-4 px-6">Player Name</th>
+                                 <th className="py-4 px-6">Stat Type</th>
+                                 <th className="py-4 px-6 text-center">Line</th>
+                                 <th className="py-4 px-6 text-center">Side</th>
+                                 <th className="py-4 px-6 text-center">Sportsbook Odds</th>
+                                 <th className="py-4 px-6 text-center">DFS Implied</th>
+                                 <th className="py-4 px-6 text-right">EV %</th>
+                                 <th className="py-4 px-6 text-right">Best Platform</th>
+                             </tr>
+                         </thead>
+                         <tbody className="divide-y divide-slate-800/50">
+                             {scannerRows.map((row) => (
+                                 <tr key={row.id + '-detailed'} className="hover:bg-white/5 transition-colors text-sm group">
+                                     <td className="py-3 px-6 font-bold text-white">{row.player}</td>
+                                     <td className="py-3 px-6 text-slate-300">{row.stat}</td>
+                                     <td className="py-3 px-6 text-center font-mono text-white">{row.line}</td>
+                                     <td className="py-3 px-6 text-center">
+                                         <span className={clsx("font-bold px-2 py-1 rounded text-xs", row.side === 'OVER' ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400")}>
+                                             {row.side}
+                                         </span>
+                                     </td>
+                                     <td className="py-3 px-6 text-center font-mono text-emerald-400">{row.bookOdds > 0 ? `+${row.bookOdds}` : row.bookOdds}</td>
+                                     <td className="py-3 px-6 text-center font-mono text-slate-400">{row.dfsImplied > 0 ? `+${row.dfsImplied}` : row.dfsImplied}</td>
+                                     <td className="py-3 px-6 text-right font-black text-emerald-400">+{row.ev.toFixed(1)}%</td>
+                                     <td className="py-3 px-6 text-right">
+                                         <span className="text-purple-300 font-bold text-xs border border-purple-500/30 px-2 py-1 rounded bg-purple-500/10">
+                                             {row.bestPlatform}
+                                         </span>
+                                     </td>
+                                 </tr>
+                             ))}
+                             {scannerRows.length === 0 && (
+                                 <tr>
+                                     <td colSpan={8} className="py-8 text-center text-slate-500 text-sm">
+                                         No data available. Run scan to populate.
+                                     </td>
+                                 </tr>
+                             )}
+                         </tbody>
+                     </table>
                  </div>
              </div>
         </div>

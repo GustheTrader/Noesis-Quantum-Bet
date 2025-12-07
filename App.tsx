@@ -13,6 +13,7 @@ import { ChatBot } from './components/ChatBot';
 import { TeamTicker } from './components/TeamTicker';
 import { OnboardingTour } from './components/OnboardingTour';
 import { VoiceAgent } from './components/VoiceAgent';
+import { EmailGate } from './components/EmailGate';
 import { INITIAL_PICKS_CONTENT } from './constants';
 import { calculateStats, generateChartData } from './utils';
 import { WeekData, PickArchiveItem, GameSummary } from './types';
@@ -25,6 +26,10 @@ function App() {
   const [dataSource, setDataSource] = useState<'CLOUD' | 'DISCONNECTED'>('CLOUD');
   const [dbError, setDbError] = useState<string | null>(null);
   
+  // Access Control
+  const [hasAccess, setHasAccess] = useState(false);
+  const [checkingAccess, setCheckingAccess] = useState(true);
+  
   // Voice Agent State
   const [showVoiceAgent, setShowVoiceAgent] = useState(false);
 
@@ -34,6 +39,31 @@ function App() {
   const [picksTitle, setPicksTitle] = useState<string>("Week 6 - NFL Slate");
   const [archives, setArchives] = useState<PickArchiveItem[]>([]);
   const [gameSummaries, setGameSummaries] = useState<GameSummary[]>([]);
+
+  // --- Access Check ---
+  useEffect(() => {
+      const storedAccess = localStorage.getItem('quantum_access_granted');
+      if (storedAccess === 'true') {
+          setHasAccess(true);
+      }
+      setCheckingAccess(false);
+  }, []);
+
+  const handleUnlock = () => {
+      localStorage.setItem('quantum_access_granted', 'true');
+      setHasAccess(true);
+  };
+
+  // --- Helper: Safe Error Formatting ---
+  const formatError = (err: any): string => {
+      if (!err) return "Unknown Error";
+      if (typeof err === 'string') return err;
+      if (err instanceof Error) return err.message;
+      if (typeof err === 'object') {
+          return err.message || err.error_description || JSON.stringify(err);
+      }
+      return String(err);
+  };
 
   // --- Supabase Data Loading ---
   const fetchSupabaseData = async () => {
@@ -83,8 +113,9 @@ function App() {
         setDataSource('CLOUD');
 
       } catch (err: any) {
-        console.error("Supabase load error:", err);
-        setDbError(err.message || "Unknown DB Error");
+        const errorMsg = formatError(err);
+        console.error("Supabase load error:", errorMsg);
+        setDbError(errorMsg);
         setDataSource('DISCONNECTED');
       } finally {
         setIsLoadingData(false);
@@ -92,8 +123,10 @@ function App() {
   };
 
   useEffect(() => {
-    fetchSupabaseData();
-  }, []);
+    if (hasAccess) {
+        fetchSupabaseData();
+    }
+  }, [hasAccess]);
 
   // --- Derived Stats ---
   const stats = useMemo(() => calculateStats(weeks), [weeks]);
@@ -116,18 +149,19 @@ function App() {
     try {
         const { error } = await supabase.from('weeks').upsert(newWeekData);
         if (error) {
-            alert(`CRITICAL SAVE ERROR: ${error.message}. Data was NOT saved to cloud.`);
-            setDbError(error.message);
+            const msg = formatError(error);
+            alert(`CRITICAL SAVE ERROR: ${msg}. Data was NOT saved to cloud.`);
+            setDbError(msg);
         }
     } catch (err: any) {
-        alert(`Database Connection Error: ${err.message}`);
+        alert(`Database Connection Error: ${formatError(err)}`);
     }
   };
 
   const handleDataDelete = async (id: string) => {
       setWeeks(prev => prev.filter(w => w.id !== id));
       const { error } = await supabase.from('weeks').delete().eq('id', id);
-      if (error) console.error("Failed to delete week from Supabase:", error);
+      if (error) console.error("Failed to delete week:", formatError(error));
   };
 
   const handlePicksUpdate = async (content: string, filename: string) => {
@@ -144,7 +178,7 @@ function App() {
 
      const { error } = await supabase.from('picks').upsert(newArchive);
      if (error) {
-         alert(`CRITICAL SAVE ERROR: ${error.message}`);
+         alert(`CRITICAL SAVE ERROR: ${formatError(error)}`);
      }
   };
 
@@ -152,7 +186,7 @@ function App() {
       setGameSummaries(prev => [summary, ...prev]);
       const { error } = await supabase.from('summaries').upsert(summary);
       if (error) {
-         alert(`CRITICAL SAVE ERROR: ${error.message}`);
+         alert(`CRITICAL SAVE ERROR: ${formatError(error)}`);
      }
   };
 
@@ -170,13 +204,19 @@ function App() {
             await supabase.from('summaries').delete().neq('id', '0');
             alert("System reset complete.");
           } catch (err: any) {
-            alert("Reset Failed: " + err.message);
+            alert("Reset Failed: " + formatError(err));
           }
       }
   };
 
   // View helper to keep return clean
   const isTradingDesk = currentView === 'trading-desk';
+
+  if (checkingAccess) return null; // Avoid flicker
+
+  if (!hasAccess) {
+      return <EmailGate onUnlock={handleUnlock} />;
+  }
 
   return (
     <div className="min-h-screen bg-black text-white selection:bg-cyan-500/30 flex flex-col">
@@ -285,7 +325,11 @@ function App() {
       {!isTradingDesk && !isLoadingData && (
           <>
             <ChatBot />
-            <OnboardingTour currentView={currentView} setCurrentView={setCurrentView} />
+            <OnboardingTour 
+                currentView={currentView} 
+                setCurrentView={setCurrentView} 
+                onLaunchArby={() => setShowVoiceAgent(true)}
+            />
             {showVoiceAgent && <VoiceAgent onClose={() => setShowVoiceAgent(false)} />}
           </>
       )}

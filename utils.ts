@@ -1,3 +1,4 @@
+
 import { WeekData, SummaryStats, ChartDataPoint, BetResult, DashboardStats, Bet } from './types';
 
 export const calculateStats = (weeks: WeekData[]): DashboardStats => {
@@ -16,16 +17,21 @@ export const calculateStats = (weeks: WeekData[]): DashboardStats => {
   const parlays = createEmptyStats();
 
   const processBet = (bet: Bet, stats: any) => {
-    stats.totalInvested += bet.stake;
-    stats.totalUnitsWagered += bet.units;
-    stats.netProfit += bet.profit;
+    // Explicitly cast to Number to prevent string concatenation (Fixes toFixed error)
+    const stake = Number(bet.stake) || 0;
+    const units = Number(bet.units) || 0;
+    const profit = Number(bet.profit) || 0;
+
+    stats.totalInvested += stake;
+    stats.totalUnitsWagered += units;
+    stats.netProfit += profit;
 
     if (bet.result === BetResult.WIN) {
       // If profit is recorded, return is stake + profit
-      stats.totalReturn += (bet.stake + bet.profit);
-      stats.winningUnitsWagered += bet.units;
+      stats.totalReturn += (stake + profit);
+      stats.winningUnitsWagered += units;
     } else if (bet.result === BetResult.VOID) {
-      stats.totalReturn += bet.stake;
+      stats.totalReturn += stake;
     }
   };
 
@@ -62,9 +68,10 @@ export const calculateStats = (weeks: WeekData[]): DashboardStats => {
       totalReturn: Math.round(s.totalReturn),
       netProfit: Math.round(s.netProfit),
       roi: parseFloat(roi.toFixed(1)),
-      totalUnitsWagered: parseFloat(s.totalUnitsWagered.toFixed(2)),
+      // Safely cast to Number before toFixed to prevent crashes
+      totalUnitsWagered: parseFloat(Number(s.totalUnitsWagered).toFixed(2)),
       weightedWinRate: parseFloat(weightedWinRate.toFixed(1)),
-      winningUnitsWagered: parseFloat(s.winningUnitsWagered.toFixed(2))
+      winningUnitsWagered: parseFloat(Number(s.winningUnitsWagered).toFixed(2))
     };
   };
 
@@ -92,8 +99,8 @@ export const generateChartData = (weeks: WeekData[]): ChartDataPoint[] => {
     let weekUnits = 0;
     
     week.pools.forEach(pool => {
-      weekProfit += pool.netProfit;
-      pool.bets.forEach(b => weekUnits += b.units);
+      weekProfit += Number(pool.netProfit) || 0;
+      pool.bets.forEach(b => weekUnits += Number(b.units) || 0);
     });
 
     runningProfit += weekProfit;

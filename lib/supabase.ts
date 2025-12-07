@@ -8,27 +8,30 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 /* 
 ================================================================
-CRITICAL: COPY AND PASTE THE SQL BELOW INTO SUPABASE SQL EDITOR
-THEN CLICK "RUN" TO FIX THE COLUMN NAME & STORAGE PERMISSIONS
+MARKETING EMAIL SETUP: COPY AND PASTE INTO SUPABASE SQL EDITOR
+THEN CLICK "RUN" TO FIX THE "TABLE NOT FOUND" ERROR
 ================================================================
 
--- 1. Create a Storage Bucket for Reports (if not exists)
-insert into storage.buckets (id, name, public)
-values ('reports', 'reports', true)
-on conflict (id) do nothing;
+-- 1. Create the Leads Table
+create table if not exists visitor_emails (
+  id uuid default uuid_generate_v4() primary key,
+  email text not null,
+  captured_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
 
--- 2. Allow Public Access to the Bucket (Read/Write)
--- We drop to ensure we don't have duplicate policies
-drop policy if exists "Public Access Reports" on storage.objects;
-create policy "Public Access Reports" on storage.objects 
-for all using ( bucket_id = 'reports' ) with check ( bucket_id = 'reports' );
+-- 2. Enable Security
+alter table visitor_emails enable row level security;
 
--- 3. Add fileUrl column to Weeks table
--- NOTE: We use quotes "fileUrl" to match the TypeScript object key exactly!
-alter table weeks add column if not exists "fileUrl" text;
+-- 3. Create Policy: Allow Public to INSERT (Save Email)
+-- We drop first to avoid errors if re-running
+drop policy if exists "Public Insert Emails" on visitor_emails;
+create policy "Public Insert Emails" on visitor_emails for insert with check (true);
 
--- 4. Re-run Policy fixes just in case
-drop policy if exists "Public Access" on weeks;
-create policy "Public Access" on weeks for all using (true) with check (true);
+-- 4. Create Policy: Only Admin/Auth can READ (View List)
+drop policy if exists "Admin View Emails" on visitor_emails;
+create policy "Admin View Emails" on visitor_emails for select using (auth.role() = 'authenticated');
+
+-- 5. (Optional) Run this if you want to verify it works manually
+-- insert into visitor_emails (email) values ('test@example.com');
 
 */
