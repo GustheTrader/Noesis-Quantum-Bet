@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { FileUp, Edit3, Lock, Unlock, UploadCloud, Check, Loader2, Trash2, AlertTriangle, FileText, X, AlertCircle, BookOpen, Database, Terminal, Code, Globe, Key, Copy, Play, RefreshCw, LogOut, UserPlus, ShieldAlert, Cpu, Clock, Github, Wifi, HardDrive, RefreshCcw, Calendar, Search, Filter, List } from 'lucide-react';
 import { WeekData, BetResult, BetType, GameSummary } from '../types';
@@ -23,21 +22,12 @@ interface FileLog {
 
 export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteReport, onUpdatePicks, onUploadSummary, onFactoryReset }) => {
   const [session, setSession] = useState<any>(null);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [authLoading, setAuthLoading] = useState(false);
-  const [authError, setAuthError] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
   const [activeTab, setActiveTab] = useState<'manual' | 'automation'>('manual');
   
   // Health Check
   const [dbStatus, setDbStatus] = useState<'checking' | 'connected' | 'error'>('checking');
   const [dbErrorDetail, setDbErrorDetail] = useState('');
   const [writeTestStatus, setWriteTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
-
-  const [openAIKey, setOpenAIKey] = useState('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');
-  const [targetSite, setTargetSite] = useState('https://www.bettingpros.com/nfl/props/');
-  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
 
   // Manual Upload State
   const [uploadDate, setUploadDate] = useState('');
@@ -112,7 +102,7 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
           const { error } = await supabase.from('weeks').insert({
               id: testId,
               title: "WRITE_TEST",
-              overallRoi: 0,
+              "overallRoi": 0,
               pools: []
           });
           
@@ -132,21 +122,6 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
       if (session) runDiagnostics();
   }, [session]);
 
-
-  const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthLoading(true);
-    setAuthError('');
-    if (isSignUp) {
-        const { error } = await supabase.auth.signUp({ email, password });
-        if (error) setAuthError(formatError(error));
-        else setAuthError("Account created! Login now.");
-    } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) setAuthError(formatError(error));
-    }
-    setAuthLoading(false);
-  };
 
   const handleLogout = async () => { await supabase.auth.signOut(); };
 
