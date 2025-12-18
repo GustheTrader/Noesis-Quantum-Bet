@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 
 export const SUPABASE_URL = 'https://rrwvhjcdgkwixxnqcfom.supabase.co';
@@ -10,15 +11,22 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 DATABASE SETUP & MIGRATION INSTRUCTIONS
 ================================================================
 
-IMPORTANT: If you encounter an error stating "Could not find the 'fileUrl' column",
-please run the following SQL command in your Supabase SQL Editor to fix it:
+1. FIX "COULD NOT FIND FILEURL COLUMN":
+   Run this SQL in your Supabase SQL Editor to add the missing column:
 
    ALTER TABLE weeks ADD COLUMN IF NOT EXISTS "fileUrl" text;
 
+2. STORAGE BUCKET SETUP (For PDF Reports):
+   Run this SQL to create the storage bucket and allow public access:
+
+   insert into storage.buckets (id, name, public) values ('reports', 'reports', true)
+   on conflict (id) do nothing;
+
+   create policy "Public Access" on storage.objects for select using ( bucket_id = 'reports' );
+   create policy "Authenticated Upload" on storage.objects for insert with check ( bucket_id = 'reports' );
+
 ================================================================
-FULL SCHEMA SETUP
-Copy and paste the following SQL into your Supabase SQL Editor 
-and click "Run" to initialize all required tables.
+FULL SCHEMA SETUP (Reference)
 ================================================================
 
 -- 1. Weeks Table (Stores Weekly Performance & Nested Pools)
@@ -31,9 +39,6 @@ create table if not exists weeks (
   pools jsonb, 
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
-
--- Fix for existing tables missing the column
-alter table weeks add column if not exists "fileUrl" text;
 
 -- 2. Picks Table (Stores Daily Edge Reports)
 create table if not exists picks (
@@ -69,17 +74,31 @@ create table if not exists market_scans (
 
 -- 5. Visitor Emails (Marketing Gate)
 create table if not exists visitor_emails (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   email text not null,
   captured_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- 6. Enable Row Level Security (Optional: Open Access for Demo)
+-- 6. User Bets (Client Portfolio Tracking)
+create table if not exists user_bets (
+  id uuid default gen_random_uuid() primary key,
+  selection text not null,
+  odds text not null,
+  stake numeric not null,
+  to_win numeric not null,
+  status text default 'PENDING',
+  pnl numeric default 0,
+  market_type text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- 7. Enable Row Level Security (Optional: Open Access for Demo)
 alter table weeks enable row level security;
 alter table picks enable row level security;
 alter table summaries enable row level security;
 alter table market_scans enable row level security;
 alter table visitor_emails enable row level security;
+alter table user_bets enable row level security;
 
 -- Create Policies (Allow Public Read/Write for Demo purposes)
 create policy "Public Read Weeks" on weeks for select using (true);
@@ -98,9 +117,8 @@ create policy "Public Insert Scans" on market_scans for insert with check (true)
 
 create policy "Public Insert Emails" on visitor_emails for insert with check (true);
 
--- STORAGE SETUP:
--- 1. Go to "Storage" in Supabase Dashboard.
--- 2. Create a new public bucket named "reports".
--- 3. Add a policy to allow public uploads/reads if necessary.
+create policy "Public Read Bets" on user_bets for select using (true);
+create policy "Public Insert Bets" on user_bets for insert with check (true);
+create policy "Public Update Bets" on user_bets for update using (true);
 
 */

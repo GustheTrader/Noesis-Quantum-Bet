@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { WeekData } from '../types';
-import { FileSearch, FileText, Download, FileBox } from 'lucide-react';
+import { FileSearch, FileText, Download, FileBox, ExternalLink } from 'lucide-react';
 
 interface ResultsProps {
   weeks: WeekData[];
@@ -34,7 +34,7 @@ export const Results: React.FC<ResultsProps> = ({ weeks }) => {
                         </div>
                         <div className="text-right">
                             <div className={`text-2xl font-black ${week.overallRoi >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                {week.overallRoi > 0 ? '+' : ''}{week.overallRoi}%
+                                {week.overallRoi > 0 ? '+' : ''}{week.overallRoi.toFixed(0)}%
                             </div>
                             <div className="text-slate-500 text-xs uppercase tracking-wider">Verified ROI</div>
                         </div>
@@ -60,7 +60,7 @@ export const Results: React.FC<ResultsProps> = ({ weeks }) => {
                                         {week.pools.map(pool => (
                                             <div key={pool.id} className="flex justify-between py-1 border-b border-slate-800/50 text-xs">
                                                 <span className="truncate pr-4">{pool.name}</span>
-                                                <span>{pool.roi}% ROI</span>
+                                                <span>{pool.roi.toFixed(0)}% ROI</span>
                                             </div>
                                         ))}
                                     </div>
@@ -87,7 +87,7 @@ export const Results: React.FC<ResultsProps> = ({ weeks }) => {
                         {/* File Action Card */}
                         <div className="lg:col-span-1">
                              <div className="h-full bg-slate-900/40 rounded-lg border border-slate-800 p-6 flex flex-col justify-center items-center text-center">
-                                 <div className="bg-amber-500/10 p-4 rounded-full mb-4">
+                                 <div className="bg-amber-500/10 p-4 rounded-full mb-4 ring-1 ring-amber-500/30">
                                      <FileBox className="text-amber-400" size={32} />
                                  </div>
                                  <h4 className="text-white font-bold uppercase tracking-wider mb-2">Original Report</h4>
@@ -95,17 +95,20 @@ export const Results: React.FC<ResultsProps> = ({ weeks }) => {
                                  {week.fileUrl ? (
                                     <>
                                         <p className="text-slate-500 text-xs mb-6">
-                                            Access the original PDF report uploaded for this week to verify all data points.
+                                            Access the original PDF report uploaded to our secure archive.
                                         </p>
                                         <a 
                                             href={week.fileUrl} 
                                             target="_blank" 
                                             rel="noreferrer"
-                                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-bold uppercase tracking-widest transition-all"
+                                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-bold uppercase tracking-widest transition-all shadow-lg shadow-amber-900/20"
                                         >
                                             <Download size={16} />
-                                            Download PDF
+                                            Retrieve Document
                                         </a>
+                                        <div className="mt-2 text-[10px] text-amber-500/50 font-mono flex items-center justify-center gap-1">
+                                            <ExternalLink size={10} /> Hosted on Supabase Storage
+                                        </div>
                                     </>
                                  ) : (
                                      <>

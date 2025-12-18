@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Activity, Radio, Play, Pause, Power, Crosshair, BarChart3, Clock, AlertTriangle, ArrowUp, ArrowDown, Wifi, DollarSign, Bot, MousePointerClick, RefreshCw, Layers, Zap, TrendingUp, Search, Filter, Split, LineChart, Eye, EyeOff, List, ZoomIn, ZoomOut } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -153,6 +154,9 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [showPnl, setShowPnl] = useState(true);
     
+    // Execution State
+    const [orderSize, setOrderSize] = useState(100);
+    
     // Zoom State
     const [timeScale, setTimeScale] = useState(1);
 
@@ -265,7 +269,15 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
         setOpenPositions(prev => prev + (side === 'BUY' ? 1 : -1));
         
         // Sim PnL Impact & Equity Curve Update
-        const impact = (Math.random() - 0.45) * 15; // Slightly weighted negative to sim vig
+        // Simulated volatility impact relative to trade size
+        const volatilityFactor = market.volatility || 0.05; 
+        // Random walk simulation for PnL: -1.5% to +2.5% variation scaled by amount
+        // Bias slightly negative to simulate spread/vig unless edge is high
+        const edgeBias = market.edge / 100;
+        const randomReturn = ((Math.random() * 0.08) - 0.045) + (edgeBias * 0.1); 
+        
+        const impact = amount * randomReturn;
+
         setPnl(prev => {
             const newPnl = prev + impact;
             setEquityHistory(h => [...h, newPnl].slice(-50)); // Keep last 50 points
@@ -274,7 +286,7 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
     };
 
     const handleManualExec = (side: 'BUY' | 'SELL') => {
-        if (selectedMarket) executeTrade(selectedMarket, side, 100);
+        if (selectedMarket) executeTrade(selectedMarket, side, orderSize);
     };
 
     const filteredMarkets = markets.filter(m => 
@@ -595,12 +607,28 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
                             </div>
                             <div className="flex gap-2">
                                 {[100, 500, 1000].map(amt => (
-                                    <button key={amt} className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 py-3 rounded text-xs font-bold transition-colors">
-                                        {amt}
+                                    <button 
+                                        key={amt} 
+                                        onClick={() => setOrderSize(amt)}
+                                        className={clsx(
+                                            "flex-1 py-3 rounded text-xs font-bold transition-colors",
+                                            orderSize === amt ? "bg-cyan-600 text-white shadow-lg shadow-cyan-500/20" : "bg-slate-800 hover:bg-slate-700 text-slate-300"
+                                        )}
+                                    >
+                                        ${amt}
                                     </button>
                                 ))}
                             </div>
-                            <input type="number" placeholder="Custom Qty" className="w-full bg-black border border-slate-700 rounded py-2 px-4 text-white font-mono text-center" />
+                            <div className="relative">
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-mono">$</span>
+                                <input 
+                                    type="number" 
+                                    placeholder="Custom" 
+                                    value={orderSize}
+                                    onChange={(e) => setOrderSize(Math.abs(parseFloat(e.target.value)) || 0)}
+                                    className="w-full bg-black border border-slate-700 rounded py-2 pl-8 pr-4 text-white font-mono" 
+                                />
+                            </div>
                         </div>
                         
                         <div className="flex-grow flex gap-6 h-20">
@@ -704,9 +732,12 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
                                         <span className="text-slate-500 font-mono">{trade.time}</span>
                                     </div>
                                     <div className="flex justify-between items-center">
-                                        <span className={clsx("font-bold px-1.5 rounded text-[10px]", trade.side === 'BUY' ? "bg-emerald-900/50 text-emerald-400" : "bg-rose-900/50 text-rose-400")}>
-                                            {trade.side}
-                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <span className={clsx("font-bold px-1.5 rounded text-[10px]", trade.side === 'BUY' ? "bg-emerald-900/50 text-emerald-400" : "bg-rose-900/50 text-rose-400")}>
+                                                {trade.side}
+                                            </span>
+                                            <span className="text-slate-400 text-[10px]">(${trade.amount})</span>
+                                        </div>
                                         <span className="font-mono text-slate-300">@{trade.price}</span>
                                     </div>
                                 </div>

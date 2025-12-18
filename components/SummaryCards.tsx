@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { SummaryStats } from '../types';
 import { TrendingUp, DollarSign, Wallet, Percent, Target } from 'lucide-react';
@@ -29,7 +30,7 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({ stats }) => {
     },
     { 
       label: 'Overall ROI', 
-      value: `+${stats.roi}%`, 
+      value: `${stats.roi > 0 ? '+' : ''}${stats.roi}%`, 
       icon: Percent,
       color: 'text-purple-400'
     },

@@ -17,10 +17,17 @@ export const calculateStats = (weeks: WeekData[]): DashboardStats => {
   const parlays = createEmptyStats();
 
   const processBet = (bet: Bet, stats: any) => {
-    // Explicitly cast to Number to prevent string concatenation (Fixes toFixed error)
-    const stake = Number(bet.stake) || 0;
-    const units = Number(bet.units) || 0;
-    const profit = Number(bet.profit) || 0;
+    // Robust parsing: Handle strings like "1.5u" or "$100" by stripping non-numeric chars (keeping decimal point)
+    const cleanNumber = (val: any) => {
+        if (typeof val === 'number') return val;
+        if (!val) return 0;
+        const str = String(val).replace(/[^\d.-]/g, '');
+        return parseFloat(str) || 0;
+    };
+
+    const stake = cleanNumber(bet.stake);
+    const units = cleanNumber(bet.units);
+    const profit = cleanNumber(bet.profit);
 
     stats.totalInvested += stake;
     stats.totalUnitsWagered += units;
@@ -67,7 +74,7 @@ export const calculateStats = (weeks: WeekData[]): DashboardStats => {
       totalInvested: Math.round(s.totalInvested),
       totalReturn: Math.round(s.totalReturn),
       netProfit: Math.round(s.netProfit),
-      roi: parseFloat(roi.toFixed(1)),
+      roi: Math.round(roi), // Rounded to nearest integer
       // Safely cast to Number before toFixed to prevent crashes
       totalUnitsWagered: parseFloat(Number(s.totalUnitsWagered).toFixed(2)),
       weightedWinRate: parseFloat(weightedWinRate.toFixed(1)),
@@ -100,7 +107,11 @@ export const generateChartData = (weeks: WeekData[]): ChartDataPoint[] => {
     
     week.pools.forEach(pool => {
       weekProfit += Number(pool.netProfit) || 0;
-      pool.bets.forEach(b => weekUnits += Number(b.units) || 0);
+      pool.bets.forEach(b => {
+          // Clean units here too just in case
+          const u = typeof b.units === 'number' ? b.units : parseFloat(String(b.units).replace(/[^\d.-]/g, '')) || 0;
+          weekUnits += u;
+      });
     });
 
     runningProfit += weekProfit;

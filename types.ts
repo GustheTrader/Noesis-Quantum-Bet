@@ -21,6 +21,18 @@ export interface Bet {
   betType?: BetType;
 }
 
+export interface UserBet {
+  id: string;
+  created_at: string;
+  selection: string;
+  odds: string;
+  stake: number;
+  to_win: number;
+  status: 'PENDING' | 'WIN' | 'LOSS' | 'VOID';
+  pnl: number;
+  market_type: string;
+}
+
 export interface Pool {
   id: string;
   name: string;

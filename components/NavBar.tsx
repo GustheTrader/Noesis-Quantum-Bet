@@ -1,10 +1,10 @@
 
 import React from 'react';
-import { LayoutDashboard, Target, FileSearch, Lock, Calculator, Zap, Infinity, MonitorPlay, ExternalLink, Mic, Users, Layers, Radar } from 'lucide-react';
+import { LayoutDashboard, Target, FileSearch, Lock, Calculator, Zap, Infinity, MonitorPlay, ExternalLink, Mic, Users, Layers, Radar, BookOpen, Grid } from 'lucide-react';
 import { clsx } from 'clsx';
 
 interface NavBarProps {
-  currentView: 'dashboard' | 'admin' | 'picks' | 'props' | 'results' | 'kelly' | 'statsedge' | 'superposition' | 'trading-desk';
+  currentView: 'dashboard' | 'admin' | 'picks' | 'props' | 'results' | 'kelly' | 'statsedge' | 'superposition' | 'trading-desk' | 'blog' | 'odds';
   setCurrentView: (view: any) => void;
   onLaunchArby: () => void;
 }
@@ -93,7 +93,7 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
               className={getButtonClass(currentView === 'picks', 'text-emerald-400', 'shadow-[0_10px_20px_-10px_rgba(16,185,129,0.3)]')}
             >
               <Target size={14} strokeWidth={3} />
-              Daily Picks
+              Picks & Summaries
             </button>
 
             {/* 2. Player Props */}
@@ -108,7 +108,17 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
 
             <div className="w-px h-6 bg-white/10 mx-2"></div>
 
-            {/* 3. Superposition Pregame */}
+            {/* 3. Odds Board (NEW) */}
+            <button 
+              id="nav-odds"
+              onClick={() => setCurrentView('odds')}
+              className={getButtonClass(currentView === 'odds', 'text-orange-400', 'shadow-[0_10px_20px_-10px_rgba(251,146,60,0.3)]')}
+            >
+              <Grid size={14} strokeWidth={3} />
+              Live Odds
+            </button>
+
+            {/* 4. Superposition Pregame */}
             <button 
               id="nav-superposition"
               onClick={() => setCurrentView('superposition')}
@@ -128,7 +138,7 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
 
             <div className="w-px h-6 bg-white/10 mx-2"></div>
 
-            {/* 4. StatsEdge (RESTORED) */}
+            {/* 5. StatsEdge */}
             <button 
               id="nav-statsedge"
               onClick={() => setCurrentView('statsedge')}
@@ -138,7 +148,7 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
               StatsEdge
             </button>
 
-            {/* 5. Analytics */}
+            {/* 6. Analytics */}
             <button 
               id="nav-dashboard"
               onClick={() => setCurrentView('dashboard')}
@@ -148,7 +158,7 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
               Analytics
             </button>
 
-            {/* 6. Results */}
+            {/* 7. Results */}
             <button 
               id="nav-results"
               onClick={() => setCurrentView('results')}
@@ -157,8 +167,17 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
               <FileSearch size={14} strokeWidth={3} />
               Results
             </button>
+            
+            {/* 8. Blog */}
+            <button 
+              onClick={() => setCurrentView('blog')}
+              className={getButtonClass(currentView === 'blog', 'text-indigo-400', 'shadow-[0_10px_20px_-10px_rgba(129,140,248,0.3)]')}
+            >
+              <BookOpen size={14} strokeWidth={3} />
+              Blog
+            </button>
 
-            {/* 7. Risk Tool */}
+            {/* 9. Risk Tool */}
             <button 
               onClick={() => setCurrentView('kelly')}
               className={getButtonClass(currentView === 'kelly', 'text-blue-400', 'shadow-[0_10px_20px_-10px_rgba(96,165,250,0.3)]')}
@@ -167,7 +186,7 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
               Risk Tool
             </button>
 
-            {/* 8. Admin */}
+            {/* 10. Admin */}
             <button 
               onClick={() => setCurrentView('admin')}
               className={getButtonClass(currentView === 'admin', 'text-rose-400', 'shadow-[0_10px_20px_-10px_rgba(244,63,94,0.3)]')}

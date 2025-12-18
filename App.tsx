@@ -9,6 +9,8 @@ import { KellyTool } from './pages/KellyTool';
 import { StatsEdge } from './pages/StatsEdge';
 import { Superposition } from './pages/Superposition';
 import { TradingDesk } from './pages/TradingDesk';
+import { Blog } from './pages/Blog'; 
+import { OddsBoard } from './pages/OddsBoard'; // NEW IMPORT
 import { ChatBot } from './components/ChatBot';
 import { TeamTicker } from './components/TeamTicker';
 import { OnboardingTour } from './components/OnboardingTour';
@@ -21,7 +23,7 @@ import { supabase } from './lib/supabase';
 import { Loader2, Wifi, WifiOff, AlertTriangle, RefreshCcw } from 'lucide-react';
 
 function App() {
-  const [currentView, setCurrentView] = useState<'dashboard' | 'admin' | 'picks' | 'results' | 'kelly' | 'statsedge' | 'superposition' | 'trading-desk'>('picks');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'admin' | 'picks' | 'props' | 'results' | 'kelly' | 'statsedge' | 'superposition' | 'trading-desk' | 'blog' | 'odds'>('picks');
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [dataSource, setDataSource] = useState<'CLOUD' | 'DISCONNECTED'>('CLOUD');
   const [dbError, setDbError] = useState<string | null>(null);
@@ -32,6 +34,9 @@ function App() {
   
   // Voice Agent State
   const [showVoiceAgent, setShowVoiceAgent] = useState(false);
+  
+  // Tour State
+  const [forceTour, setForceTour] = useState(false);
 
   // --- State ---
   const [weeks, setWeeks] = useState<WeekData[]>([]);
@@ -39,6 +44,7 @@ function App() {
   const [picksTitle, setPicksTitle] = useState<string>("Week 6 - NFL Slate");
   const [archives, setArchives] = useState<PickArchiveItem[]>([]);
   const [gameSummaries, setGameSummaries] = useState<GameSummary[]>([]);
+  const [propsData, setPropsData] = useState<any[]>([]);
 
   // --- Access Check ---
   useEffect(() => {
@@ -49,9 +55,27 @@ function App() {
       setCheckingAccess(false);
   }, []);
 
-  const handleUnlock = () => {
+  const handleUnlock = (startMode: 'tour' | 'voice' | 'direct' = 'direct') => {
       localStorage.setItem('quantum_access_granted', 'true');
       setHasAccess(true);
+
+      // Handle Startup Modes
+      if (startMode === 'direct') {
+          // Skip tour, close voice
+          localStorage.setItem('quantum_tour_seen', 'true'); 
+          setForceTour(false);
+          setShowVoiceAgent(false);
+      } else if (startMode === 'tour') {
+          // Force tour
+          localStorage.removeItem('quantum_tour_seen');
+          setForceTour(true);
+          setShowVoiceAgent(false);
+      } else if (startMode === 'voice') {
+          // Skip tour, open voice immediately
+          localStorage.setItem('quantum_tour_seen', 'true');
+          setForceTour(false);
+          setShowVoiceAgent(true);
+      }
   };
 
   // --- Helper: Safe Error Formatting ---
@@ -108,6 +132,19 @@ function App() {
 
         if (summariesData) {
             setGameSummaries(summariesData as GameSummary[]);
+        }
+
+        // 4. Fetch Player Props (Market Scans)
+        const { data: props, error: propsError } = await supabase
+          .from('market_scans')
+          .select('*')
+          .order('scanned_at', { ascending: false });
+
+        if (propsError && propsError.code !== '42P01') { // Ignore missing table error for clean init
+             console.warn("Props fetch error:", propsError.message);
+        }
+        if (props) {
+            setPropsData(props);
         }
         
         setDataSource('CLOUD');
@@ -197,11 +234,13 @@ function App() {
           setPicksTitle("No Data");
           setArchives([]);
           setGameSummaries([]);
+          setPropsData([]);
 
           try {
             await supabase.from('weeks').delete().neq('id', '0'); 
             await supabase.from('picks').delete().neq('id', '0');
             await supabase.from('summaries').delete().neq('id', '0');
+            await supabase.from('market_scans').delete().neq('id', 0);
             alert("System reset complete.");
           } catch (err: any) {
             alert("Reset Failed: " + formatError(err));
@@ -279,13 +318,20 @@ function App() {
                         <StatsEdge />
                     ) : currentView === 'superposition' ? (
                         <Superposition />
+                    ) : currentView === 'blog' ? (
+                        <Blog />
+                    ) : currentView === 'odds' ? (
+                        <OddsBoard />
                     ) : currentView === 'trading-desk' ? (
                         <TradingDesk onClose={() => setCurrentView('dashboard')} />
                     ) : (
+                        // Handle 'picks' and 'props' via the Picks component
                         <Picks 
                             currentContent={picksContent} 
                             archives={archives} 
                             gameSummaries={gameSummaries}
+                            propsData={propsData}
+                            initialViewMode={currentView === 'props' ? 'edgeprop' : 'daily'}
                         />
                     )}
                 </>
@@ -325,6 +371,7 @@ function App() {
       {!isTradingDesk && !isLoadingData && (
           <>
             <ChatBot />
+            {/* ForceTour Prop added to handle manual tour triggers from startup */}
             <OnboardingTour 
                 currentView={currentView} 
                 setCurrentView={setCurrentView} 

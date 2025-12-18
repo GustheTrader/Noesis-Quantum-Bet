@@ -1,5 +1,6 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
-import { FileUp, Edit3, Lock, Unlock, UploadCloud, Check, Loader2, Trash2, AlertTriangle, FileText, X, AlertCircle, BookOpen, Database, Terminal, Code, Globe, Key, Copy, Play, RefreshCw, LogOut, UserPlus, ShieldAlert, Cpu, Clock, Github, Wifi, HardDrive, RefreshCcw, Calendar, Search, Filter, List } from 'lucide-react';
+import { FileUp, Edit3, Lock, Unlock, UploadCloud, Check, Loader2, Trash2, AlertTriangle, FileText, X, AlertCircle, BookOpen, Database, Terminal, Code, Globe, Key, Copy, Play, RefreshCw, LogOut, UserPlus, ShieldAlert, Cpu, Clock, Github, Wifi, HardDrive, RefreshCcw, Calendar, Search, Filter, List, User } from 'lucide-react';
 import { WeekData, BetResult, BetType, GameSummary } from '../types';
 import { GoogleGenAI, Type } from "@google/genai";
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from '../lib/supabase';
@@ -18,12 +19,20 @@ interface FileLog {
   name: string;
   status: 'pending' | 'processing' | 'success' | 'error';
   message?: string;
+  fileUrl?: string;
 }
 
 export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteReport, onUpdatePicks, onUploadSummary, onFactoryReset }) => {
   const [session, setSession] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'manual' | 'automation'>('manual');
   
+  // Auth State
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false);
+
   // Health Check
   const [dbStatus, setDbStatus] = useState<'checking' | 'connected' | 'error'>('checking');
   const [dbErrorDetail, setDbErrorDetail] = useState('');
@@ -83,10 +92,15 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
       setDbStatus('checking');
       setDbErrorDetail('');
       
-      // 1. Read Test
+      // 1. Read Test (Weeks)
       try {
           const { error } = await supabase.from('weeks').select('count', { count: 'exact', head: true });
           if (error) throw error;
+          
+          // 2. Read Test (Picks) - ensure table exists
+          const { error: picksError } = await supabase.from('picks').select('count', { count: 'exact', head: true });
+          if (picksError) throw picksError;
+
           setDbStatus('connected');
       } catch (e: any) {
           console.error("DB Read Failed:", e);
@@ -123,6 +137,27 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
   }, [session]);
 
 
+  const handleAuth = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setAuthLoading(true);
+      setAuthError('');
+      try {
+          if (isSignUp) {
+              const { error } = await supabase.auth.signUp({ email, password });
+              if (error) throw error;
+              setAuthError("Account created! Please check your email to confirm, or if auto-confirm is on, sign in.");
+              setIsSignUp(false);
+          } else {
+              const { error } = await supabase.auth.signInWithPassword({ email, password });
+              if (error) throw error;
+          }
+      } catch (err: any) {
+          setAuthError(formatError(err));
+      } finally {
+          setAuthLoading(false);
+      }
+  };
+
   const handleLogout = async () => { await supabase.auth.signOut(); };
 
   const fileToBase64 = (file: File): Promise<string> => {
@@ -135,35 +170,43 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
   };
 
   // --- PDF Logic ---
-  const processSingleFile = async (file: File, ai: GoogleGenAI): Promise<{ success: boolean; message: string }> => {
+  const processSingleFile = async (file: File, ai: GoogleGenAI): Promise<{ success: boolean; message: string; fileUrl?: string }> => {
     try {
         const fileExt = file.name.split('.').pop();
         const fileName = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
         
         let finalFileUrl = undefined;
 
-        // Try Upload
+        // 1. Upload to Supabase Storage ('reports' bucket)
         try {
             const { error: uploadError } = await supabase.storage.from('reports').upload(fileName, file);
             if (!uploadError) {
-                const { data: { publicUrl } } = supabase.storage.from('reports').getPublicUrl(fileName);
-                finalFileUrl = publicUrl;
+                const { data } = supabase.storage.from('reports').getPublicUrl(fileName);
+                if (data && data.publicUrl) {
+                    finalFileUrl = data.publicUrl;
+                    console.log("File Uploaded:", finalFileUrl);
+                }
             } else {
                 console.warn("PDF Upload Warning:", uploadError.message);
+                if (uploadError.message.includes('bucket not found')) {
+                    return { success: false, message: "Storage bucket 'reports' missing. Check SQL." };
+                }
             }
         } catch (err) {
             console.warn("Storage exception:", err);
         }
 
+        // 2. AI Processing
         const base64Data = await fileToBase64(file);
         const base64Content = base64Data.split(',')[1];
         
+        // Updated Prompt to ensure UNITS are calculated if missing
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: {
                 parts: [
                     { inlineData: { mimeType: file.type || 'application/pdf', data: base64Content } },
-                    { text: "Extract betting performance for QuantumEdge v.2 Model. JSON format: title, date, overallRoi, pools[name, netProfit, roi, bets[description, stake, units, odds, result, profit, betType]]." }
+                    { text: "Extract betting performance. JSON: title, date, overallRoi (number), pools[name, netProfit (number), roi (number), bets[description, stake (number), units (number), odds (string), result (WIN/LOSS/VOID), profit (number), betType (SINGLE/PARLAY)]]. IMPORTANT: If 'units' is not explicitly listed, calculate it as (stake / 100)." }
                 ]
             },
             config: { responseMimeType: "application/json" }
@@ -172,25 +215,24 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
         if (response.text) {
             const extractedData = JSON.parse(response.text);
             
-            // Prefer manually selected date, fallback to AI extracted, fallback to today
             const dateStr = uploadDate ? new Date(uploadDate).toLocaleDateString() : (extractedData.date || new Date().toLocaleDateString());
 
             const newWeekData: WeekData = {
                 id: `w-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                 title: file.name.replace(/\.[^/.]+$/, ""), 
                 date: dateStr,
-                overallRoi: extractedData.overallRoi || 0,
-                fileUrl: finalFileUrl,
+                overallRoi: Math.round(extractedData.overallRoi || 0),
+                fileUrl: finalFileUrl, // Store the URL!
                 pools: (extractedData.pools || []).map((pool: any, pIdx: number) => ({
                     id: `p-${Date.now()}-${pIdx}`,
                     name: pool.name || "Pool",
                     netProfit: pool.netProfit || 0,
-                    roi: pool.roi || 0,
+                    roi: Math.round(pool.roi || 0),
                     bets: (pool.bets || []).map((bet: any, bIdx: number) => ({
                         id: `b-${Date.now()}-${pIdx}-${bIdx}`,
                         description: bet.description || "Bet",
                         stake: bet.stake || 0,
-                        units: bet.units || 0,
+                        units: bet.units || (bet.stake ? bet.stake / 100 : 0), // Fallback calculation
                         odds: bet.odds,
                         result: (bet.result as BetResult) || BetResult.PENDING,
                         profit: bet.profit || 0,
@@ -199,7 +241,7 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
                 }))
             };
             onDataUploaded(newWeekData);
-            return { success: true, message: "Processed & Uploaded" };
+            return { success: true, message: finalFileUrl ? "Processed & Saved" : "Processed (No File)", fileUrl: finalFileUrl };
         }
         return { success: false, message: "AI returned empty" };
     } catch (error: any) { 
@@ -223,7 +265,7 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
             const result = await processSingleFile(file, ai);
             if (result.success) {
                 successCount++;
-                setProcessingLogs(prev => prev.map(log => log.name === file.name ? { ...log, status: 'success', message: 'Saved' } : log));
+                setProcessingLogs(prev => prev.map(log => log.name === file.name ? { ...log, status: 'success', message: result.message, fileUrl: result.fileUrl } : log));
             } else {
                 failCount++;
                 setProcessingLogs(prev => prev.map(log => log.name === file.name ? { ...log, status: 'error', message: result.message } : log));
@@ -249,9 +291,25 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
           try {
              const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
              const base64Data = await fileToBase64(file);
+             
+             // STRICT TEAM PICKS FORMAT PROMPT
+             // Updated to force specific structure for Cards in Picks.tsx
+             const prompt = `Convert the attached betting sheet into a structured HFT report.
+             
+             CRITICAL RULES:
+             1. **NO MARKDOWN HEADERS**. Use UPPERCASE plain text for section titles (e.g., "OFFICIAL POSITIONS").
+             2. **CARD FORMATTING**: For each pick, you MUST use this exact syntax:
+                - **TeamName Line** (Odds): Analysis...
+             
+             Example:
+             - **Lions -3.0** (-110): Detroit coming off a bye week is historically 82% ATS.
+             - **Chiefs -3.5** (-105): Mahomes at home is an auto-play.
+             
+             Do not use code blocks. Return raw text with bolding notation only.`;
+
              const response = await ai.models.generateContent({
                  model: 'gemini-2.5-flash',
-                 contents: { parts: [{ inlineData: { mimeType: file.type || 'text/plain', data: base64Data.split(',')[1] } }, { text: "Convert to HFT report style (Exec Summary, Analysis, Official Plays). No code blocks." }] }
+                 contents: { parts: [{ inlineData: { mimeType: file.type || 'text/plain', data: base64Data.split(',')[1] } }, { text: prompt }] }
              });
              if (response.text) {
                  onUpdatePicks(stripCodeFences(response.text), file.name.replace(/\.[^/.]+$/, ""));
@@ -273,9 +331,14 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
           try {
              const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
              const base64Data = await fileToBase64(file);
+             
+             const prompt = `Extract Game Summary. 
+             Return JSON: { title: string, date: string (YYYY-MM-DD), content: string }.
+             IMPORTANT: The 'content' field must be plain text with **bold** highlights only. NO markdown headers (#). Use UPPERCASE for titles within the content.`;
+
              const response = await ai.models.generateContent({
                  model: 'gemini-2.5-flash',
-                 contents: { parts: [{ inlineData: { mimeType: file.type || 'text/plain', data: base64Data.split(',')[1] } }, { text: "Extract Game Summary (title, date, content). JSON output." }] },
+                 contents: { parts: [{ inlineData: { mimeType: file.type || 'text/plain', data: base64Data.split(',')[1] } }, { text: prompt }] },
                  config: { responseMimeType: "application/json" }
              });
              if (response.text) {
@@ -300,7 +363,7 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
              const base64Data = await fileToBase64(file);
              const response = await ai.models.generateContent({
                  model: 'gemini-2.5-flash',
-                 contents: { parts: [{ inlineData: { mimeType: file.type || 'text/plain', data: base64Data.split(',')[1] } }, { text: "Extract Player Props. JSON Array format: [{ player, stat, line, side (OVER/UNDER), book_odds (number), dfs_implied (number), ev (number), best_platform }]." }] },
+                 contents: { parts: [{ inlineData: { mimeType: file.type || 'text/plain', data: base64Data.split(',')[1] } }, { text: "Extract Player Props. JSON Array format: [{ player (string), stat (string), line (number), side (OVER/UNDER), book_odds (number, e.g -110), dfs_implied (number), ev (number), best_platform (string) }]." }] },
                  config: { responseMimeType: "application/json" }
              });
              
@@ -330,13 +393,11 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
 
   // --- FILTERING LOGIC ---
   const filteredWeeks = weeks.filter(w => {
-      // 1. Search Filter
       const searchLower = filterSearch.toLowerCase();
       const matchesSearch = !filterSearch || 
           w.title.toLowerCase().includes(searchLower) || 
           w.id.toLowerCase().includes(searchLower);
       
-      // 2. Date Range Filter
       let matchesDate = true;
       if (filterStart || filterEnd) {
           const wDate = new Date(w.date || '');
@@ -347,20 +408,91 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
               }
               if (filterEnd && matchesDate) {
                   const end = new Date(filterEnd);
-                  end.setHours(23, 59, 59, 999); // End of day
+                  end.setHours(23, 59, 59, 999);
                   if (wDate > end) matchesDate = false;
               }
           }
       }
-      
       return matchesSearch && matchesDate;
   });
 
 
-  // Auth/View Logic
-  if (!session) return ( <div className="p-20 text-center"><h2 className="text-white">Please Login</h2><button onClick={() => supabase.auth.signInWithPassword({email:AUTHORIZED_ADMIN,password:'Gusboys1!'})} className="mt-4 bg-rose-500 p-2 rounded text-white">Quick Login</button></div> );
-  if (session.user.email !== AUTHORIZED_ADMIN) return ( <div className="p-20 text-center"><h2 className="text-rose-500">Unauthorized</h2></div> );
+  // --- AUTH RENDER ---
+  if (!session) {
+      return (
+          <div className="min-h-screen flex items-center justify-center p-4">
+              <div className="w-full max-w-md bg-[#0a0e17] border border-slate-800 rounded-2xl p-8 shadow-2xl">
+                  <div className="text-center mb-8">
+                      <div className="w-16 h-16 bg-gradient-to-br from-rose-500 to-orange-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-[0_0_20px_rgba(244,63,94,0.3)]">
+                          <Lock size={32} className="text-white" />
+                      </div>
+                      <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Admin Console</h2>
+                      <p className="text-slate-400 text-sm mt-2">QuantumEdge Neural Uplink</p>
+                  </div>
 
+                  <form onSubmit={handleAuth} className="space-y-4">
+                      <div>
+                          <label className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1 block">Credentials</label>
+                          <div className="relative group">
+                              <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-rose-500 transition-colors" />
+                              <input 
+                                  type="email" 
+                                  value={email}
+                                  onChange={(e) => setEmail(e.target.value)}
+                                  placeholder="admin@quantumbets.com"
+                                  className="w-full bg-slate-900 border border-slate-700 rounded-lg py-3 pl-10 pr-4 text-white text-sm focus:border-rose-500 focus:outline-none transition-colors"
+                                  required
+                              />
+                          </div>
+                      </div>
+                      <div>
+                          <div className="relative group">
+                              <Key size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-rose-500 transition-colors" />
+                              <input 
+                                  type="password" 
+                                  value={password}
+                                  onChange={(e) => setPassword(e.target.value)}
+                                  placeholder="••••••••"
+                                  className="w-full bg-slate-900 border border-slate-700 rounded-lg py-3 pl-10 pr-4 text-white text-sm focus:border-rose-500 focus:outline-none transition-colors"
+                                  required
+                              />
+                          </div>
+                      </div>
+
+                      {authError && (
+                          <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded text-rose-400 text-xs font-bold flex items-center gap-2">
+                              <AlertCircle size={14} />
+                              {authError}
+                          </div>
+                      )}
+
+                      <button 
+                          type="submit" 
+                          disabled={authLoading}
+                          className="w-full py-3 bg-gradient-to-r from-rose-600 to-orange-600 hover:from-rose-500 hover:to-orange-500 text-white font-bold uppercase tracking-widest rounded-lg transition-all shadow-lg shadow-rose-500/20 disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                          {authLoading ? <Loader2 size={16} className="animate-spin" /> : (isSignUp ? 'Initialize Access' : 'Authenticate')}
+                      </button>
+                  </form>
+
+                  <div className="mt-6 text-center">
+                      <button 
+                          onClick={() => { setIsSignUp(!isSignUp); setAuthError(''); }}
+                          className="text-xs text-slate-500 hover:text-white underline transition-colors"
+                      >
+                          {isSignUp ? 'Already have access? Login' : 'Request Access Protocol (Sign Up)'}
+                      </button>
+                  </div>
+                  
+                  <div className="mt-8 pt-6 border-t border-slate-800 text-[10px] text-slate-600 text-center font-mono">
+                      SECURE CONNECTION :: V2025.2.1
+                  </div>
+              </div>
+          </div>
+      );
+  }
+
+  // --- MAIN RENDER ---
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="flex justify-between items-center mb-12">
@@ -394,6 +526,16 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
             </div>
         </div>
 
+        {/* Warning if not primary admin */}
+        {session.user.email !== AUTHORIZED_ADMIN && (
+            <div className="mb-8 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl flex items-center gap-3 text-yellow-200 text-sm">
+                <AlertTriangle size={20} className="shrink-0" />
+                <div>
+                    <strong>Guest Admin Access:</strong> You are logged in as {session.user.email}. You can view the dashboard, but database writes may be restricted by RLS policies if your user ID is not authorized.
+                </div>
+            </div>
+        )}
+
         {/* --- Tabs & Uploaders --- */}
         <div className="flex justify-center mb-8">
             <div className="bg-slate-900/80 p-1 rounded-xl border border-slate-800 flex gap-1">
@@ -425,13 +567,13 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
                      </div>
 
                      <input type="file" multiple accept=".pdf,image/*" onChange={onPdfManual} className="mt-4 text-xs file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-cyan-500 file:text-black hover:file:bg-cyan-400" />
-                     {processingLogs.length > 0 && <div className="mt-2 text-xs text-left w-full max-h-32 overflow-y-auto"><div className="font-bold text-slate-500 mb-1">Log:</div>{processingLogs.map((l,i)=><div key={i} className={l.status==='error'?'text-rose-500':'text-emerald-500 flex justify-between'}><span>{l.name}</span><span className="uppercase text-[9px]">{l.status}</span></div>)}</div>}
+                     {processingLogs.length > 0 && <div className="mt-2 text-xs text-left w-full max-h-32 overflow-y-auto"><div className="font-bold text-slate-500 mb-1">Log:</div>{processingLogs.map((l,i)=><div key={i} className={l.status==='error'?'text-rose-500':'text-emerald-500 flex justify-between'}><span>{l.name}</span><span className="uppercase text-[9px] flex items-center gap-1">{l.status} {l.fileUrl && <Check size={8}/>}</span></div>)}</div>}
                  </div>
                  
                  <div className="glass-panel p-6 rounded-2xl border border-emerald-500/30 text-center flex flex-col items-center justify-center relative" onDragOver={onPicksDrop} onDragLeave={() => setIsPicksDragging(false)} onDrop={onPicksDrop}>
                     {isPicksDragging && <div className="absolute inset-0 bg-emerald-500/10 z-10 flex items-center justify-center backdrop-blur-sm"><span className="font-bold text-emerald-400">DROP HERE</span></div>}
                     {isPicksProcessing ? <Loader2 className="animate-spin text-emerald-400 mb-2" size={32}/> : <FileText className="text-emerald-400 mb-2" size={32}/>}
-                    <h4 className="text-white font-bold mb-2">Daily Picks (MD)</h4>
+                    <h4 className="text-white font-bold mb-2">Team Picks (MD)</h4>
                     <input type="file" accept=".md,.txt" onChange={onPicksManual} className="text-xs file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-emerald-500 file:text-black hover:file:bg-emerald-400" />
                     <p className="text-xs text-emerald-400 mt-2">{picksMsg}</p>
                  </div>

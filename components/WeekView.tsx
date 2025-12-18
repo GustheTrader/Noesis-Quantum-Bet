@@ -9,12 +9,13 @@ interface WeekViewProps {
 }
 
 // --- Animation Helper Component ---
-const CountUp: React.FC<{ end: number; duration?: number; prefix?: string; suffix?: string; className?: string }> = ({ 
+const CountUp: React.FC<{ end: number; duration?: number; prefix?: string; suffix?: string; className?: string; decimals?: number }> = ({ 
     end, 
     duration = 1000, 
     prefix = '', 
     suffix = '', 
-    className 
+    className,
+    decimals = 2
 }) => {
     const [count, setCount] = useState(0);
     const countRef = useRef(0);
@@ -51,7 +52,7 @@ const CountUp: React.FC<{ end: number; duration?: number; prefix?: string; suffi
 
     return (
         <span className={className}>
-            {prefix}{Math.abs(count).toFixed(2)}{suffix}
+            {prefix}{Math.abs(count).toFixed(decimals)}{suffix}
         </span>
     );
 };
@@ -190,6 +191,7 @@ const WeekCard: React.FC<{ week: WeekData, displayMode: 'usd' | 'unit' }> = ({ w
                                 prefix={week.overallRoi > 0 ? '+' : ''}
                                 suffix="% ROI"
                                 duration={2000}
+                                decimals={0}
                             />
                         </div>
                         {isOpen ? <ChevronUp className="text-slate-500" /> : <ChevronDown className="text-slate-500" />}
@@ -234,7 +236,7 @@ const WeekCard: React.FC<{ week: WeekData, displayMode: 'usd' | 'unit' }> = ({ w
                                     </h3>
                                     <div className="text-xs font-mono text-slate-400">
                                         ROI: <span className={pool.roi >= 0 ? "text-emerald-400 font-bold" : "text-rose-400 font-bold"}>
-                                            {pool.roi > 0 ? '+' : ''}{pool.roi}%
+                                            {pool.roi > 0 ? '+' : ''}{Number(pool.roi).toFixed(0)}%
                                         </span>
                                     </div>
                                 </div>
