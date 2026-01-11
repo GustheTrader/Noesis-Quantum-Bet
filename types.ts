@@ -6,6 +6,7 @@ export enum BetResult {
   PENDING = 'PENDING'
 }
 
+export type League = 'NFL' | 'NBA' | 'NHL' | 'MLB';
 export type BetType = 'SINGLE' | 'PARLAY';
 
 export interface Bet {
@@ -47,7 +48,8 @@ export interface WeekData {
   date?: string;
   overallRoi: number;
   pools: Pool[];
-  fileUrl?: string; // New field for PDF link
+  fileUrl?: string;
+  league: League; // Isolated league tracking
 }
 
 export interface SummaryStats {
@@ -58,6 +60,9 @@ export interface SummaryStats {
   totalUnitsWagered: number;
   weightedWinRate: number;
   winningUnitsWagered: number;
+  winCount: number;
+  lossCount: number;
+  voidCount: number;
 }
 
 export interface DashboardStats {
@@ -77,6 +82,8 @@ export interface PickArchiveItem {
   date: string;
   title: string;
   content: string;
+  league: League;
+  fileUrl?: string;
 }
 
 export interface GameSummary {
@@ -84,4 +91,6 @@ export interface GameSummary {
   title: string;
   date: string;
   content: string;
+  league: League;
+  fileUrl?: string;
 }

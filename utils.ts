@@ -1,6 +1,31 @@
 
 import { WeekData, SummaryStats, ChartDataPoint, BetResult, DashboardStats, Bet } from './types';
 
+/**
+ * Unifies error handling to prevent [object Object] displays.
+ */
+export const formatError = (err: any): string => {
+  if (!err) return "Unknown Error";
+  if (typeof err === 'string') return err;
+  
+  if (typeof err === 'object') {
+    if (err.message) return err.message;
+    if (err.error_description) return err.error_description;
+    if (err.msg) return err.msg;
+    if (err instanceof Error) return err.message;
+    
+    try {
+      const stringified = JSON.stringify(err);
+      if (stringified === '{}') return `Object: ${Object.keys(err).join(', ')}`;
+      return stringified;
+    } catch (e) {
+      return "An unexpected object error occurred (unserializable)";
+    }
+  }
+  
+  return String(err);
+};
+
 export const calculateStats = (weeks: WeekData[]): DashboardStats => {
   const createEmptyStats = (): any => ({
     totalInvested: 0,
@@ -9,7 +34,10 @@ export const calculateStats = (weeks: WeekData[]): DashboardStats => {
     roi: 0,
     totalUnitsWagered: 0,
     winningUnitsWagered: 0,
-    weightedWinRate: 0
+    weightedWinRate: 0,
+    winCount: 0,
+    lossCount: 0,
+    voidCount: 0
   });
 
   const overall = createEmptyStats();
@@ -17,7 +45,6 @@ export const calculateStats = (weeks: WeekData[]): DashboardStats => {
   const parlays = createEmptyStats();
 
   const processBet = (bet: Bet, stats: any) => {
-    // Robust parsing: Handle strings like "1.5u" or "$100" by stripping non-numeric chars (keeping decimal point)
     const cleanNumber = (val: any) => {
         if (typeof val === 'number') return val;
         if (!val) return 0;
@@ -26,7 +53,8 @@ export const calculateStats = (weeks: WeekData[]): DashboardStats => {
     };
 
     const stake = cleanNumber(bet.stake);
-    const units = cleanNumber(bet.units);
+    // Explicitly base units on $100 unit if missing or just use total/100 for consistency
+    const units = stake / 100;
     const profit = cleanNumber(bet.profit);
 
     stats.totalInvested += stake;
@@ -34,18 +62,20 @@ export const calculateStats = (weeks: WeekData[]): DashboardStats => {
     stats.netProfit += profit;
 
     if (bet.result === BetResult.WIN) {
-      // If profit is recorded, return is stake + profit
       stats.totalReturn += (stake + profit);
       stats.winningUnitsWagered += units;
+      stats.winCount += 1;
+    } else if (bet.result === BetResult.LOSS) {
+      stats.lossCount += 1;
     } else if (bet.result === BetResult.VOID) {
       stats.totalReturn += stake;
+      stats.voidCount += 1;
     }
   };
 
   weeks.forEach(week => {
     week.pools.forEach(pool => {
       pool.bets.forEach(bet => {
-        // Determine Bet Type if not explicitly set
         let isParlay = false;
         if (bet.betType) {
             isParlay = bet.betType === 'PARLAY';
@@ -74,11 +104,13 @@ export const calculateStats = (weeks: WeekData[]): DashboardStats => {
       totalInvested: Math.round(s.totalInvested),
       totalReturn: Math.round(s.totalReturn),
       netProfit: Math.round(s.netProfit),
-      roi: Math.round(roi), // Rounded to nearest integer
-      // Safely cast to Number before toFixed to prevent crashes
+      roi: Math.round(roi),
       totalUnitsWagered: parseFloat(Number(s.totalUnitsWagered).toFixed(2)),
       weightedWinRate: parseFloat(weightedWinRate.toFixed(1)),
-      winningUnitsWagered: parseFloat(Number(s.winningUnitsWagered).toFixed(2))
+      winningUnitsWagered: parseFloat(Number(s.winningUnitsWagered).toFixed(2)),
+      winCount: s.winCount,
+      lossCount: s.lossCount,
+      voidCount: s.voidCount
     };
   };
 
@@ -92,13 +124,11 @@ export const calculateStats = (weeks: WeekData[]): DashboardStats => {
 export const generateChartData = (weeks: WeekData[]): ChartDataPoint[] => {
   let runningProfit = 0;
   
-  // Helper to extract week number for robust sorting
   const getWeekNum = (title: string) => {
     const match = title.match(/week[\s_-]*(\d+)/i);
     return match ? parseInt(match[1]) : 0;
   };
 
-  // Sort Chronologically: Oldest (Week 1) -> Newest (Week X)
   const sortedWeeks = [...weeks].sort((a, b) => getWeekNum(a.title) - getWeekNum(b.title));
   
   return sortedWeeks.map(week => {
@@ -108,9 +138,8 @@ export const generateChartData = (weeks: WeekData[]): ChartDataPoint[] => {
     week.pools.forEach(pool => {
       weekProfit += Number(pool.netProfit) || 0;
       pool.bets.forEach(b => {
-          // Clean units here too just in case
-          const u = typeof b.units === 'number' ? b.units : parseFloat(String(b.units).replace(/[^\d.-]/g, '')) || 0;
-          weekUnits += u;
+          const stake = typeof b.stake === 'number' ? b.stake : parseFloat(String(b.stake).replace(/[^\d.-]/g, '')) || 0;
+          weekUnits += (stake / 100);
       });
     });
 

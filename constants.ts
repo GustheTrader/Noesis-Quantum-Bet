@@ -3,50 +3,40 @@ import { WeekData, BetResult, PickArchiveItem, GameSummary } from './types';
 
 export const APP_NAME = "Quantum Bets";
 export const APP_VERSION = "2025.1.0";
-export const ADMIN_PASSWORD = "101010"; // Fallback/Legacy
 export const AUTHORIZED_ADMIN = "jeffgus@gmail.com";
 
-export const INITIAL_PICKS_CONTENT = `# WEEK 6 EDGE REPORT
+export const INITIAL_PICKS_CONTENT = `# WEEK 6 ALPHA REPORT
 
 ## EXECUTIVE SUMMARY
-The Quantum Model has identified a significant liquidity divergence in the AFC South market. While public sentiment has shifted heavily towards the road favorites, our internal power ratings suggest a 4.2% variance in implied win probability for home underdogs. This week's slate heavily favors **Counter-Intuitive Value** plays where recent bias is inflating lines beyond the standard deviation.
-
-## MARKET ANALYSIS: DETROIT LIONS
-**Lions -3 (vs Cowboys)**
-The narrative surrounding the Lions' defense is currently skewed by the Week 4 outlier performance. However, Dan Campbell coming off a bye week is historically an 82% ATS cover rate.
-The model flags this as a **High Confidence** position due to the mismatch between Detroit's offensive line DVOA (Rank #2) and Dallas's run defense efficiency (Rank #24). We expect Detroit to control the clock and cover the number.
+The Quantum Model has identified a severe pricing dislocation in the NFC North moneyline markets.
 
 ## OFFICIAL POSITIONS
 
-### PRIMARY SPREADS
-- **Lions -3.0** (-110): Value up to -4.5.
-- **Jaguars +2.5** (London Alt): The travel variance favors Jacksonville's routine.
-- **Packers -5.5**: Green Bay's passing EPA/play suggests a blowout potential.
+- **Lions -3.0** (-110) | Conf: 5 | Units: 3.5u | EV: +6.4% | Sharp: -3.5 | Book: -3.0 | Risks: LT injury volatility; monitor weather reports at Dallas.
+  Model flags this as a high-limit anchor. Cowboys rush defense is currently ranking bottom 3 in DVOA over the last 14 days.
 
-### TOTALS & PROPS
-- **Commanders/Ravens OVER 51.5**: Pace of play metrics project 68+ plays per team.
-- **Bijan Robinson OVER 75.5 Rush Yds**: Atlanta's game script correlates to a heavy run volume.
+- **Steelers +3.0** (-115) | Conf: 4 | Units: 2.0u | EV: +4.8% | Sharp: +2.5 | Book: +3.0 | Risks: Mike Tomlin underdog variance; Texans pass rush efficiency.
+  The image confirms this line holds at +3 (-115). This remains the ultimate structural edge. Home underdog in playoffs / Wild Card dog.
 
-## LONGSHOT PARLAY (+850)
-1. Lions Moneyline
-2. Bengals -3.5
-3. Bijan Robinson O 75.5 Rush
-4. Falcons -6.0
+- **Ravens ML** (-175) | Conf: 4 | Units: 3.0u | EV: +3.9% | Sharp: -185 | Book: -175 | Risks: Lamar Jackson turnover rate under zero-blitz conditions.
+  EPA/play metrics suggest Baltimore dominates the interior offensive line mismatch against Washington.
 
-**NOTE:** Weather conditions in Chicago are deteriorating. Monitor wind speeds for the Bears game before locking in any Over bets.`;
+## ASYMMETRICAL PARLAYS
+
+- **Lions -3, Steelers +3** (+260) | Conf: 3 | Units: 1.5u | EV: +11.2% | Risks: Correlation variance; high ceiling play.
+  Asymmetrical return play targeting regional price dislocations across offshore and regulated books.
+
+- **Chiefs ML, Bills ML, Warriors ML** (+450) | Conf: 2 | Units: 1.0u | EV: +14.5% | Risks: Multi-league cross-contamination risk.
+  Three-leg liquidity anchor. Geometric bankroll growth target for asymmetrical capital allocation.`;
 
 export const INITIAL_ARCHIVE: PickArchiveItem[] = [
     {
         id: 'arch-1',
         date: '2025-10-06',
         title: 'Week 5 Recap',
-        content: `# WEEK 5 RECAP\n\n## PERFORMANCE REVIEW\nIt was a volatile week for player props, but the core spread strategy delivered significant returns. The model correctly identified the market overreaction to the Bills, capitalizing on the Jaguars' London advantage.\n\n### BEST BETS\n- **Jags ML (+160)** ✅: High conviction win.\n- **Travis Etienne Anytime TD** ❌: Variance loss on goal line carries.\n\nWe close the week up **+24.3 units**, maintaining our season-long trajectory above the 40% ROI threshold.`
-    },
-    {
-        id: 'arch-2',
-        date: '2025-09-29',
-        title: 'Week 4 Outlook',
-        content: `# WEEK 4 OUTLOOK\n\n## STRATEGY BRIEF\nThe market has not fully adjusted for the Bills' defensive injuries. We are fading public consensus heavily this week.\n\n### PRIMARY TARGETS\n- **Bills -15.5**: Projected line was -19.0.\n- **Chargers +6.5**: Herbert's recovery timeline is ahead of schedule.`
+        content: `# WEEK 5 RECAP\n\n- **Jaguars ML** (+160) | Conf: 5 | Units: 2.0u | Risks: Resulted in WIN.\n\n- **Travis Etienne Anytime TD** (+135) | Conf: 3 | Units: 1.0u | Risks: Resulted in LOSS.`,
+        // Fix: Added missing 'league' property to satisfy PickArchiveItem interface
+        league: 'NFL'
     }
 ];
 
@@ -55,7 +45,9 @@ export const INITIAL_GAME_SUMMARIES: GameSummary[] = [
         id: 'sum-1',
         title: 'Week 5: Jaguars vs Bills',
         date: '2025-10-06',
-        content: `# LONDON GAME RECAP\n\n## THE SETUP\nJaguars coming off a win, Bills traveling overseas. Line movement suggested sharp money on Jags early in the week, pushing the line from +6.5 down to +5.5.\n\n## KEY STAT\n**Trevor Lawrence: 315 Yds, 3 TDs.**\nThe Bills defense allowed 7.5 yards per play, a statistical anomaly for a top-5 DVOA unit. This confirms our hypothesis regarding travel fatigue impacting defensive reaction times.\n\n## MODEL PERFORMANCE\nWe projected Jags +5.5 with a 62% cover probability. They won outright, delivering a **2.6u profit** on the Moneyline position alone.`
+        content: `# LONDON GAME RECAP\n\n- **Trevor Lawrence o250.5 Pass Yds** (-110) | Conf: 4 | Units: 2.5u | Risks: WR drop rate variability.\nLawrence delivered 315 Yds.`,
+        // Fix: Added missing 'league' property to satisfy GameSummary interface
+        league: 'NFL'
     }
 ];
 
@@ -64,6 +56,8 @@ export const INITIAL_WEEK_DATA: WeekData[] = [
     id: 'w5-mon',
     title: 'Week 5 - Monday',
     overallRoi: 47.2,
+    // Fix: Added missing 'league' property to satisfy WeekData interface
+    league: 'NFL',
     pools: [
       {
         id: 'p1',
@@ -85,120 +79,7 @@ export const INITIAL_WEEK_DATA: WeekData[] = [
           { id: '4', description: 'Travis Etienne Jr. Anytime TD', stake: 204, units: 2.04, odds: '+135', result: BetResult.LOSS, profit: -204, betType: 'SINGLE' },
           { id: '5', description: 'Travis Kelce OVER 41.5 Rec Yds', stake: 83, units: 0.83, odds: '-114', result: BetResult.WIN, profit: 72.81, betType: 'SINGLE' },
         ]
-      },
-      {
-        id: 'p3',
-        name: 'Pool 3: Moneyline',
-        netProfit: 1600.00,
-        roi: 160.0,
-        bets: [
-          { id: '6', description: 'Jaguars ML', stake: 1000, units: 10.00, odds: '+160', result: BetResult.WIN, profit: 1600.00, betType: 'SINGLE' }
-        ]
       }
     ]
-  },
-  {
-    id: 'w5-sun',
-    title: 'Week 5 - Sunday',
-    overallRoi: -11.4,
-    pools: [
-      {
-        id: 'p1-sun',
-        name: 'Pool 1: Spreads & Totals',
-        netProfit: -5.00,
-        roi: -1.0,
-        bets: [
-          { id: '7', description: 'Texans -2.5 (vs Ravens)', stake: 150, units: 1.50, odds: '-120', result: BetResult.WIN, profit: 125, betType: 'SINGLE' },
-          { id: '8', description: 'OVER 41.5 (Saints/Giants)', stake: 120, units: 1.20, odds: '-110', result: BetResult.LOSS, profit: -120, betType: 'SINGLE' },
-          { id: '9', description: 'Colts -7.5 (vs Raiders)', stake: 110, units: 1.10, odds: '+100', result: BetResult.WIN, profit: 110, betType: 'SINGLE' }
-        ]
-      },
-      {
-        id: 'p3-sun',
-        name: 'Pool 3: Moneyline',
-        netProfit: 75.70,
-        roi: 7.6,
-        bets: [
-          { id: '10', description: 'Houston Texans ML', stake: 300, units: 3.00, odds: '-150', result: BetResult.WIN, profit: 200, betType: 'SINGLE' },
-          { id: '11', description: 'Philadelphia Eagles ML', stake: 215, units: 2.15, odds: '-215', result: BetResult.LOSS, profit: -215, betType: 'SINGLE' }
-        ]
-      }
-    ]
-  },
-  {
-    id: 'w4-morn',
-    title: 'Week 4 - Morning',
-    overallRoi: 29.0,
-    pools: [
-      {
-        id: 'p1-w4',
-        name: 'Pool 1: Spreads & Totals',
-        netProfit: 286,
-        roi: 28.6,
-        bets: [
-           { id: '12', description: 'Chargers +6.5', stake: 210, units: 2.10, result: BetResult.WIN, profit: 191, score: '21-18', betType: 'SINGLE' },
-           { id: '13', description: 'Bills -15.5', stake: 178, units: 1.78, result: BetResult.LOSS, profit: -178, score: '31-19', betType: 'SINGLE' },
-        ]
-      },
-      {
-        id: 'p3-w4',
-        name: 'Pool 3: Parlays',
-        netProfit: 588,
-        roi: 588,
-        bets: [
-          { id: '14', description: '3-Way Parlay Special', stake: 100, units: 1.00, result: BetResult.WIN, profit: 588, betType: 'PARLAY' }
-        ]
-      }
-    ]
-  },
-  {
-      id: 'w3-sun',
-      title: 'Week 3 - Sunday',
-      overallRoi: 22.2,
-      pools: [
-          {
-              id: 'p1-w3',
-              name: 'Pool 1: Standard Bets',
-              netProfit: 213,
-              roi: 22.2,
-              bets: [
-                  { id: '15', description: 'Seahawks -7.5', stake: 271, units: 2.71, odds: '+105', result: BetResult.WIN, profit: 285, betType: 'SINGLE' },
-                  { id: '16', description: '49ers -1.5', stake: 254, units: 2.54, odds: '-105', result: BetResult.LOSS, profit: -254, betType: 'SINGLE' }
-              ]
-          }
-      ]
-  },
-  {
-      id: 'w2-sun',
-      title: 'Week 2 - Sunday',
-      overallRoi: 106.0,
-      pools: [
-          {
-              id: 'p1-w2',
-              name: 'Pool 1: Moneyline Parlays',
-              netProfit: 1131,
-              roi: 452.4,
-              bets: [
-                  { id: '17', description: 'Falcons + Buccaneers ML Parlay', stake: 250, units: 2.50, odds: '+452', result: BetResult.WIN, profit: 1131, betType: 'PARLAY' }
-              ]
-          }
-      ]
-  },
-  {
-      id: 'w1-mon',
-      title: 'Week 1 - Monday',
-      overallRoi: 114.1,
-      pools: [
-          {
-              id: 'p1-w1',
-              name: 'Pool 1: Props & Parlays',
-              netProfit: 872,
-              roi: 114.1,
-              bets: [
-                  { id: '18', description: 'Aaron Jones OVER 20 Rec Yds', stake: 180, units: 1.80, odds: '+108', result: BetResult.WIN, profit: 194, betType: 'SINGLE' },
-                  { id: '19', description: '3-Team Parlay', stake: 90, units: 0.90, odds: '+487', result: BetResult.WIN, profit: 438, betType: 'PARLAY' }
-              ]
-          }
-      ]
   }
 ];

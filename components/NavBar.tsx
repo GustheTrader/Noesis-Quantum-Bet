@@ -1,12 +1,15 @@
 
-import React from 'react';
-import { LayoutDashboard, Target, FileSearch, Lock, Calculator, Zap, Infinity, MonitorPlay, ExternalLink, Mic, Users, Layers, Radar, BookOpen, Grid } from 'lucide-react';
+import React, { useState } from 'react';
+import { LayoutDashboard, Target, FileSearch, Lock, Calculator, Zap, Infinity, MonitorPlay, ExternalLink, Mic, Users, Layers, Radar, BookOpen, Grid, BarChart3, ChevronDown } from 'lucide-react';
 import { clsx } from 'clsx';
+import { League } from '../types';
 
 interface NavBarProps {
-  currentView: 'dashboard' | 'admin' | 'picks' | 'props' | 'results' | 'kelly' | 'statsedge' | 'superposition' | 'trading-desk' | 'blog' | 'odds';
+  currentView: string;
   setCurrentView: (view: any) => void;
   onLaunchArby: () => void;
+  activeLeague: League;
+  setActiveLeague: (league: League) => void;
 }
 
 const QuantumLogo = () => (
@@ -30,7 +33,9 @@ const QuantumLogo = () => (
   </svg>
 );
 
-export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onLaunchArby }) => {
+export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onLaunchArby, activeLeague, setActiveLeague }) => {
+  const [showSportsDropdown, setShowSportsDropdown] = useState(false);
+
   const getButtonClass = (isActive: boolean, colorClass: string, shadowClass: string) => {
       return clsx(
           "flex items-center gap-2 px-4 py-2.5 rounded-sm transition-all duration-300 font-black tracking-widest text-[10px] lg:text-xs uppercase border-b-2 relative overflow-hidden",
@@ -51,6 +56,14 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
       }
   };
 
+  const sports: League[] = ['NFL', 'NBA', 'NHL', 'MLB'];
+  const sportColors: Record<League, string> = {
+      NFL: 'text-emerald-400',
+      NBA: 'text-orange-400',
+      NHL: 'text-cyan-400',
+      MLB: 'text-rose-400'
+  };
+
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-[#090a15] via-[#111322] to-[#090a15] backdrop-blur-xl border-b border-indigo-500/20 shadow-2xl">
       <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent"></div>
@@ -58,7 +71,6 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
       <div className="max-w-[1800px] mx-auto px-6">
         <div className="flex items-center justify-between h-24">
           
-          {/* Logo Section */}
           <div className="flex items-center gap-5 cursor-pointer group shrink-0" onClick={() => setCurrentView('picks')}>
              <div className="relative group-hover:scale-105 transition-transform duration-500 ease-out">
                 <QuantumLogo />
@@ -83,42 +95,70 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
              </div>
           </div>
           
-          {/* Main Navigation */}
           <div className="hidden xl:flex items-center gap-1 bg-black/20 p-1 rounded-t-lg border-b border-white/5 overflow-x-auto">
             
-            {/* 1. Daily Picks */}
-            <button 
-              id="nav-picks"
-              onClick={() => setCurrentView('picks')}
-              className={getButtonClass(currentView === 'picks', 'text-emerald-400', 'shadow-[0_10px_20px_-10px_rgba(16,185,129,0.3)]')}
-            >
-              <Target size={14} strokeWidth={3} />
-              Picks & Summaries
-            </button>
+            <div className="relative">
+                <button 
+                id="nav-picks"
+                onMouseEnter={() => setShowSportsDropdown(true)}
+                onClick={() => setCurrentView('picks')}
+                className={getButtonClass(currentView === 'picks', sportColors[activeLeague], 'shadow-[0_10px_20px_-10px_rgba(16,185,129,0.3)]')}
+                >
+                <Target size={14} strokeWidth={3} />
+                {activeLeague} Edge
+                <ChevronDown size={10} className={clsx("transition-transform", showSportsDropdown && "rotate-180")} />
+                </button>
 
-            {/* 2. Player Props */}
+                {showSportsDropdown && (
+                    <div 
+                        className="absolute top-full left-0 mt-2 w-48 glass-panel border border-indigo-500/30 rounded-xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200"
+                        onMouseLeave={() => setShowSportsDropdown(false)}
+                    >
+                        {sports.map(s => (
+                            <button
+                                key={s}
+                                onClick={() => { setActiveLeague(s); setCurrentView('picks'); setShowSportsDropdown(false); }}
+                                className={clsx(
+                                    "w-full text-left px-5 py-3 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white/5 transition-colors border-b border-white/5 last:border-0",
+                                    activeLeague === s ? sportColors[s] : "text-slate-400"
+                                )}
+                            >
+                                {s} Protocol
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+
             <button 
               id="nav-props"
-              onClick={() => setCurrentView('props')}
-              className={getButtonClass(currentView === 'props', 'text-purple-400', 'shadow-[0_10px_20px_-10px_rgba(168,85,247,0.3)]')}
+              onClick={() => setCurrentView('propalpha')}
+              className={getButtonClass(currentView === 'propalpha', 'text-purple-400', 'shadow-[0_10px_20px_-10px_rgba(168,85,247,0.3)]')}
             >
               <Zap size={14} strokeWidth={3} />
-              Player Props
+              Prop Alpha
+            </button>
+
+            <button 
+              id="nav-binary"
+              onClick={() => setCurrentView('binary-alpha')}
+              className={getButtonClass(currentView === 'binary-alpha', 'text-pink-400', 'shadow-[0_10px_20px_-10px_rgba(236,72,153,0.3)]')}
+            >
+              <BarChart3 size={14} strokeWidth={3} />
+              Binary Alpha
             </button>
 
             <div className="w-px h-6 bg-white/10 mx-2"></div>
 
-            {/* 3. Odds Board (NEW) */}
             <button 
               id="nav-odds"
               onClick={() => setCurrentView('odds')}
               className={getButtonClass(currentView === 'odds', 'text-orange-400', 'shadow-[0_10px_20px_-10px_rgba(251,146,60,0.3)]')}
             >
               <Grid size={14} strokeWidth={3} />
-              Live Odds
+              Odds Board
             </button>
 
-            {/* 4. Superposition Pregame */}
             <button 
               id="nav-superposition"
               onClick={() => setCurrentView('superposition')}
@@ -138,7 +178,6 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
 
             <div className="w-px h-6 bg-white/10 mx-2"></div>
 
-            {/* 5. StatsEdge */}
             <button 
               id="nav-statsedge"
               onClick={() => setCurrentView('statsedge')}
@@ -148,7 +187,6 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
               StatsEdge
             </button>
 
-            {/* 6. Analytics */}
             <button 
               id="nav-dashboard"
               onClick={() => setCurrentView('dashboard')}
@@ -157,46 +195,8 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
               <LayoutDashboard size={14} strokeWidth={3} />
               Analytics
             </button>
-
-            {/* 7. Results */}
-            <button 
-              id="nav-results"
-              onClick={() => setCurrentView('results')}
-              className={getButtonClass(currentView === 'results', 'text-amber-400', 'shadow-[0_10px_20px_-10px_rgba(251,191,36,0.3)]')}
-            >
-              <FileSearch size={14} strokeWidth={3} />
-              Results
-            </button>
-            
-            {/* 8. Blog */}
-            <button 
-              onClick={() => setCurrentView('blog')}
-              className={getButtonClass(currentView === 'blog', 'text-indigo-400', 'shadow-[0_10px_20px_-10px_rgba(129,140,248,0.3)]')}
-            >
-              <BookOpen size={14} strokeWidth={3} />
-              Blog
-            </button>
-
-            {/* 9. Risk Tool */}
-            <button 
-              onClick={() => setCurrentView('kelly')}
-              className={getButtonClass(currentView === 'kelly', 'text-blue-400', 'shadow-[0_10px_20px_-10px_rgba(96,165,250,0.3)]')}
-            >
-              <Calculator size={14} strokeWidth={3} />
-              Risk Tool
-            </button>
-
-            {/* 10. Admin */}
-            <button 
-              onClick={() => setCurrentView('admin')}
-              className={getButtonClass(currentView === 'admin', 'text-rose-400', 'shadow-[0_10px_20px_-10px_rgba(244,63,94,0.3)]')}
-            >
-              <Lock size={12} strokeWidth={3} />
-              Admin
-            </button>
           </div>
           
-          {/* TERMINAL & VOICE */}
           <div className="ml-4 pl-4 border-l border-white/10 flex items-center gap-2 shrink-0">
               <button
                 id="nav-arby"

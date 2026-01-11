@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { WeekData } from '../types';
-import { FileSearch, FileText, Download, FileBox, ExternalLink } from 'lucide-react';
+import { FileSearch, FileText, Download, FileBox, ExternalLink, ShieldCheck } from 'lucide-react';
 
 interface ResultsProps {
   weeks: WeekData[];
@@ -14,7 +14,7 @@ export const Results: React.FC<ResultsProps> = ({ weeks }) => {
             <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-yellow-500 mb-4">
                 TRANSPARENCY REPORTS
             </h1>
-            <p className="text-slate-400 text-lg">Verified Raw Data Extraction & Results</p>
+            <p className="text-slate-400 text-lg">Verified Raw Data Extraction & Results Archive</p>
         </div>
 
         <div className="grid grid-cols-1 gap-8">
@@ -26,9 +26,9 @@ export const Results: React.FC<ResultsProps> = ({ weeks }) => {
                                 <FileSearch size={24} />
                             </div>
                             <div>
-                                <h2 className="text-2xl font-bold text-white">{week.title}</h2>
+                                <h2 className="text-2xl font-bold text-white uppercase tracking-tight">{week.title}</h2>
                                 <p className="text-xs text-amber-500/80 uppercase tracking-widest font-mono mt-1">
-                                    LOG DATE: {week.date}
+                                    AUDIT DATE: {week.date}
                                 </p>
                             </div>
                         </div>
@@ -36,7 +36,10 @@ export const Results: React.FC<ResultsProps> = ({ weeks }) => {
                             <div className={`text-2xl font-black ${week.overallRoi >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                                 {week.overallRoi > 0 ? '+' : ''}{week.overallRoi.toFixed(0)}%
                             </div>
-                            <div className="text-slate-500 text-xs uppercase tracking-wider">Verified ROI</div>
+                            <div className="text-slate-500 text-[10px] uppercase tracking-widest font-bold flex items-center justify-end gap-1">
+                                <ShieldCheck size={10} className="text-emerald-500" />
+                                Verified ROI
+                            </div>
                         </div>
                     </div>
 
@@ -44,40 +47,40 @@ export const Results: React.FC<ResultsProps> = ({ weeks }) => {
                         <div className="lg:col-span-2 bg-black/50 rounded-lg border border-slate-800 p-6 font-mono text-sm text-slate-300 relative overflow-hidden group">
                             <div className="absolute top-2 right-2 text-slate-700 flex items-center gap-1 group-hover:text-slate-500 transition-colors">
                                 <FileText size={12} />
-                                <span className="text-[10px] uppercase">RAW DATA LOG</span>
+                                <span className="text-[10px] uppercase">Database Record</span>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
                                 <div>
-                                    <h4 className="text-slate-500 text-xs uppercase mb-2 border-b border-slate-800 pb-1">Performance Summary</h4>
+                                    <h4 className="text-slate-500 text-[10px] font-black uppercase mb-2 border-b border-slate-800 pb-1">Performance Summary</h4>
                                     <div className="flex justify-between py-1 border-b border-slate-800/50">
-                                        <span>Net Profit:</span>
+                                        <span>Net P/L:</span>
                                         <span className={week.pools.reduce((a,b)=>a+b.netProfit,0) >= 0 ? 'text-emerald-500' : 'text-rose-500'}>
-                                            ${week.pools.reduce((a,b) => a + b.netProfit, 0).toFixed(2)}
+                                            ${week.pools.reduce((a,b) => a + b.netProfit, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                         </span>
                                     </div>
                                     <div className="mt-4">
-                                        <h4 className="text-slate-500 text-xs uppercase mb-2 border-b border-slate-800 pb-1">Pool Breakdown</h4>
+                                        <h4 className="text-slate-500 text-[10px] font-black uppercase mb-2 border-b border-slate-800 pb-1">Pool Breakdown</h4>
                                         {week.pools.map(pool => (
                                             <div key={pool.id} className="flex justify-between py-1 border-b border-slate-800/50 text-xs">
-                                                <span className="truncate pr-4">{pool.name}</span>
-                                                <span>{pool.roi.toFixed(0)}% ROI</span>
+                                                <span className="truncate pr-4 text-slate-400">{pool.name}</span>
+                                                <span className={pool.roi >= 0 ? 'text-emerald-500' : 'text-rose-500'}>{pool.roi.toFixed(0)}%</span>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
                                 <div>
-                                    <h4 className="text-slate-500 text-xs uppercase mb-2 border-b border-slate-800 pb-1">Betting Log Sample</h4>
-                                    <ul className="space-y-1 text-xs opacity-80">
+                                    <h4 className="text-slate-500 text-[10px] font-black uppercase mb-2 border-b border-slate-800 pb-1">Sample Betting Log</h4>
+                                    <ul className="space-y-1 text-[11px] opacity-80">
                                         {week.pools.flatMap(p => p.bets).slice(0, 5).map(bet => (
-                                            <li key={bet.id} className="flex justify-between">
-                                                <span className="truncate w-3/4">{bet.description}</span>
-                                                <span className={bet.result === 'WIN' ? 'text-emerald-500' : bet.result === 'LOSS' ? 'text-rose-500' : 'text-yellow-500'}>
+                                            <li key={bet.id} className="flex justify-between border-b border-slate-900/50 pb-0.5">
+                                                <span className="truncate w-3/4 text-slate-400">{bet.description}</span>
+                                                <span className={bet.result === 'WIN' ? 'text-emerald-500 font-bold' : bet.result === 'LOSS' ? 'text-rose-500' : 'text-yellow-500'}>
                                                     {bet.result}
                                                 </span>
                                             </li>
                                         ))}
                                         {week.pools.flatMap(p => p.bets).length > 5 && (
-                                            <li className="text-slate-600 italic pt-1">...and {week.pools.flatMap(p => p.bets).length - 5} more records</li>
+                                            <li className="text-slate-600 italic pt-2 text-[10px]">Total Records: {week.pools.flatMap(p => p.bets).length}</li>
                                         )}
                                     </ul>
                                 </div>
@@ -90,30 +93,30 @@ export const Results: React.FC<ResultsProps> = ({ weeks }) => {
                                  <div className="bg-amber-500/10 p-4 rounded-full mb-4 ring-1 ring-amber-500/30">
                                      <FileBox className="text-amber-400" size={32} />
                                  </div>
-                                 <h4 className="text-white font-bold uppercase tracking-wider mb-2">Original Report</h4>
+                                 <h4 className="text-white font-black uppercase tracking-widest text-sm mb-2">Source Document</h4>
                                  
                                  {week.fileUrl ? (
                                     <>
-                                        <p className="text-slate-500 text-xs mb-6">
-                                            Access the original PDF report uploaded to our secure archive.
+                                        <p className="text-slate-500 text-xs mb-6 leading-relaxed">
+                                            Access the original source report for manual audit and client verification.
                                         </p>
                                         <a 
                                             href={week.fileUrl} 
                                             target="_blank" 
                                             rel="noreferrer"
-                                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-bold uppercase tracking-widest transition-all shadow-lg shadow-amber-900/20"
+                                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-amber-900/20 group"
                                         >
-                                            <Download size={16} />
-                                            Retrieve Document
+                                            <Download size={16} className="group-hover:translate-y-0.5 transition-transform" />
+                                            Retrieve Source
                                         </a>
-                                        <div className="mt-2 text-[10px] text-amber-500/50 font-mono flex items-center justify-center gap-1">
-                                            <ExternalLink size={10} /> Hosted on Supabase Storage
+                                        <div className="mt-3 text-[10px] text-amber-500/50 font-mono flex items-center justify-center gap-1">
+                                            <ExternalLink size={10} /> Verified Archive Link
                                         </div>
                                     </>
                                  ) : (
                                      <>
                                         <p className="text-slate-600 text-xs mb-4 italic">
-                                            No source file attached to this record.
+                                            No external source document attached to this entry.
                                         </p>
                                         <button disabled className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-800 text-slate-500 rounded-lg text-xs font-bold uppercase tracking-widest cursor-not-allowed">
                                             <Download size={16} />

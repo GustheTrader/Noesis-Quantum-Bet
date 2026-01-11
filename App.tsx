@@ -10,376 +10,166 @@ import { StatsEdge } from './pages/StatsEdge';
 import { Superposition } from './pages/Superposition';
 import { TradingDesk } from './pages/TradingDesk';
 import { Blog } from './pages/Blog'; 
-import { OddsBoard } from './pages/OddsBoard'; // NEW IMPORT
+import { OddsBoard } from './pages/OddsBoard';
+import { PropAlpha } from './pages/PropAlpha';
+import { PredictionMarkets } from './pages/PredictionMarkets';
 import { ChatBot } from './components/ChatBot';
 import { TeamTicker } from './components/TeamTicker';
 import { OnboardingTour } from './components/OnboardingTour';
 import { VoiceAgent } from './components/VoiceAgent';
 import { EmailGate } from './components/EmailGate';
-import { INITIAL_PICKS_CONTENT } from './constants';
-import { calculateStats, generateChartData } from './utils';
-import { WeekData, PickArchiveItem, GameSummary } from './types';
+import { INITIAL_PICKS_CONTENT, INITIAL_WEEK_DATA, INITIAL_ARCHIVE, INITIAL_GAME_SUMMARIES } from './constants';
+import { calculateStats, generateChartData, formatError } from './utils';
+import { WeekData, PickArchiveItem, GameSummary, League } from './types';
 import { supabase } from './lib/supabase';
-import { Loader2, Wifi, WifiOff, AlertTriangle, RefreshCcw } from 'lucide-react';
+import { Loader2, Wifi, WifiOff, AlertTriangle, RefreshCcw, Lock } from 'lucide-react';
+import { clsx } from 'clsx';
 
 function App() {
-  const [currentView, setCurrentView] = useState<'dashboard' | 'admin' | 'picks' | 'props' | 'results' | 'kelly' | 'statsedge' | 'superposition' | 'trading-desk' | 'blog' | 'odds'>('picks');
+  const [currentView, setCurrentView] = useState<string>('picks');
+  const [activeLeague, setActiveLeague] = useState<League>('NFL');
   const [isLoadingData, setIsLoadingData] = useState(true);
-  const [dataSource, setDataSource] = useState<'CLOUD' | 'DISCONNECTED'>('CLOUD');
-  const [dbError, setDbError] = useState<string | null>(null);
-  
-  // Access Control
   const [hasAccess, setHasAccess] = useState(false);
   const [checkingAccess, setCheckingAccess] = useState(true);
-  
-  // Voice Agent State
   const [showVoiceAgent, setShowVoiceAgent] = useState(false);
-  
-  // Tour State
-  const [forceTour, setForceTour] = useState(false);
 
-  // --- State ---
   const [weeks, setWeeks] = useState<WeekData[]>([]);
-  const [picksContent, setPicksContent] = useState<string>(INITIAL_PICKS_CONTENT);
-  const [picksTitle, setPicksTitle] = useState<string>("Week 6 - NFL Slate");
   const [archives, setArchives] = useState<PickArchiveItem[]>([]);
   const [gameSummaries, setGameSummaries] = useState<GameSummary[]>([]);
-  const [propsData, setPropsData] = useState<any[]>([]);
+  
+  // Specific content for each league (Active daily report)
+  const [leaguePicks, setLeaguePicks] = useState<Record<League, string>>({
+      NFL: INITIAL_PICKS_CONTENT,
+      NBA: "# NBA ALPHA FEED\nEstablishing daily hoops signal...",
+      NHL: "# NHL ALPHA FEED\nEstablishing ice parity weights...",
+      MLB: "# MLB ALPHA FEED\nSynchronizing pitching data..."
+  });
 
-  // --- Access Check ---
   useEffect(() => {
       const storedAccess = localStorage.getItem('quantum_access_granted');
-      if (storedAccess === 'true') {
-          setHasAccess(true);
-      }
+      if (storedAccess === 'true') setHasAccess(true);
       setCheckingAccess(false);
   }, []);
 
-  const handleUnlock = (startMode: 'tour' | 'voice' | 'direct' = 'direct') => {
-      localStorage.setItem('quantum_access_granted', 'true');
-      setHasAccess(true);
-
-      // Handle Startup Modes
-      if (startMode === 'direct') {
-          // Skip tour, close voice
-          localStorage.setItem('quantum_tour_seen', 'true'); 
-          setForceTour(false);
-          setShowVoiceAgent(false);
-      } else if (startMode === 'tour') {
-          // Force tour
-          localStorage.removeItem('quantum_tour_seen');
-          setForceTour(true);
-          setShowVoiceAgent(false);
-      } else if (startMode === 'voice') {
-          // Skip tour, open voice immediately
-          localStorage.setItem('quantum_tour_seen', 'true');
-          setForceTour(false);
-          setShowVoiceAgent(true);
-      }
-  };
-
-  // --- Helper: Safe Error Formatting ---
-  const formatError = (err: any): string => {
-      if (!err) return "Unknown Error";
-      if (typeof err === 'string') return err;
-      if (err instanceof Error) return err.message;
-      if (typeof err === 'object') {
-          return err.message || err.error_description || JSON.stringify(err);
-      }
-      return String(err);
-  };
-
-  // --- Supabase Data Loading ---
   const fetchSupabaseData = async () => {
       setIsLoadingData(true);
-      setDbError(null);
       try {
-        // 1. Fetch Weeks
-        const { data: weeksData, error: weeksError } = await supabase
-          .from('weeks')
-          .select('*')
-          .order('created_at', { ascending: false });
-        
-        if (weeksError) throw weeksError;
+        const { data: weeksData } = await supabase.from('weeks').select('*');
+        if (weeksData) setWeeks(weeksData as WeekData[]);
 
-        if (weeksData) {
-            setWeeks(weeksData as WeekData[]);
-        }
-
-        // 2. Fetch Picks (Archives)
-        const { data: picksData, error: picksError } = await supabase
-          .from('picks')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (picksError) throw picksError;
-
+        const { data: picksData } = await supabase.from('picks').select('*').order('created_at', { ascending: false });
         if (picksData) {
             setArchives(picksData as PickArchiveItem[]);
-            if (picksData.length > 0) {
-                setPicksContent(picksData[0].content);
-                setPicksTitle(picksData[0].title);
-            }
+            // Hydrate current league picks from latest relevant archive
+            const sports: League[] = ['NFL', 'NBA', 'NHL', 'MLB'];
+            sports.forEach(s => {
+                const latest = picksData.find(p => p.league === s);
+                if (latest) setLeaguePicks(prev => ({ ...prev, [s]: latest.content }));
+            });
         }
 
-        // 3. Fetch Summaries
-        const { data: summariesData, error: sumError } = await supabase
-            .from('summaries')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-        if (sumError) throw sumError;
-
-        if (summariesData) {
-            setGameSummaries(summariesData as GameSummary[]);
-        }
-
-        // 4. Fetch Player Props (Market Scans)
-        const { data: props, error: propsError } = await supabase
-          .from('market_scans')
-          .select('*')
-          .order('scanned_at', { ascending: false });
-
-        if (propsError && propsError.code !== '42P01') { // Ignore missing table error for clean init
-             console.warn("Props fetch error:", propsError.message);
-        }
-        if (props) {
-            setPropsData(props);
-        }
-        
-        setDataSource('CLOUD');
+        const { data: summariesData } = await supabase.from('summaries').select('*');
+        if (summariesData) setGameSummaries(summariesData as GameSummary[]);
 
       } catch (err: any) {
-        const errorMsg = formatError(err);
-        console.error("Supabase load error:", errorMsg);
-        setDbError(errorMsg);
-        setDataSource('DISCONNECTED');
+        console.error("Data Sync Error", err);
       } finally {
         setIsLoadingData(false);
       }
   };
 
-  useEffect(() => {
-    if (hasAccess) {
-        fetchSupabaseData();
-    }
-  }, [hasAccess]);
+  useEffect(() => { if (hasAccess) fetchSupabaseData(); }, [hasAccess]);
 
-  // --- Derived Stats ---
-  const stats = useMemo(() => calculateStats(weeks), [weeks]);
-  const chartData = useMemo(() => generateChartData(weeks), [weeks]);
-
-  // --- Handlers ---
-
-  const handleDataUpload = async (newWeekData: WeekData) => {
-    setWeeks(prev => {
-      const updatedList = [newWeekData, ...prev];
-      return updatedList.sort((a, b) => {
-         const getWeekNum = (title: string) => {
-            const match = title.match(/week[\s_-]*(\d+)/i);
-            return match ? parseInt(match[1]) : 0;
-         };
-         return getWeekNum(b.title) - getWeekNum(a.title);
-      });
-    });
-
-    try {
-        const { error } = await supabase.from('weeks').upsert(newWeekData);
-        if (error) {
-            const msg = formatError(error);
-            alert(`CRITICAL SAVE ERROR: ${msg}. Data was NOT saved to cloud.`);
-            setDbError(msg);
-        }
-    } catch (err: any) {
-        alert(`Database Connection Error: ${formatError(err)}`);
-    }
-  };
-
-  const handleDataDelete = async (id: string) => {
-      setWeeks(prev => prev.filter(w => w.id !== id));
-      const { error } = await supabase.from('weeks').delete().eq('id', id);
-      if (error) console.error("Failed to delete week:", formatError(error));
-  };
-
-  const handlePicksUpdate = async (content: string, filename: string) => {
+  const handlePicksUpdate = async (content: string, filename: string, league: League, fileUrl?: string) => {
      const newArchive: PickArchiveItem = {
          id: `arch-${Date.now()}`,
          title: filename,
          date: new Date().toLocaleDateString(),
-         content: content
+         content: content,
+         league: league,
+         fileUrl: fileUrl
      };
-     
+     await supabase.from('picks').upsert(newArchive);
      setArchives(prev => [newArchive, ...prev]);
-     setPicksContent(content);
-     setPicksTitle(filename);
-
-     const { error } = await supabase.from('picks').upsert(newArchive);
-     if (error) {
-         alert(`CRITICAL SAVE ERROR: ${formatError(error)}`);
-     }
+     setLeaguePicks(prev => ({ ...prev, [league]: content }));
   };
 
-  const handleGameSummaryUpload = async (summary: GameSummary) => {
-      setGameSummaries(prev => [summary, ...prev]);
-      const { error } = await supabase.from('summaries').upsert(summary);
-      if (error) {
-         alert(`CRITICAL SAVE ERROR: ${formatError(error)}`);
-     }
-  };
-
-  const handleFactoryReset = async () => {
-      if (window.confirm("WARNING: This will wipe all data from Supabase tables. Are you sure?")) {
-          setWeeks([]);
-          setPicksContent("# System Reset\n\nNo data available.");
-          setPicksTitle("No Data");
-          setArchives([]);
-          setGameSummaries([]);
-          setPropsData([]);
-
-          try {
-            await supabase.from('weeks').delete().neq('id', '0'); 
-            await supabase.from('picks').delete().neq('id', '0');
-            await supabase.from('summaries').delete().neq('id', '0');
-            await supabase.from('market_scans').delete().neq('id', 0);
-            alert("System reset complete.");
-          } catch (err: any) {
-            alert("Reset Failed: " + formatError(err));
-          }
-      }
-  };
-
-  // View helper to keep return clean
   const isTradingDesk = currentView === 'trading-desk';
 
-  if (checkingAccess) return null; // Avoid flicker
+  if (checkingAccess) return null;
+  if (!hasAccess) return <EmailGate onUnlock={() => { localStorage.setItem('quantum_access_granted', 'true'); setHasAccess(true); }} />;
 
-  if (!hasAccess) {
-      return <EmailGate onUnlock={handleUnlock} />;
-  }
+  const renderContent = () => {
+    switch (currentView) {
+      case 'dashboard':
+        return <Dashboard weeks={weeks} stats={calculateStats(weeks)} chartData={generateChartData(weeks)} />;
+      case 'admin':
+        return (
+          <Admin 
+            onDataUploaded={(d) => setWeeks(prev => [d, ...prev])} 
+            weeks={weeks} 
+            onDeleteReport={(id) => setWeeks(prev => prev.filter(w => w.id !== id))}
+            onUpdatePicks={handlePicksUpdate}
+            onUploadSummary={(s) => setGameSummaries(prev => [s, ...prev])}
+            onFactoryReset={() => {}}
+          />
+        );
+      case 'picks':
+        return (
+          <Picks 
+            league={activeLeague}
+            currentContent={leaguePicks[activeLeague]} 
+            archives={archives} 
+            gameSummaries={gameSummaries}
+            propsData={[]}
+          />
+        );
+      case 'propalpha':
+        return <PropAlpha />;
+      case 'binary-alpha':
+        return <PredictionMarkets />;
+      case 'odds':
+        return <OddsBoard />;
+      case 'superposition':
+        return <Superposition />;
+      case 'statsedge':
+        return <StatsEdge />;
+      case 'trading-desk':
+        return <TradingDesk onClose={() => setCurrentView('picks')} />;
+      default:
+        return <Picks league={activeLeague} currentContent={leaguePicks[activeLeague]} archives={archives} gameSummaries={gameSummaries} propsData={[]} />;
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-black text-white selection:bg-cyan-500/30 flex flex-col">
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-purple-900/10 to-transparent opacity-50"></div>
-        <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-cyan-500/5 blur-[120px] rounded-full"></div>
-        <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-purple-600/5 blur-[100px] rounded-full"></div>
-      </div>
-
+    <div className="min-h-screen bg-black text-white flex flex-col">
       {!isTradingDesk && (
           <NavBar 
             currentView={currentView} 
             setCurrentView={setCurrentView} 
             onLaunchArby={() => setShowVoiceAgent(true)}
+            activeLeague={activeLeague}
+            setActiveLeague={setActiveLeague}
           />
       )}
 
-      {/* Main Content */}
       <main className={`relative z-10 flex-grow ${isTradingDesk ? '' : 'pt-24'}`}>
-        
-        {/* Only show ticker if NOT in Trading Desk mode */}
-        {!isTradingDesk && (
-            <div className="sticky top-24 z-30">
-                <TeamTicker />
-            </div>
-        )}
-
-        {/* Global Error Banner */}
-        {dbError && (
-            <div className="bg-rose-900/80 text-white text-center py-2 px-4 font-bold uppercase text-xs tracking-widest flex items-center justify-center gap-2 border-b border-rose-500">
-                <AlertTriangle size={16} />
-                Database Error: {dbError}
-            </div>
-        )}
-
+        {!isTradingDesk && <TeamTicker />}
         <div className={isTradingDesk ? "" : "py-8"}>
             {isLoadingData ? (
                 <div className="flex flex-col items-center justify-center min-h-[50vh]">
                     <Loader2 size={48} className="text-cyan-500 animate-spin mb-4" />
-                    <p className="text-slate-500 font-mono text-sm animate-pulse">Connecting to Quantum Database...</p>
+                    <p className="text-slate-500 font-mono text-sm">Synchronizing Quantum Core...</p>
                 </div>
             ) : (
-                <>
-                    {currentView === 'dashboard' ? (
-                        <Dashboard weeks={weeks} stats={stats} chartData={chartData} />
-                    ) : currentView === 'admin' ? (
-                        <Admin 
-                            onDataUploaded={handleDataUpload} 
-                            weeks={weeks} 
-                            onDeleteReport={handleDataDelete}
-                            onUpdatePicks={handlePicksUpdate}
-                            onUploadSummary={handleGameSummaryUpload}
-                            onFactoryReset={handleFactoryReset}
-                        />
-                    ) : currentView === 'results' ? (
-                        <Results weeks={weeks} />
-                    ) : currentView === 'kelly' ? (
-                        <KellyTool />
-                    ) : currentView === 'statsedge' ? (
-                        <StatsEdge />
-                    ) : currentView === 'superposition' ? (
-                        <Superposition />
-                    ) : currentView === 'blog' ? (
-                        <Blog />
-                    ) : currentView === 'odds' ? (
-                        <OddsBoard />
-                    ) : currentView === 'trading-desk' ? (
-                        <TradingDesk onClose={() => setCurrentView('dashboard')} />
-                    ) : (
-                        // Handle 'picks' and 'props' via the Picks component
-                        <Picks 
-                            currentContent={picksContent} 
-                            archives={archives} 
-                            gameSummaries={gameSummaries}
-                            propsData={propsData}
-                            initialViewMode={currentView === 'props' ? 'edgeprop' : 'daily'}
-                        />
-                    )}
-                </>
+                renderContent()
             )}
         </div>
       </main>
 
-      {/* Footer - Hide if on Trading Desk */}
-      {!isTradingDesk && (
-        <footer className="relative z-10 py-6 bg-slate-950 border-t border-slate-900">
-            <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4">
-                <div className="text-slate-600 text-xs uppercase tracking-widest">
-                    Noesis Global Trader &copy; 2025 | Proprietary Model
-                </div>
-                
-                <div className="flex items-center gap-4">
-                    <button 
-                        onClick={fetchSupabaseData}
-                        className="flex items-center gap-2 px-3 py-1 rounded-full border border-slate-700 bg-slate-900 text-[10px] text-slate-400 font-mono hover:bg-slate-800 hover:text-white transition-all"
-                    >
-                        <RefreshCcw size={10} /> Sync DB
-                    </button>
-                    <div className={`flex items-center gap-2 px-3 py-1 rounded-full border text-[10px] font-mono uppercase tracking-wider ${
-                        dataSource === 'CLOUD' 
-                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' 
-                        : 'bg-rose-500/10 border-rose-500/30 text-rose-400'
-                    }`}>
-                        {dataSource === 'CLOUD' ? <Wifi size={12} /> : <WifiOff size={12} />}
-                        {dataSource === 'CLOUD' ? 'DB Connected' : 'DB Disconnected'}
-                    </div>
-                </div>
-            </div>
-        </footer>
-      )}
-
-      {/* OVERLAYS */}
-      {!isTradingDesk && !isLoadingData && (
-          <>
-            <ChatBot />
-            {/* ForceTour Prop added to handle manual tour triggers from startup */}
-            <OnboardingTour 
-                currentView={currentView} 
-                setCurrentView={setCurrentView} 
-                onLaunchArby={() => setShowVoiceAgent(true)}
-            />
-            {showVoiceAgent && <VoiceAgent onClose={() => setShowVoiceAgent(false)} />}
-          </>
-      )}
+      {showVoiceAgent && <VoiceAgent onClose={() => setShowVoiceAgent(false)} />}
+      <ChatBot />
+      <OnboardingTour currentView={currentView} setCurrentView={setCurrentView} onLaunchArby={() => setShowVoiceAgent(true)} />
     </div>
   );
 }
