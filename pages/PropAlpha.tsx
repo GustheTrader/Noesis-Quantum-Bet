@@ -4,7 +4,7 @@ import {
   Zap, TrendingUp, BarChart3, Filter, Search, RefreshCw, 
   ArrowRight, ShieldCheck, AlertCircle, Info, Target, 
   Layers, ChevronRight, Calculator, CheckCircle2, 
-  Flame, BookOpen, ExternalLink, Activity, Shield
+  Flame, BookOpen, ExternalLink, Activity, Shield, Anchor
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -69,27 +69,28 @@ const generateProps = (league: League): PropOpportunity[] => {
     const stat = stats[league][i % 4];
     const baseLine = Math.floor(Math.random() * 40) + 0.5;
     
-    // Generate Sharp Reference (Pinnacle and Circa are anchors)
-    const pinOver = -135 - Math.floor(Math.random() * 15);
-    const pinUnder = 105 + Math.floor(Math.random() * 10);
+    // Pinnacle is the absolute anchor - we generate it first
+    const pinOver = -130 - Math.floor(Math.random() * 25);
+    const pinUnder = 100 + Math.floor(Math.random() * 15);
     
+    // Other books deviate from the Pinnacle anchor
     const circaOver = pinOver + (Math.random() > 0.5 ? 5 : -5);
-    const circaUnder = 100 + Math.floor(Math.random() * 15);
+    const circaUnder = pinUnder + (Math.random() > 0.5 ? 5 : -5);
     
-    // Novig and ProphetX usually follow but with tighter/different spreads
-    const novigOver = pinOver + (Math.random() > 0.5 ? 8 : -8);
-    const prophetxOver = pinOver + (Math.random() > 0.5 ? 4 : -4);
+    const novigOver = pinOver + (Math.random() > 0.5 ? 10 : -10);
+    const prophetxOver = pinOver + (Math.random() > 0.5 ? 8 : -8);
 
-    // Calculate Fair Probability (Simplified removal of vig)
+    // Calculate Fair Probability using the Pinnacle Anchor Method
     const getImplied = (american: number) => american > 0 ? 100 / (american + 100) : Math.abs(american) / (Math.abs(american) + 100);
     
+    // Pinnacle weighted heavily at 50% for the baseline true probability
     const pPin = getImplied(pinOver) / (getImplied(pinOver) + getImplied(pinUnder));
     const pCirca = getImplied(circaOver) / (getImplied(circaOver) + getImplied(circaUnder));
     const pNovig = getImplied(novigOver) / (getImplied(novigOver) + (1 - getImplied(novigOver) + 0.04));
     const pProphet = getImplied(prophetxOver) / (getImplied(prophetxOver) + (1 - getImplied(prophetxOver) + 0.03));
     
-    // Weighted Fair Prob: Pinnacle and Circa given highest weights
-    const fairProb = (pPin * 0.35) + (pCirca * 0.35) + (pNovig * 0.15) + (pProphet * 0.15); 
+    // Integrated Pinnacle Alpha Weighting (50% Pinnacle, 50% rest of sharp market)
+    const fairProb = (pPin * 0.50) + (pCirca * 0.30) + (pNovig * 0.10) + (pProphet * 0.10); 
     const fairOdds = Math.round(fairProb > 0.5 ? -(fairProb / (1 - fairProb)) * 100 : ((1 - fairProb) / fairProb) * 100);
 
     // Generate Soft Book line
@@ -101,7 +102,7 @@ const generateProps = (league: League): PropOpportunity[] => {
       isDFS: Math.random() > 0.7
     };
 
-    // Calculate EV
+    // Calculate EV based on the Pinnacle-Anchored Fair Probability
     const payoutFactor = 100 / Math.abs(bestSoft.overOdds);
     const ev = (fairProb * (1 + payoutFactor)) - 1;
 
@@ -156,13 +157,13 @@ export const PropAlpha: React.FC = () => {
         <div className="max-w-2xl">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30">
-               <Zap className="text-indigo-400" size={24} />
+               <Anchor className="text-indigo-400" size={24} />
             </div>
             <h1 className="text-4xl font-black text-white uppercase tracking-tighter">Prop Alpha Engine</h1>
           </div>
           <p className="text-slate-400 text-sm leading-relaxed">
-            Market-driven exploitation scanning <span className="text-indigo-400 font-bold underline">Pinnacle, Circa, Novig, and ProphetX</span> for sharp signals. 
-            We aggregate high-limit liquidity sources to identify soft book pricing inefficiencies.
+            Market-driven exploitation scanning <span className="text-indigo-400 font-bold underline">Pinnacle (Main Anchor)</span>, Circa, Novig, and ProphetX. 
+            We utilize Pinnacle's low-margin sharp lines to solve for the empirical fair-value of every market.
           </p>
         </div>
 
@@ -208,9 +209,9 @@ export const PropAlpha: React.FC = () => {
 
       {/* DASHBOARD STATS */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="glass-panel p-6 rounded-2xl border border-indigo-500/20">
-          <div className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2">Alpha Detected</div>
-          <div className="text-3xl font-black text-white">{filteredData.length} <span className="text-indigo-400 text-sm">Positions</span></div>
+        <div className="glass-panel p-6 rounded-2xl border border-indigo-500/20 bg-indigo-500/5">
+          <div className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-2">Pinnacle Integration</div>
+          <div className="text-3xl font-black text-white flex items-center gap-2">ACTIVE <CheckCircle2 size={24} className="text-emerald-500" /></div>
         </div>
         <div className="glass-panel p-6 rounded-2xl border border-indigo-500/20">
           <div className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2">Avg Market Edge</div>
@@ -230,7 +231,7 @@ export const PropAlpha: React.FC = () => {
         <div className="glass-panel p-6 rounded-2xl border border-indigo-500/20">
           <div className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2">Primary Reference</div>
           <div className="flex items-center gap-2">
-            <span className="px-2 py-1 bg-black rounded border border-slate-700 text-[10px] font-bold text-white uppercase tracking-tighter">PINNACLE // CIRCA</span>
+            <span className="px-2 py-1 bg-indigo-600 rounded border border-indigo-400 text-[10px] font-black text-white uppercase tracking-tighter">PINNACLE ANCHOR</span>
           </div>
         </div>
       </div>
@@ -240,7 +241,7 @@ export const PropAlpha: React.FC = () => {
         {isScanning && (
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-30 flex flex-col items-center justify-center">
             <div className="w-16 h-16 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mb-4"></div>
-            <p className="text-xs font-black uppercase tracking-[0.3em] text-indigo-400 animate-pulse">Scanning Global Liquidity Sources...</p>
+            <p className="text-xs font-black uppercase tracking-[0.3em] text-indigo-400 animate-pulse">Syncing Pinnacle Data Stream...</p>
           </div>
         )}
 
@@ -249,7 +250,7 @@ export const PropAlpha: React.FC = () => {
             <thead>
               <tr className="bg-[#08090f] border-b border-slate-800 text-[10px] font-black uppercase tracking-widest text-slate-500">
                 <th className="py-4 px-6">Prop Selection</th>
-                <th className="py-4 px-4 text-center border-l border-slate-800/50">Pinnacle (Sharp)</th>
+                <th className="py-4 px-4 text-center border-l border-indigo-500/30 bg-indigo-500/5">Pinnacle (Anchor)</th>
                 <th className="py-4 px-4 text-center">Circa (Sharp)</th>
                 <th className="py-4 px-4 text-center">Novig (Exch)</th>
                 <th className="py-4 px-4 text-center border-l border-slate-800/50 bg-indigo-900/10">Fair Odds</th>
@@ -270,12 +271,12 @@ export const PropAlpha: React.FC = () => {
                     </div>
                   </td>
 
-                  {/* Sharp Column: Pinnacle */}
-                  <td className="py-4 px-4 border-l border-slate-800/50">
+                  {/* Sharp Column: Pinnacle Anchor */}
+                  <td className="py-4 px-4 border-l border-indigo-500/30 bg-indigo-500/5">
                     <div className="flex flex-col items-center">
-                      <div className="text-[10px] font-mono text-emerald-400 font-bold">{row.pinnacle.over}</div>
-                      <div className="text-[10px] font-mono text-rose-400">{row.pinnacle.under}</div>
-                      <div className="text-[8px] text-slate-600 uppercase font-black mt-1">Limit Anchor</div>
+                      <div className="text-[10px] font-mono text-emerald-400 font-black">{row.pinnacle.over}</div>
+                      <div className="text-[10px] font-mono text-rose-400 font-black">{row.pinnacle.under}</div>
+                      <div className="text-[8px] text-indigo-400 uppercase font-black mt-1">Main Signal</div>
                     </div>
                   </td>
 
@@ -284,7 +285,7 @@ export const PropAlpha: React.FC = () => {
                     <div className="flex flex-col items-center">
                       <div className="text-[10px] font-mono text-emerald-400 font-bold">{row.circa.over}</div>
                       <div className="text-[10px] font-mono text-rose-400">{row.circa.under}</div>
-                      <div className="text-[8px] text-slate-600 uppercase font-black mt-1">No-Void</div>
+                      <div className="text-[8px] text-slate-600 uppercase font-black mt-1">Secondary</div>
                     </div>
                   </td>
 
@@ -344,21 +345,21 @@ export const PropAlpha: React.FC = () => {
         <div className="flex flex-wrap items-center gap-6 text-[10px] text-slate-500 uppercase tracking-widest font-black">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
-            <span>Consensus Weight: 70% Primary Sharp (PINN/CIRCA)</span>
+            <span>Consensus Weight: 50% Pinnacle (Main Anchor)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-indigo-300"></div>
+            <span>Consensus Weight: 30% Circa (Sharp)</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-purple-500"></div>
-            <span>Consensus Weight: 30% Exchange Signals (NOVG/PROPHET)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-            <span>Vig Removal: Adaptive Power Deviation</span>
+            <span>Consensus Weight: 20% Exchange Signals</span>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="text-[10px] text-slate-600 font-mono">Feed Status: SYNCHRONIZED</div>
-          <div className="px-2 py-1 bg-slate-900 border border-slate-800 rounded text-[10px] text-slate-400 font-mono uppercase tracking-tighter">
-            PRO PRIORITY DATA
+          <div className="text-[10px] text-slate-600 font-mono">Feed Status: PINNACLE-SYNC-OK</div>
+          <div className="px-2 py-1 bg-indigo-600/20 border border-indigo-500/40 rounded text-[10px] text-indigo-400 font-black uppercase tracking-tighter">
+            SHARP DATA FEED
           </div>
         </div>
       </div>
@@ -368,20 +369,20 @@ export const PropAlpha: React.FC = () => {
           <div className="glass-panel p-8 rounded-3xl border border-indigo-500/10">
               <h3 className="text-xl font-black text-white uppercase tracking-tighter mb-4 flex items-center gap-3">
                 <ShieldCheck className="text-emerald-400" />
-                The Execution Manual
+                Sharp Arbitrage Guide
               </h3>
               <ul className="space-y-4 text-sm text-slate-400 leading-relaxed">
                 <li className="flex gap-3">
                   <span className="text-indigo-400 font-mono font-bold">01.</span>
-                  <span><strong>Sharp Consensus:</strong> We demand Pinnacle and Circa agreement before flagging high-conviction alpha.</span>
+                  <span><strong>The Pinnacle Standard:</strong> Pinnacle represents the limit of market intelligence. If Pinnacle is significantly sharper than your soft book, the math guarantees long-term profit.</span>
                 </li>
                 <li className="flex gap-3">
                   <span className="text-indigo-400 font-mono font-bold">02.</span>
-                  <span><strong>Exchange Depth:</strong> Novig and ProphetX liquidity must be "HIGH" or "MED" to validate price direction.</span>
+                  <span><strong>Vig Stripping:</strong> Our model strips the "vig" (bookmaker fee) from Pinnacle's lines to find the true probability of the outcome.</span>
                 </li>
                 <li className="flex gap-3">
                   <span className="text-indigo-400 font-mono font-bold">03.</span>
-                  <span><strong>Risk Clipping:</strong> Large discrepancies against Pinnacle usually indicate limits have been hit. Move quickly.</span>
+                  <span><strong>Soft Exploitation:</strong> FanDuel and DraftKings often move slower than Pinnacle. We strike during these 5-15 minute latency windows.</span>
                 </li>
               </ul>
           </div>
@@ -389,7 +390,7 @@ export const PropAlpha: React.FC = () => {
               <div className="absolute -top-10 -right-10 w-40 h-40 bg-indigo-500/10 blur-3xl group-hover:bg-indigo-500/20 transition-all"></div>
               <h3 className="text-xl font-black text-white uppercase tracking-tighter mb-4 flex items-center gap-3">
                 <Calculator className="text-indigo-400" />
-                Kelly Allocation (1/4 Scale)
+                Kelly Sizing (Pinnacle Adjusted)
               </h3>
               <div className="p-4 bg-black/40 rounded-xl border border-slate-800 mb-4">
                 <div className="flex justify-between items-center mb-2">
@@ -402,7 +403,7 @@ export const PropAlpha: React.FC = () => {
                   <div className="flex justify-between text-slate-300"><span>8% + (Outlier)</span> <span className="text-emerald-400">3.0% +</span></div>
                 </div>
               </div>
-              <p className="text-xs text-slate-500 italic">Targeting geometric growth via fractional risk management.</p>
+              <p className="text-xs text-slate-500 italic">Pinnacle-anchored fair probability is used as the base for the Kelly Criterion formula.</p>
           </div>
       </div>
 

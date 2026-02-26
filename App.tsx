@@ -30,6 +30,7 @@ function App() {
   const [activeLeague, setActiveLeague] = useState<League>('NFL');
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [hasAccess, setHasAccess] = useState(false);
+  const [sessionMode, setSessionMode] = useState<'none' | 'tour' | 'voice' | 'direct'>('none');
   const [checkingAccess, setCheckingAccess] = useState(true);
   const [showVoiceAgent, setShowVoiceAgent] = useState(false);
 
@@ -37,7 +38,6 @@ function App() {
   const [archives, setArchives] = useState<PickArchiveItem[]>([]);
   const [gameSummaries, setGameSummaries] = useState<GameSummary[]>([]);
   
-  // Specific content for each league (Active daily report)
   const [leaguePicks, setLeaguePicks] = useState<Record<League, string>>({
       NFL: INITIAL_PICKS_CONTENT,
       NBA: "# NBA ALPHA FEED\nEstablishing daily hoops signal...",
@@ -47,7 +47,9 @@ function App() {
 
   useEffect(() => {
       const storedAccess = localStorage.getItem('quantum_access_granted');
-      if (storedAccess === 'true') setHasAccess(true);
+      if (storedAccess === 'true') {
+          setHasAccess(true);
+      }
       setCheckingAccess(false);
   }, []);
 
@@ -60,7 +62,6 @@ function App() {
         const { data: picksData } = await supabase.from('picks').select('*').order('created_at', { ascending: false });
         if (picksData) {
             setArchives(picksData as PickArchiveItem[]);
-            // Hydrate current league picks from latest relevant archive
             const sports: League[] = ['NFL', 'NBA', 'NHL', 'MLB'];
             sports.forEach(s => {
                 const latest = picksData.find(p => p.league === s);
@@ -78,7 +79,11 @@ function App() {
       }
   };
 
-  useEffect(() => { if (hasAccess) fetchSupabaseData(); }, [hasAccess]);
+  useEffect(() => { 
+    if (hasAccess) {
+        fetchSupabaseData(); 
+    }
+  }, [hasAccess]);
 
   const handlePicksUpdate = async (content: string, filename: string, league: League, fileUrl?: string) => {
      const newArchive: PickArchiveItem = {
@@ -94,15 +99,44 @@ function App() {
      setLeaguePicks(prev => ({ ...prev, [league]: content }));
   };
 
-  const isTradingDesk = currentView === 'trading-desk';
+  const handleUnlock = (mode: 'tour' | 'voice' | 'direct') => {
+    localStorage.setItem('quantum_access_granted', 'true');
+    setHasAccess(true);
+    setSessionMode(mode);
+    if (mode === 'voice') setShowVoiceAgent(true);
+    if (mode === 'tour') {
+        localStorage.removeItem('quantum_tour_seen');
+    }
+  };
+
+  const handleTourComplete = () => {
+      setSessionMode('none'); 
+  };
 
   if (checkingAccess) return null;
-  if (!hasAccess) return <EmailGate onUnlock={() => { localStorage.setItem('quantum_access_granted', 'true'); setHasAccess(true); }} />;
+
+  if (sessionMode === 'none') {
+      return <EmailGate onUnlock={handleUnlock} />;
+  }
 
   const renderContent = () => {
+    if (isLoadingData && currentView !== 'trading-desk') {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh]">
+                <Loader2 size={64} className="text-cyan-500 animate-spin mb-6" />
+                <p className="text-slate-400 font-mono text-sm uppercase tracking-[0.3em] animate-pulse">Synchronizing QuantumBets Core...</p>
+            </div>
+        );
+    }
+
+    // Filter data based on active league
+    const leagueWeeks = weeks.filter(w => w.league === activeLeague);
+    const leagueStats = calculateStats(leagueWeeks);
+    const leagueChartData = generateChartData(leagueWeeks);
+
     switch (currentView) {
       case 'dashboard':
-        return <Dashboard weeks={weeks} stats={calculateStats(weeks)} chartData={generateChartData(weeks)} />;
+        return <Dashboard weeks={leagueWeeks} stats={leagueStats} chartData={leagueChartData} activeLeague={activeLeague} />;
       case 'admin':
         return (
           <Admin 
@@ -124,25 +158,19 @@ function App() {
             propsData={[]}
           />
         );
-      case 'propalpha':
-        return <PropAlpha />;
-      case 'binary-alpha':
-        return <PredictionMarkets />;
-      case 'odds':
-        return <OddsBoard />;
-      case 'superposition':
-        return <Superposition />;
-      case 'statsedge':
-        return <StatsEdge />;
-      case 'trading-desk':
-        return <TradingDesk onClose={() => setCurrentView('picks')} />;
-      default:
-        return <Picks league={activeLeague} currentContent={leaguePicks[activeLeague]} archives={archives} gameSummaries={gameSummaries} propsData={[]} />;
+      case 'odds': return <OddsBoard />;
+      case 'binary-alpha': return <PredictionMarkets />;
+      case 'superposition': return <Superposition />;
+      case 'statsedge': return <StatsEdge />;
+      case 'trading-desk': return <TradingDesk onClose={() => setCurrentView('picks')} />;
+      default: return <Picks league={activeLeague} currentContent={leaguePicks[activeLeague]} archives={archives} gameSummaries={gameSummaries} propsData={[]} />;
     }
   };
 
+  const isTradingDesk = currentView === 'trading-desk';
+
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col">
+    <div className="min-h-screen bg-black text-white flex flex-col relative overflow-x-hidden">
       {!isTradingDesk && (
           <NavBar 
             currentView={currentView} 
@@ -154,22 +182,24 @@ function App() {
       )}
 
       <main className={`relative z-10 flex-grow ${isTradingDesk ? '' : 'pt-24'}`}>
-        {!isTradingDesk && <TeamTicker />}
+        {!isTradingDesk && <TeamTicker activeLeague={activeLeague} />}
         <div className={isTradingDesk ? "" : "py-8"}>
-            {isLoadingData ? (
-                <div className="flex flex-col items-center justify-center min-h-[50vh]">
-                    <Loader2 size={48} className="text-cyan-500 animate-spin mb-4" />
-                    <p className="text-slate-500 font-mono text-sm">Synchronizing Quantum Core...</p>
-                </div>
-            ) : (
-                renderContent()
-            )}
+            {renderContent()}
         </div>
       </main>
 
       {showVoiceAgent && <VoiceAgent onClose={() => setShowVoiceAgent(false)} />}
+      
       <ChatBot />
-      <OnboardingTour currentView={currentView} setCurrentView={setCurrentView} onLaunchArby={() => setShowVoiceAgent(true)} />
+
+      {sessionMode === 'tour' && (
+          <OnboardingTour 
+            currentView={currentView} 
+            setCurrentView={setCurrentView} 
+            onLaunchArby={() => setShowVoiceAgent(true)} 
+            onComplete={handleTourComplete}
+          />
+      )}
     </div>
   );
 }

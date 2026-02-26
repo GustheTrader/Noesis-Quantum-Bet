@@ -4,13 +4,14 @@ import { SummaryCards } from '../components/SummaryCards';
 import { PerformanceChart } from '../components/PerformanceChart';
 import { WeekView } from '../components/WeekView';
 import { HighlightReel } from '../components/HighlightReel';
-import { WeekData, DashboardStats, ChartDataPoint, UserBet, SummaryStats } from '../types';
+import { WeekData, DashboardStats, ChartDataPoint, UserBet, SummaryStats, League } from '../types';
 import { calculateStats, generateChartData } from '../utils';
 import { clsx } from 'clsx';
 import { 
   Layers, Zap, Combine, Cpu, Activity, User, Briefcase, RefreshCcw, 
   TrendingUp, DollarSign, Wallet, PieChart as PieChartIcon, 
-  ArrowUpRight, ArrowDownRight, History, BarChart3, Target, Calendar
+  ArrowUpRight, ArrowDownRight, History, BarChart3, Target, Calendar,
+  Filter, Search, ChevronUp, ChevronDown, ArrowUpDown
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
@@ -19,13 +20,22 @@ interface DashboardProps {
   weeks: WeekData[];
   stats: DashboardStats;
   chartData: ChartDataPoint[];
+  activeLeague: League;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ weeks, stats, chartData }) => {
+type SortKey = keyof UserBet | 'date';
+type SortDirection = 'asc' | 'desc';
+
+export const Dashboard: React.FC<DashboardProps> = ({ weeks, stats, chartData, activeLeague }) => {
   const [scope, setScope] = useState<'MODEL' | 'CLIENT'>('MODEL');
   const [statsView, setStatsView] = useState<'overall' | 'singles' | 'parlays'>('overall');
   const [userBets, setUserBets] = useState<UserBet[]>([]);
   const [loadingUserBets, setLoadingUserBets] = useState(false);
+
+  // Table State
+  const [filterText, setFilterText] = useState('');
+  const [filterStatus, setFilterStatus] = useState<string>('ALL');
+  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' });
 
   useEffect(() => {
       if (scope === 'CLIENT') {
@@ -46,9 +56,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ weeks, stats, chartData })
       setLoadingUserBets(false);
   };
 
+  const filteredUserBets = useMemo(() => {
+      return userBets.filter(b => b.market_type === activeLeague);
+  }, [userBets, activeLeague]);
+
   // --- CLIENT ANALYTICS ---
   const clientAnalytics = useMemo(() => {
-      const settledBets = userBets.filter(b => b.status === 'WIN' || b.status === 'LOSS');
+      const settledBets = filteredUserBets.filter(b => b.status === 'WIN' || b.status === 'LOSS');
       const totalInvested = settledBets.reduce((sum, b) => sum + Number(b.stake), 0);
       const netProfit = settledBets.reduce((sum, b) => {
           if (b.status === 'WIN') return sum + Number(b.to_win);
@@ -75,7 +89,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ weeks, stats, chartData })
 
       // Market Exposure (Pie Chart)
       const exposureMap: Record<string, number> = {};
-      userBets.forEach(b => {
+      filteredUserBets.forEach(b => {
           const type = b.market_type || 'Unknown';
           exposureMap[type] = (exposureMap[type] || 0) + Number(b.stake);
       });
@@ -88,15 +102,72 @@ export const Dashboard: React.FC<DashboardProps> = ({ weeks, stats, chartData })
               netProfit: Math.round(netProfit),
               roi: parseFloat(roi.toFixed(1)),
               winRate: parseFloat(winRate.toFixed(1)),
-              pendingRisk: Math.round(userBets.filter(b => b.status === 'PENDING').reduce((a,b) => a + Number(b.stake), 0)),
-              totalVolume: Math.round(userBets.reduce((a,b) => a + Number(b.stake), 0)),
+              pendingRisk: Math.round(filteredUserBets.filter(b => b.status === 'PENDING').reduce((a,b) => a + Number(b.stake), 0)),
+              totalVolume: Math.round(filteredUserBets.reduce((a,b) => a + Number(b.stake), 0)),
               winCount,
               lossCount
           },
           pnlHistory,
           exposureData
       };
-  }, [userBets]);
+  }, [filteredUserBets]);
+
+  // --- SORTING & FILTERING ---
+  const processedBets = useMemo(() => {
+      let data = [...filteredUserBets];
+
+      // 1. Filter
+      if (filterStatus !== 'ALL') {
+          data = data.filter(b => b.status === filterStatus);
+      }
+      if (filterText) {
+          const lower = filterText.toLowerCase();
+          data = data.filter(b => 
+              b.selection.toLowerCase().includes(lower) || 
+              b.market_type?.toLowerCase().includes(lower) ||
+              b.odds.toLowerCase().includes(lower)
+          );
+      }
+
+      // 2. Sort
+      data.sort((a, b) => {
+          const aValue = sortConfig.key === 'date' ? new Date(a.created_at).getTime() : a[sortConfig.key as keyof UserBet];
+          const bValue = sortConfig.key === 'date' ? new Date(b.created_at).getTime() : b[sortConfig.key as keyof UserBet];
+
+          // Handle numeric values (stake, pnl, etc stored as potential strings or numbers)
+          const isNumeric = sortConfig.key === 'stake' || sortConfig.key === 'pnl' || sortConfig.key === 'to_win';
+          
+          if (isNumeric) {
+              const numA = Number(aValue) || 0;
+              const numB = Number(bValue) || 0;
+              return sortConfig.direction === 'asc' ? numA - numB : numB - numA;
+          }
+
+          // Handle strings
+          const strA = String(aValue || '').toLowerCase();
+          const strB = String(bValue || '').toLowerCase();
+          
+          if (strA < strB) return sortConfig.direction === 'asc' ? -1 : 1;
+          if (strA > strB) return sortConfig.direction === 'asc' ? 1 : -1;
+          return 0;
+      });
+
+      return data;
+  }, [filteredUserBets, filterText, filterStatus, sortConfig]);
+
+  const handleSort = (key: SortKey) => {
+      setSortConfig(current => ({
+          key,
+          direction: current.key === key && current.direction === 'desc' ? 'asc' : 'desc'
+      }));
+  };
+
+  const SortIcon = ({ column }: { column: SortKey }) => {
+      if (sortConfig.key !== column) return <ArrowUpDown size={12} className="text-slate-600 opacity-0 group-hover:opacity-50" />;
+      return sortConfig.direction === 'asc' 
+          ? <ChevronUp size={12} className="text-cyan-400" /> 
+          : <ChevronDown size={12} className="text-cyan-400" />;
+  };
 
   const COLORS = ['#06b6d4', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981'];
 
@@ -179,7 +250,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ weeks, stats, chartData })
           </>
       ) : (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-              {/* Client portfolio content stays largely the same, can be enhanced later */}
+              
+              {/* Summary Cards Row */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
                   <div className="glass-panel p-6 rounded-2xl border border-emerald-500/20 relative group">
                       <TrendingUp className="absolute top-6 right-6 text-emerald-500/20 group-hover:text-emerald-500/40 transition-colors" size={48} />
@@ -220,6 +292,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ weeks, stats, chartData })
                       </div>
                   </div>
               </div>
+
+              {/* Charts Row */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
                   <div className="lg:col-span-2 glass-panel p-8 rounded-2xl border border-slate-800">
                       <div className="flex justify-between items-center mb-8">
@@ -289,56 +363,112 @@ export const Dashboard: React.FC<DashboardProps> = ({ weeks, stats, chartData })
                       </div>
                   </div>
               </div>
-              <div className="glass-panel rounded-2xl overflow-hidden border border-slate-800">
-                  <div className="p-6 border-b border-slate-800 bg-slate-900/30 flex justify-between items-center">
-                      <h2 className="text-xl font-black text-white flex items-center gap-3">
-                          <History size={20} className="text-indigo-400" />
-                          Transaction Ledger
-                      </h2>
-                      <button onClick={fetchUserBets} className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all">
-                          <RefreshCcw size={14} className={loadingUserBets ? "animate-spin" : ""} />
-                          Refresh Sync
-                      </button>
+
+              {/* BET HISTORY TABLE SECTION */}
+              <div className="glass-panel rounded-2xl overflow-hidden border border-slate-800 mb-20">
+                  <div className="p-6 border-b border-slate-800 bg-slate-900/30">
+                      <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+                          <h2 className="text-xl font-black text-white flex items-center gap-3">
+                              <History size={20} className="text-indigo-400" />
+                              Bet History
+                          </h2>
+                          
+                          <div className="flex gap-4 w-full md:w-auto">
+                              {/* Search */}
+                              <div className="relative group flex-grow md:flex-grow-0">
+                                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-cyan-400 transition-colors" size={14} />
+                                  <input 
+                                      type="text" 
+                                      placeholder="Search selections..." 
+                                      value={filterText}
+                                      onChange={(e) => setFilterText(e.target.value)}
+                                      className="w-full md:w-64 bg-slate-950/50 border border-slate-700/50 rounded-lg pl-9 pr-4 py-2 text-xs text-white focus:outline-none focus:border-cyan-500/50 transition-all placeholder:text-slate-600"
+                                  />
+                              </div>
+
+                              {/* Status Filter */}
+                              <div className="relative">
+                                  <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+                                  <select 
+                                      value={filterStatus}
+                                      onChange={(e) => setFilterStatus(e.target.value)}
+                                      className="bg-slate-950/50 border border-slate-700/50 rounded-lg pl-9 pr-8 py-2 text-xs text-white focus:outline-none focus:border-cyan-500/50 appearance-none cursor-pointer"
+                                  >
+                                      <option value="ALL">All Status</option>
+                                      <option value="PENDING">Pending</option>
+                                      <option value="WIN">Win</option>
+                                      <option value="LOSS">Loss</option>
+                                      <option value="VOID">Void</option>
+                                  </select>
+                                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={12} />
+                              </div>
+
+                              <button onClick={fetchUserBets} className="p-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-all border border-slate-700">
+                                  <RefreshCcw size={14} className={loadingUserBets ? "animate-spin" : ""} />
+                              </button>
+                          </div>
+                      </div>
                   </div>
+
                   <div className="overflow-x-auto">
                       <table className="w-full text-left border-collapse">
                           <thead>
-                              <tr className="bg-slate-950/50 text-[10px] uppercase font-bold text-slate-500 tracking-wider">
-                                  <th className="py-4 px-8">Transaction Timestamp</th>
-                                  <th className="py-4 px-8">Asset / Selection</th>
-                                  <th className="py-4 px-8 text-center">Executed Odds</th>
-                                  <th className="py-4 px-8 text-right">Risk (Stake)</th>
-                                  <th className="py-4 px-8 text-center">Settlement Status</th>
-                                  <th className="py-4 px-8 text-right">Net PnL</th>
+                              <tr className="bg-slate-950/50 text-[10px] uppercase font-bold text-slate-500 tracking-wider border-b border-slate-800">
+                                  <th className="py-4 px-6 cursor-pointer hover:text-white group transition-colors" onClick={() => handleSort('date')}>
+                                      <div className="flex items-center gap-2">Date <SortIcon column="date"/></div>
+                                  </th>
+                                  <th className="py-4 px-6 cursor-pointer hover:text-white group transition-colors" onClick={() => handleSort('selection')}>
+                                      <div className="flex items-center gap-2">Selection <SortIcon column="selection"/></div>
+                                  </th>
+                                  <th className="py-4 px-6 cursor-pointer hover:text-white group transition-colors" onClick={() => handleSort('market_type')}>
+                                      <div className="flex items-center gap-2">Market Type <SortIcon column="market_type"/></div>
+                                  </th>
+                                  <th className="py-4 px-6 text-center cursor-pointer hover:text-white group transition-colors" onClick={() => handleSort('odds')}>
+                                      <div className="flex items-center justify-center gap-2">Odds <SortIcon column="odds"/></div>
+                                  </th>
+                                  <th className="py-4 px-6 text-right cursor-pointer hover:text-white group transition-colors" onClick={() => handleSort('stake')}>
+                                      <div className="flex items-center justify-end gap-2">Stake <SortIcon column="stake"/></div>
+                                  </th>
+                                  <th className="py-4 px-6 text-center cursor-pointer hover:text-white group transition-colors" onClick={() => handleSort('status')}>
+                                      <div className="flex items-center justify-center gap-2">Status <SortIcon column="status"/></div>
+                                  </th>
+                                  <th className="py-4 px-6 text-right cursor-pointer hover:text-white group transition-colors" onClick={() => handleSort('pnl')}>
+                                      <div className="flex items-center justify-end gap-2">PnL <SortIcon column="pnl"/></div>
+                                  </th>
                               </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-800/50 text-sm font-mono">
-                              {userBets.length > 0 ? (
-                                  [...userBets].reverse().map((bet) => (
+                              {processedBets.length > 0 ? (
+                                  processedBets.map((bet) => (
                                       <tr key={bet.id} className="hover:bg-white/5 transition-colors group">
-                                          <td className="py-4 px-8 text-slate-500 text-xs">
+                                          <td className="py-4 px-6 text-slate-500 text-xs">
                                               <div className="flex flex-col">
                                                   <span className="text-slate-300 font-bold">{new Date(bet.created_at).toLocaleDateString()}</span>
                                                   <span>{new Date(bet.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                                               </div>
                                           </td>
-                                          <td className="py-4 px-8">
-                                              <div className="font-bold text-white mb-0.5 group-hover:text-cyan-400 transition-colors uppercase">{bet.selection}</div>
-                                              <div className="text-[10px] text-slate-500 uppercase tracking-widest">{bet.market_type}</div>
+                                          <td className="py-4 px-6">
+                                              <div className="font-bold text-white group-hover:text-cyan-400 transition-colors uppercase">{bet.selection}</div>
                                           </td>
-                                          <td className="py-4 px-8 text-center text-slate-300 font-bold">{bet.odds}</td>
-                                          <td className="py-4 px-8 text-right text-slate-300">${Number(bet.stake).toFixed(2)}</td>
-                                          <td className="py-4 px-8 text-center">
+                                          <td className="py-4 px-6">
+                                              <div className="inline-block px-2 py-0.5 bg-slate-800 rounded text-[10px] text-slate-400 uppercase tracking-wider font-bold">
+                                                  {bet.market_type || 'STANDARD'}
+                                              </div>
+                                          </td>
+                                          <td className="py-4 px-6 text-center text-slate-300 font-bold">{bet.odds}</td>
+                                          <td className="py-4 px-6 text-right text-slate-300 font-bold">${Number(bet.stake).toFixed(2)}</td>
+                                          <td className="py-4 px-6 text-center">
                                               <span className={clsx(
                                                   "px-3 py-1 rounded text-[10px] font-black uppercase tracking-tighter border", 
                                                   bet.status === 'WIN' ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" : 
                                                   bet.status === 'LOSS' ? "bg-rose-500/10 text-rose-400 border-rose-500/30" : 
+                                                  bet.status === 'VOID' ? "bg-slate-500/10 text-slate-400 border-slate-500/30" :
                                                   "bg-amber-500/10 text-amber-400 border-amber-500/30 animate-pulse"
                                               )}>
                                                   {bet.status}
                                               </span>
                                           </td>
-                                          <td className={clsx("py-4 px-8 text-right font-black text-lg", 
+                                          <td className={clsx("py-4 px-6 text-right font-black text-base", 
                                               bet.status === 'WIN' ? "text-emerald-400" : 
                                               bet.status === 'LOSS' ? "text-rose-400" : "text-slate-500"
                                           )}>
@@ -347,7 +477,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ weeks, stats, chartData })
                                       </tr>
                                   ))
                               ) : (
-                                  <tr><td colSpan={6} className="py-24 text-center text-slate-600 italic">No transactions detected.</td></tr>
+                                  <tr><td colSpan={7} className="py-24 text-center text-slate-600 italic">
+                                      {filterText || filterStatus !== 'ALL' ? 'No bets match your filter.' : 'No transactions recorded.'}
+                                  </td></tr>
                               )}
                           </tbody>
                       </table>

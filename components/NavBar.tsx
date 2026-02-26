@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { LayoutDashboard, Target, FileSearch, Lock, Calculator, Zap, Infinity, MonitorPlay, ExternalLink, Mic, Users, Layers, Radar, BookOpen, Grid, BarChart3, ChevronDown } from 'lucide-react';
+import React from 'react';
+import { LayoutDashboard, Target, MonitorPlay, ExternalLink, Mic, ShieldAlert, Trophy, Radio, BarChart3, Infinity, Calculator, Globe } from 'lucide-react';
 import { clsx } from 'clsx';
 import { League } from '../types';
 
@@ -34,8 +34,7 @@ const QuantumLogo = () => (
 );
 
 export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onLaunchArby, activeLeague, setActiveLeague }) => {
-  const [showSportsDropdown, setShowSportsDropdown] = useState(false);
-
+  
   const getButtonClass = (isActive: boolean, colorClass: string, shadowClass: string) => {
       return clsx(
           "flex items-center gap-2 px-4 py-2.5 rounded-sm transition-all duration-300 font-black tracking-widest text-[10px] lg:text-xs uppercase border-b-2 relative overflow-hidden",
@@ -56,14 +55,6 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
       }
   };
 
-  const sports: League[] = ['NFL', 'NBA', 'NHL', 'MLB'];
-  const sportColors: Record<League, string> = {
-      NFL: 'text-emerald-400',
-      NBA: 'text-orange-400',
-      NHL: 'text-cyan-400',
-      MLB: 'text-rose-400'
-  };
-
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-[#090a15] via-[#111322] to-[#090a15] backdrop-blur-xl border-b border-indigo-500/20 shadow-2xl">
       <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent"></div>
@@ -71,6 +62,7 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
       <div className="max-w-[1800px] mx-auto px-6">
         <div className="flex items-center justify-between h-24">
           
+          {/* Logo Section */}
           <div className="flex items-center gap-5 cursor-pointer group shrink-0" onClick={() => setCurrentView('picks')}>
              <div className="relative group-hover:scale-105 transition-transform duration-500 ease-out">
                 <QuantumLogo />
@@ -94,103 +86,77 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
                 </div>
              </div>
           </div>
-          
-          <div className="hidden xl:flex items-center gap-1 bg-black/20 p-1 rounded-t-lg border-b border-white/5 overflow-x-auto">
-            
-            <div className="relative">
-                <button 
-                id="nav-picks"
-                onMouseEnter={() => setShowSportsDropdown(true)}
-                onClick={() => setCurrentView('picks')}
-                className={getButtonClass(currentView === 'picks', sportColors[activeLeague], 'shadow-[0_10px_20px_-10px_rgba(16,185,129,0.3)]')}
-                >
-                <Target size={14} strokeWidth={3} />
-                {activeLeague} Edge
-                <ChevronDown size={10} className={clsx("transition-transform", showSportsDropdown && "rotate-180")} />
-                </button>
 
-                {showSportsDropdown && (
-                    <div 
-                        className="absolute top-full left-0 mt-2 w-48 glass-panel border border-indigo-500/30 rounded-xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200"
-                        onMouseLeave={() => setShowSportsDropdown(false)}
-                    >
-                        {sports.map(s => (
-                            <button
-                                key={s}
-                                onClick={() => { setActiveLeague(s); setCurrentView('picks'); setShowSportsDropdown(false); }}
-                                className={clsx(
-                                    "w-full text-left px-5 py-3 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white/5 transition-colors border-b border-white/5 last:border-0",
-                                    activeLeague === s ? sportColors[s] : "text-slate-400"
-                                )}
-                            >
-                                {s} Protocol
-                            </button>
-                        ))}
-                    </div>
+          {/* League Selector */}
+          <div className="hidden lg:flex items-center gap-1 mx-6 bg-slate-900/80 p-1 rounded-lg border border-slate-800 shadow-inner">
+            {(['NFL', 'NBA', 'NHL', 'MLB'] as League[]).map(league => (
+              <button
+                key={league}
+                onClick={() => setActiveLeague(league)}
+                className={clsx(
+                  "px-4 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all duration-300",
+                  activeLeague === league 
+                    ? "bg-cyan-500 text-black shadow-[0_0_15px_rgba(6,182,212,0.4)] scale-105" 
+                    : "text-slate-500 hover:text-white hover:bg-white/5"
                 )}
-            </div>
-
+              >
+                {league}
+              </button>
+            ))}
+          </div>
+          
+          <div className="hidden xl:flex items-center gap-2 bg-black/20 p-1 rounded-t-lg border-b border-white/5">
             <button 
-              id="nav-props"
-              onClick={() => setCurrentView('propalpha')}
-              className={getButtonClass(currentView === 'propalpha', 'text-purple-400', 'shadow-[0_10px_20px_-10px_rgba(168,85,247,0.3)]')}
+              id="nav-picks"
+              onClick={() => setCurrentView('picks')}
+              className={getButtonClass(currentView === 'picks', 'text-cyan-400', 'shadow-[0_10px_20px_-10px_rgba(6,182,212,0.3)]')}
             >
-              <Zap size={14} strokeWidth={3} />
-              Prop Alpha
+              <Target size={14} strokeWidth={3} />
+              Daily Edge
             </button>
-
-            <button 
-              id="nav-binary"
-              onClick={() => setCurrentView('binary-alpha')}
-              className={getButtonClass(currentView === 'binary-alpha', 'text-pink-400', 'shadow-[0_10px_20px_-10px_rgba(236,72,153,0.3)]')}
-            >
-              <BarChart3 size={14} strokeWidth={3} />
-              Binary Alpha
-            </button>
-
-            <div className="w-px h-6 bg-white/10 mx-2"></div>
 
             <button 
               id="nav-odds"
               onClick={() => setCurrentView('odds')}
               className={getButtonClass(currentView === 'odds', 'text-orange-400', 'shadow-[0_10px_20px_-10px_rgba(251,146,60,0.3)]')}
             >
-              <Grid size={14} strokeWidth={3} />
+              <Trophy size={14} strokeWidth={3} />
               Odds Board
             </button>
-
-            <button 
-              id="nav-superposition"
-              onClick={() => setCurrentView('superposition')}
-              className={clsx(
-                  "flex items-center gap-2 px-4 py-2.5 rounded-sm transition-all duration-300 font-black tracking-widest text-[10px] lg:text-xs uppercase border-b-2 relative overflow-hidden group",
-                  currentView === 'superposition' 
-                    ? "border-pink-500 text-white bg-pink-500/10 shadow-[0_0_20px_rgba(236,72,153,0.5)]" 
-                    : "border-transparent text-slate-400 hover:text-white hover:bg-white/5"
-              )}
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-pink-500/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              <Infinity size={16} strokeWidth={3} className={currentView === 'superposition' ? "text-pink-400 animate-pulse" : "group-hover:text-pink-400"} />
-              <span className={currentView === 'superposition' ? "text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-purple-300 to-pink-300" : ""}>
-                Superposition
-              </span>
-            </button>
-
-            <div className="w-px h-6 bg-white/10 mx-2"></div>
 
             <button 
               id="nav-statsedge"
               onClick={() => setCurrentView('statsedge')}
               className={getButtonClass(currentView === 'statsedge', 'text-yellow-400', 'shadow-[0_10px_20px_-10px_rgba(250,204,21,0.3)]')}
             >
-              <Radar size={14} strokeWidth={3} />
-              StatsEdge
+              <BarChart3 size={14} strokeWidth={3} />
+              Stats Edge
             </button>
+
+            <button 
+              id="nav-binary"
+              onClick={() => setCurrentView('binary-alpha')}
+              className={getButtonClass(currentView === 'binary-alpha', 'text-emerald-400', 'shadow-[0_10px_20px_-10px_rgba(16,185,129,0.3)]')}
+            >
+              <Globe size={14} strokeWidth={3} />
+              Binary Alpha
+            </button>
+
+            <button 
+              id="nav-superposition"
+              onClick={() => setCurrentView('superposition')}
+              className={getButtonClass(currentView === 'superposition', 'text-pink-400', 'shadow-[0_10px_20px_-10px_rgba(236,72,153,0.3)]')}
+            >
+              <Infinity size={14} strokeWidth={3} />
+              Superposition
+            </button>
+
+            <div className="w-px h-6 bg-white/10 mx-2"></div>
 
             <button 
               id="nav-dashboard"
               onClick={() => setCurrentView('dashboard')}
-              className={getButtonClass(currentView === 'dashboard', 'text-cyan-400', 'shadow-[0_10px_20px_-10px_rgba(6,182,212,0.3)]')}
+              className={getButtonClass(currentView === 'dashboard', 'text-slate-100', 'shadow-[0_10px_20px_-10px_rgba(255,255,255,0.1)]')}
             >
               <LayoutDashboard size={14} strokeWidth={3} />
               Analytics
@@ -198,6 +164,20 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
           </div>
           
           <div className="ml-4 pl-4 border-l border-white/10 flex items-center gap-2 shrink-0">
+              <button
+                id="nav-admin"
+                onClick={() => setCurrentView('admin')}
+                className={clsx(
+                    "w-9 h-9 rounded-full flex items-center justify-center transition-all border",
+                    currentView === 'admin' 
+                      ? "bg-rose-500/20 border-rose-500 text-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.3)]" 
+                      : "bg-slate-800/50 border-slate-700 text-slate-400 hover:text-rose-400 hover:border-rose-400/50"
+                )}
+                title="Admin Control"
+              >
+                  <ShieldAlert size={16} />
+              </button>
+
               <button
                 id="nav-arby"
                 onClick={onLaunchArby}
