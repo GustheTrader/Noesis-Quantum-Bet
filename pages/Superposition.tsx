@@ -1,9 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
-import { Infinity, ArrowRightLeft, Globe, Coins, Zap, ShieldCheck, TrendingUp, AlertTriangle, Layers } from 'lucide-react';
+import { Infinity, ArrowRightLeft, Globe, Coins, Zap, ShieldCheck, TrendingUp, AlertTriangle, Layers, Cpu } from 'lucide-react';
 import { clsx } from 'clsx';
+import { League } from '../types';
 
-export const Superposition: React.FC = () => {
+interface SuperpositionProps {
+  activeLeague: League;
+}
+
+export const Superposition: React.FC<SuperpositionProps> = ({ activeLeague }) => {
   const [activeExample, setActiveExample] = useState(0);
 
   // Animation cycle for the visualizer
@@ -22,13 +27,32 @@ export const Superposition: React.FC = () => {
          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-indigo-500/10 blur-[100px] rounded-full pointer-events-none"></div>
          <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 mb-6 uppercase tracking-tighter drop-shadow-lg relative z-10 flex items-center justify-center gap-4">
             <Infinity className="text-indigo-400 animate-pulse" size={48} />
-            Quantum Superposition
+            {activeLeague} Superposition
          </h1>
-         <p className="text-xl text-slate-300 font-light max-w-3xl mx-auto leading-relaxed relative z-10">
-            The mathematical certainty of profit derived from holding two contradictory market positions simultaneously.
-            <br/>
-            <span className="text-indigo-400 font-bold">The Crossed Arb Engine.</span>
-         </p>
+         {activeLeague === 'VELOCITY' ? (
+            <div className="relative z-10 space-y-4">
+                <p className="text-2xl text-fuchsia-400 font-black uppercase tracking-[0.2em] animate-pulse">
+                    Velocity AsymBetting Active
+                </p>
+                <p className="text-xl text-slate-300 font-light max-w-3xl mx-auto leading-relaxed">
+                    Agentic betting agents are now executing explosive edge strategies across <span className="text-white font-bold">Crypto, DeFi, and TradFi</span> markets.
+                </p>
+                <div className="flex justify-center gap-4 mt-6">
+                    <div className="px-6 py-2 bg-fuchsia-500/20 border border-fuchsia-500/50 rounded-full text-fuchsia-300 text-xs font-black uppercase tracking-widest flex items-center gap-2">
+                        <Cpu size={14} /> Agentic Sync Active
+                    </div>
+                    <div className="px-6 py-2 bg-cyan-500/20 border border-cyan-500/50 rounded-full text-cyan-300 text-xs font-black uppercase tracking-widest flex items-center gap-2">
+                        <Zap size={14} /> High Velocity Yield
+                    </div>
+                </div>
+            </div>
+         ) : (
+            <p className="text-xl text-slate-300 font-light max-w-3xl mx-auto leading-relaxed relative z-10">
+                The mathematical certainty of profit derived from holding two contradictory market positions simultaneously in <span className="text-indigo-400 font-bold">{activeLeague}</span>.
+                <br/>
+                <span className="text-indigo-400 font-bold">The Crossed Arb Engine.</span>
+            </p>
+         )}
       </div>
 
       {/* CONCEPTUAL FRAMEWORK */}

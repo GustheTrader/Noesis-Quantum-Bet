@@ -12,6 +12,7 @@ import {
   Tooltip, ResponsiveContainer, Area, AreaChart, ReferenceLine 
 } from 'recharts';
 import { clsx } from 'clsx';
+import { League } from '../types';
 
 // MOCK DATA TYPES
 interface BinaryMarket {
@@ -57,7 +58,11 @@ const DECAY_DATA = [
   { time: '0:05', posProb: 1, turnProb: 0.3, label: 'Expiry' },
 ];
 
-export const PredictionMarkets: React.FC = () => {
+interface PredictionMarketsProps {
+  activeLeague: League;
+}
+
+export const PredictionMarkets: React.FC<PredictionMarketsProps> = ({ activeLeague }) => {
   const [activeTab, setActiveTab] = useState<'terminal' | 'analysis'>('terminal');
   const [marketFilter, setMarketFilter] = useState<'ALL' | 'IN_GAME' | 'PREGAME' | 'ASYMMETRY'>('ALL');
   const [markets, setMarkets] = useState<BinaryMarket[]>([]);
@@ -93,10 +98,10 @@ export const PredictionMarkets: React.FC = () => {
             <div className="w-10 h-10 rounded-xl bg-pink-500/20 flex items-center justify-center border border-pink-500/30 shadow-[0_0_20px_rgba(236,72,153,0.2)]">
                <Globe className="text-pink-400" size={24} />
             </div>
-            <h1 className="text-4xl font-black text-white uppercase tracking-tighter">Binary Edge Alpha</h1>
+            <h1 className="text-4xl font-black text-white uppercase tracking-tighter">{activeLeague} Binary Edge Alpha</h1>
           </div>
           <p className="text-slate-400 text-lg leading-relaxed">
-            Direct feed of Event Contracts from <span className="text-pink-400 font-bold underline">Kalshi</span> and <span className="text-indigo-400 font-bold underline">Polymarket</span>. 
+            Direct feed of Event Contracts from <span className="text-pink-400 font-bold underline">Kalshi</span> and <span className="text-indigo-400 font-bold underline">Polymarket</span> for <span className="text-white font-bold">{activeLeague}</span>. 
             Identify mispriced probabilities in real-time.
           </p>
         </div>

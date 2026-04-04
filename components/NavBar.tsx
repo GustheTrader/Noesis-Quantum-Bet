@@ -63,7 +63,7 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
         <div className="flex items-center justify-between h-24">
           
           {/* Logo Section */}
-          <div className="flex items-center gap-5 cursor-pointer group shrink-0" onClick={() => setCurrentView('picks')}>
+          <div className="flex items-center gap-4 cursor-pointer group shrink-0" onClick={() => setCurrentView('picks')}>
              <div className="relative group-hover:scale-105 transition-transform duration-500 ease-out">
                 <QuantumLogo />
                 <div className="absolute inset-0 bg-cyan-500/20 blur-xl rounded-full -z-10 group-hover:bg-cyan-500/30 transition-colors"></div>
@@ -71,16 +71,16 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
              
              <div className="flex flex-col justify-center">
                 <div className="flex items-baseline gap-1">
-                    <h1 className="text-3xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white via-slate-200 to-slate-500 drop-shadow-sm">
+                    <h1 className="text-xl xl:text-2xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white via-slate-200 to-slate-500 drop-shadow-sm">
                         QUANTUM
                     </h1>
-                    <span className="text-3xl font-black tracking-tighter text-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,0.5)]">
+                    <span className="text-xl xl:text-2xl font-black tracking-tighter text-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,0.5)]">
                         BETS
                     </span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <div className="h-[1px] w-8 bg-indigo-500/50"></div>
-                    <span className="text-[10px] text-indigo-300 font-mono tracking-[0.2em] uppercase">
+                    <div className="h-[1px] w-6 bg-indigo-500/50"></div>
+                    <span className="text-[9px] text-indigo-300 font-mono tracking-[0.2em] uppercase">
                         v2025.2
                     </span>
                 </div>
@@ -88,21 +88,28 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
           </div>
 
           {/* League Selector */}
-          <div className="hidden lg:flex items-center gap-1 mx-6 bg-slate-900/80 p-1 rounded-lg border border-slate-800 shadow-inner">
-            {(['NFL', 'NBA', 'NHL', 'MLB'] as League[]).map(league => (
-              <button
-                key={league}
-                onClick={() => setActiveLeague(league)}
-                className={clsx(
-                  "px-4 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all duration-300",
-                  activeLeague === league 
-                    ? "bg-cyan-500 text-black shadow-[0_0_15px_rgba(6,182,212,0.4)] scale-105" 
-                    : "text-slate-500 hover:text-white hover:bg-white/5"
-                )}
-              >
-                {league}
-              </button>
-            ))}
+          <div className="hidden lg:flex items-center gap-1 mx-4 bg-slate-900/80 p-1 rounded-lg border border-slate-800 shadow-inner">
+            {(['NFL', 'NBA', 'NHL', 'MLB', 'MLS', 'SOCCER', 'MMA', 'HORSE', 'GOLF', 'VELOCITY'] as League[]).map(league => {
+              const isVelocity = league === 'VELOCITY';
+              return (
+                <button
+                  key={league}
+                  onClick={() => setActiveLeague(league)}
+                  className={clsx(
+                    "px-2 py-1.5 rounded-md text-[8px] font-black uppercase tracking-widest transition-all duration-300",
+                    activeLeague === league 
+                      ? isVelocity 
+                        ? "bg-gradient-to-r from-fuchsia-600 to-cyan-500 text-white shadow-[0_0_20px_rgba(192,38,211,0.6)] scale-110 animate-pulse"
+                        : "bg-cyan-500 text-black shadow-[0_0_15px_rgba(6,182,212,0.4)] scale-105" 
+                      : isVelocity
+                        ? "text-fuchsia-400 border border-fuchsia-500/20 hover:border-fuchsia-500/50 hover:bg-fuchsia-500/10"
+                        : "text-slate-500 hover:text-white hover:bg-white/5"
+                  )}
+                >
+                  {league}
+                </button>
+              );
+            })}
           </div>
           
           <div className="hidden xl:flex items-center gap-2 bg-black/20 p-1 rounded-t-lg border-b border-white/5">
@@ -139,7 +146,7 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
               className={getButtonClass(currentView === 'binary-alpha', 'text-emerald-400', 'shadow-[0_10px_20px_-10px_rgba(16,185,129,0.3)]')}
             >
               <Globe size={14} strokeWidth={3} />
-              Binary Alpha
+              Binary Alpha Superposition
             </button>
 
             <button 
@@ -148,7 +155,7 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
               className={getButtonClass(currentView === 'superposition', 'text-pink-400', 'shadow-[0_10px_20px_-10px_rgba(236,72,153,0.3)]')}
             >
               <Infinity size={14} strokeWidth={3} />
-              Superposition
+              Analytics
             </button>
 
             <div className="w-px h-6 bg-white/10 mx-2"></div>

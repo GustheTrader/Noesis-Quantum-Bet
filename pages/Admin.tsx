@@ -242,8 +242,8 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
 
             <div className="flex items-center gap-4 bg-[#0a0e17] p-2 rounded-full border border-white/5">
                 <div className="flex bg-black/40 rounded-full p-1">
-                    {(['NFL', 'NBA', 'NHL', 'MLB'] as League[]).map(l => (
-                        <button key={l} onClick={() => setTargetLeague(l)} className={clsx("px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all", targetLeague === l ? "bg-white text-black" : "text-slate-600 hover:text-white")}>
+                    {(['NFL', 'NBA', 'NHL', 'MLB', 'MLS', 'SOCCER', 'MMA', 'HORSE', 'GOLF'] as League[]).map(l => (
+                        <button key={l} onClick={() => setTargetLeague(l)} className={clsx("px-4 py-2.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all", targetLeague === l ? "bg-white text-black" : "text-slate-600 hover:text-white")}>
                             {l}
                         </button>
                     ))}

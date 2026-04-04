@@ -2,11 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, RefreshCw, Clock, TrendingUp, Wifi, WifiOff, AlertCircle, DollarSign, Hash, Divide } from 'lucide-react';
 import { clsx } from 'clsx';
+import { League } from '../types';
 
 interface GameOdd {
   id: string;
   homeTeam: string;
   awayTeam: string;
+  homeLogo?: string;
+  awayLogo?: string;
   homeScore?: number;
   awayScore?: number;
   status: string;
@@ -110,7 +113,11 @@ const estimateMoneyline = (spreadStr: string): { home: string, away: string } =>
     };
 };
 
-export const LiveOdds: React.FC = () => {
+interface LiveOddsProps {
+  league: League;
+}
+
+export const LiveOdds: React.FC<LiveOddsProps> = ({ league }) => {
   const [odds, setOdds] = useState<GameOdd[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
@@ -120,10 +127,41 @@ export const LiveOdds: React.FC = () => {
   const fetchOdds = async () => {
     setLoading(true);
     try {
-        // Public ESPN Endpoint for NFL Scoreboard
-        const response = await fetch('https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard');
+        // Map League to ESPN API path
+        const leagueMap: Record<League, string> = {
+            NFL: 'football/nfl',
+            NBA: 'basketball/nba',
+            NHL: 'hockey/nhl',
+            MLB: 'baseball/mlb',
+            MLS: 'soccer/usa.1',
+            SOCCER: 'soccer/eng.1',
+            MMA: 'mma/ufc',
+            HORSE: 'horse-racing',
+            GOLF: 'golf/pga',
+            VELOCITY: 'crypto'
+        };
+
+        const path = leagueMap[league] || 'football/nfl';
+        let response;
+        try {
+            response = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${path}/scoreboard`, {
+                mode: 'cors',
+                headers: { 'Accept': 'application/json' }
+            });
+        } catch (e) {
+            console.warn(`Live odds fetch failed for ${league}, using mock data`);
+            setOdds(MOCK_ODDS);
+            setUsingLiveData(false);
+            setLoading(false);
+            return;
+        }
         
-        if (!response.ok) throw new Error("API connection failed");
+        if (!response.ok) {
+            setOdds(MOCK_ODDS);
+            setUsingLiveData(false);
+            setLoading(false);
+            return;
+        }
         
         const data = await response.json();
         const events = data.events || [];
@@ -134,6 +172,30 @@ export const LiveOdds: React.FC = () => {
         } else {
             const mappedOdds: GameOdd[] = events.map((event: any) => {
                 const competition = event.competitions[0];
+                
+                // Special handling for GOLF (Individual sport)
+                if (league === 'GOLF') {
+                    const topPlayers = competition.competitors.slice(0, 2);
+                    const leader = topPlayers[0];
+                    const second = topPlayers[1];
+
+                    return {
+                        id: event.id,
+                        homeTeam: leader?.athlete?.shortName || leader?.team?.abbreviation || 'TBD',
+                        awayTeam: second?.athlete?.shortName || second?.team?.abbreviation || 'TBD',
+                        homeLogo: leader?.athlete?.headshot?.href || leader?.team?.logo,
+                        awayLogo: second?.athlete?.headshot?.href || second?.team?.logo,
+                        homeScore: leader?.score || 0,
+                        awayScore: second?.score || 0,
+                        status: event.status.type.shortDetail,
+                        spread: leader?.curatedRank?.label || 'RANK 1',
+                        total: leader?.linescores?.[0]?.displayValue || 'E',
+                        homeMl: 'LEADER',
+                        awayMl: 'CHASE',
+                        isHot: true
+                    };
+                }
+
                 const homeComp = competition.competitors.find((c: any) => c.homeAway === 'home');
                 const awayComp = competition.competitors.find((c: any) => c.homeAway === 'away');
                 const oddsData = competition.odds ? competition.odds[0] : null;
@@ -146,31 +208,30 @@ export const LiveOdds: React.FC = () => {
                 const totalStr = oddsData?.overUnder ? `${oddsData.overUnder}` : 'OFF';
                 
                 // Moneyline (ESPN often hides this deep, using estimation for consistency in display)
-                // In a real scraper scenario, we'd pull from the specific book columns.
                 const ml = estimateMoneyline(spreadStr);
                 
-                // Logic to assign ML to correct team based on spread string usually containing the favorite's abbr
-                // e.g. "KC -3.5" means KC (Home usually? check abbr) is favorite.
-                const isHomeFav = spreadStr.includes(homeComp.team.abbreviation) && spreadStr.includes('-');
-                const isAwayFav = spreadStr.includes(awayComp.team.abbreviation) && spreadStr.includes('-');
+                const isHomeFav = spreadStr && homeComp?.team?.abbreviation && spreadStr.includes(homeComp.team.abbreviation) && spreadStr.includes('-');
+                const isAwayFav = spreadStr && awayComp?.team?.abbreviation && spreadStr.includes(awayComp.team.abbreviation) && spreadStr.includes('-');
                 
                 let homeMl = '-110';
                 let awayMl = '-110';
 
                 if (isHomeFav) {
-                    homeMl = ml.home; // favorite price
+                    homeMl = ml.home;
                     awayMl = ml.away;
                 } else if (isAwayFav) {
                     homeMl = ml.away;
-                    awayMl = ml.home; // favorite price
+                    awayMl = ml.home;
                 }
 
                 return {
                     id: event.id,
-                    homeTeam: homeComp.team.abbreviation,
-                    awayTeam: awayComp.team.abbreviation,
-                    homeScore: parseInt(homeComp.score),
-                    awayScore: parseInt(awayComp.score),
+                    homeTeam: homeComp?.team?.abbreviation || 'TBD',
+                    awayTeam: awayComp?.team?.abbreviation || 'TBD',
+                    homeLogo: homeComp?.team?.logo,
+                    awayLogo: awayComp?.team?.logo,
+                    homeScore: parseInt(homeComp?.score || '0'),
+                    awayScore: parseInt(awayComp?.score || '0'),
                     status: statusStr,
                     spread: spreadStr,
                     total: totalStr,
@@ -195,10 +256,9 @@ export const LiveOdds: React.FC = () => {
 
   useEffect(() => {
     fetchOdds();
-    // Refresh every 30 minutes as requested (1,800,000 ms)
     const interval = setInterval(fetchOdds, 1800000);
     return () => clearInterval(interval);
-  }, []);
+  }, [league]); // Refetch when league changes
 
   return (
     <div className="glass-panel p-6 rounded-2xl border border-cyan-500/30 relative overflow-hidden flex flex-col">
@@ -256,7 +316,7 @@ export const LiveOdds: React.FC = () => {
             
             {/* Status Bar */}
             <div className="flex justify-between items-center mb-2 pb-2 border-b border-slate-800/50">
-                <span className={`text-[9px] font-mono uppercase tracking-wider ${game.status.includes('Final') ? 'text-slate-600' : (game.status.match(/\d/) ? 'text-rose-500 font-bold' : 'text-slate-400')}`}>
+                <span className={`text-[9px] font-mono uppercase tracking-wider ${game.status?.includes('Final') ? 'text-slate-600' : (game.status?.match(/\d/) ? 'text-rose-500 font-bold' : 'text-slate-400')}`}>
                     {game.status}
                 </span>
                 {game.isHot && <TrendingUp size={12} className="text-emerald-500" />}
@@ -268,12 +328,15 @@ export const LiveOdds: React.FC = () => {
                 {/* Away Team */}
                 <div className="flex-1">
                     <div className="flex justify-between items-center mb-1">
-                        <span className="font-black text-sm text-white">{game.awayTeam}</span>
+                        <div className="flex items-center gap-2">
+                            {game.awayLogo && <img src={game.awayLogo} alt="" className="w-5 h-5 object-contain" />}
+                            <span className="font-black text-sm text-white">{game.awayTeam}</span>
+                        </div>
                         <span className="font-mono text-slate-300">{!isNaN(Number(game.awayScore)) ? game.awayScore : '-'}</span>
                     </div>
                     {/* Data Point */}
                     <div className="text-[10px] font-mono text-cyan-300 bg-black/40 px-2 py-1 rounded text-center border border-slate-800">
-                        {viewMode === 'SPREAD' && (game.spread.includes(game.awayTeam) ? game.spread.replace(game.awayTeam, '') : (game.spread.includes(game.homeTeam) ? 'OPP' : 'OFF'))}
+                        {viewMode === 'SPREAD' && (game.spread?.includes(game.awayTeam || '') ? game.spread.replace(game.awayTeam || '', '') : (game.spread?.includes(game.homeTeam || '') ? 'OPP' : 'OFF'))}
                         {viewMode === 'TOTAL' && `O ${game.total}`}
                         {viewMode === 'ML' && (game.awayMl || 'OFF')}
                     </div>
@@ -286,11 +349,14 @@ export const LiveOdds: React.FC = () => {
                 <div className="flex-1">
                     <div className="flex justify-between items-center mb-1">
                         <span className="font-mono text-slate-300">{!isNaN(Number(game.homeScore)) ? game.homeScore : '-'}</span>
-                        <span className="font-black text-sm text-white text-right block w-full">{game.homeTeam}</span>
+                        <div className="flex items-center gap-2 justify-end">
+                            <span className="font-black text-sm text-white text-right">{game.homeTeam}</span>
+                            {game.homeLogo && <img src={game.homeLogo} alt="" className="w-5 h-5 object-contain" />}
+                        </div>
                     </div>
                     {/* Data Point */}
                     <div className="text-[10px] font-mono text-cyan-300 bg-black/40 px-2 py-1 rounded text-center border border-slate-800">
-                        {viewMode === 'SPREAD' && (game.spread.includes(game.homeTeam) ? game.spread.replace(game.homeTeam, '') : (game.spread.includes(game.awayTeam) ? 'OPP' : 'OFF'))}
+                        {viewMode === 'SPREAD' && (game.spread?.includes(game.homeTeam || '') ? game.spread.replace(game.homeTeam || '', '') : (game.spread?.includes(game.awayTeam || '') ? 'OPP' : 'OFF'))}
                         {viewMode === 'TOTAL' && `U ${game.total}`}
                         {viewMode === 'ML' && (game.homeMl || 'OFF')}
                     </div>

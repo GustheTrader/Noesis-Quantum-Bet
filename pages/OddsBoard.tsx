@@ -9,11 +9,10 @@ import {
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { GoogleGenAI } from "@google/genai";
+import { League } from '../types';
 
 // --- CONFIGURATION ---
 const SPORTSDATA_KEY = 'fecb349a85264f47b853aa08e87cc860';
-
-type LeagueType = 'NFL' | 'NBA' | 'NHL';
 
 interface BookData {
     spread: string;
@@ -24,7 +23,7 @@ interface BookData {
 
 interface Matchup {
     id: string;
-    league: LeagueType;
+    league: League;
     date: Date;
     homeTeam: string;
     homeAbr: string;
@@ -56,7 +55,14 @@ const BOOKS = [
 const LEAGUE_CONFIG = {
     NFL: { accent: 'emerald', color: '#10b981', espnPath: 'football/nfl', label: 'Gridiron Alpha' },
     NBA: { accent: 'orange', color: '#f97316', espnPath: 'basketball/nba', label: 'Hardwood Edge' },
-    NHL: { accent: 'cyan', color: '#06b6d4', espnPath: 'hockey/nhl', label: 'Ice Parity' }
+    NHL: { accent: 'cyan', color: '#06b6d4', espnPath: 'hockey/nhl', label: 'Ice Parity' },
+    MLB: { accent: 'blue', color: '#3b82f6', espnPath: 'baseball/mlb', label: 'Diamond Edge' },
+    MLS: { accent: 'green', color: '#22c55e', espnPath: 'soccer/usa.1', label: 'Pitch Alpha' },
+    SOCCER: { accent: 'indigo', color: '#6366f1', espnPath: 'soccer/eng.1', label: 'Global Pitch' },
+    MMA: { accent: 'red', color: '#ef4444', espnPath: 'mma/ufc', label: 'Octagon Edge' },
+    HORSE: { accent: 'amber', color: '#f59e0b', espnPath: 'horse-racing', label: 'WiseRace AI' },
+    GOLF: { accent: 'lime', color: '#84cc16', espnPath: 'golf/pga', label: 'Fairway Alpha' },
+    VELOCITY: { accent: 'fuchsia', color: '#d946ef', espnPath: 'crypto', label: 'Velocity Asym' }
 };
 
 // --- PLAY BY PLAY INTEL DRAWER ---
@@ -273,8 +279,11 @@ const LiveIntelDrawer: React.FC<{ game: Matchup; onClose: () => void }> = ({ gam
     );
 };
 
-export const OddsBoard: React.FC = () => {
-    const [activeLeague, setActiveLeague] = useState<LeagueType>('NFL');
+interface OddsBoardProps {
+  activeLeague: League;
+}
+
+export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
     const [games, setGames] = useState<Matchup[]>([]);
     const [loading, setLoading] = useState(true);
     const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
@@ -283,7 +292,7 @@ export const OddsBoard: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [detailGame, setDetailGame] = useState<Matchup | null>(null);
 
-    const config = LEAGUE_CONFIG[activeLeague];
+    const config = LEAGUE_CONFIG[activeLeague] || LEAGUE_CONFIG.NFL;
 
     const fetchData = async () => {
         setLoading(true);
@@ -412,26 +421,6 @@ export const OddsBoard: React.FC = () => {
                     <h1 className="text-7xl font-black text-white uppercase tracking-tighter leading-none mb-8">
                         {activeLeague} <span className={clsx(`text-${config.accent}-500`)}>{config.label.split(' ')[0]}</span> <span className="text-slate-700">{config.label.split(' ')[1]}</span>
                     </h1>
-                    
-                    <div className="flex flex-wrap gap-3">
-                        {(['NFL', 'NBA', 'NHL'] as LeagueType[]).map(l => (
-                            <button
-                                key={l}
-                                onClick={() => setActiveLeague(l)}
-                                className={clsx(
-                                    "px-10 py-4 rounded-[24px] text-[11px] font-black uppercase tracking-[0.2em] transition-all border relative overflow-hidden group",
-                                    activeLeague === l 
-                                        ? `bg-${LEAGUE_CONFIG[l].accent}-600 border-${LEAGUE_CONFIG[l].accent}-500 text-white shadow-2xl shadow-${LEAGUE_CONFIG[l].accent}-500/20` 
-                                        : "bg-[#0a0e17] border-white/5 text-slate-500 hover:text-white hover:border-white/20"
-                                )}
-                            >
-                                <div className="relative z-10 flex items-center gap-3">
-                                    {l === 'NFL' ? <Trophy size={16}/> : l === 'NBA' ? <BarChart3 size={16}/> : <Target size={16}/>}
-                                    {l} TERMINAL
-                                </div>
-                            </button>
-                        ))}
-                    </div>
                 </div>
                 
                 <div className="flex flex-wrap items-center gap-4 bg-[#0a0e17] p-2.5 rounded-[40px] border border-white/5 shadow-2xl">

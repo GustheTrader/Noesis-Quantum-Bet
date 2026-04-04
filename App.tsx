@@ -13,6 +13,7 @@ import { Blog } from './pages/Blog';
 import { OddsBoard } from './pages/OddsBoard';
 import { PropAlpha } from './pages/PropAlpha';
 import { PredictionMarkets } from './pages/PredictionMarkets';
+import { WiseRaceTerminal } from './pages/WiseRaceTerminal';
 import { ChatBot } from './components/ChatBot';
 import { TeamTicker } from './components/TeamTicker';
 import { OnboardingTour } from './components/OnboardingTour';
@@ -42,7 +43,13 @@ function App() {
       NFL: INITIAL_PICKS_CONTENT,
       NBA: "# NBA ALPHA FEED\nEstablishing daily hoops signal...",
       NHL: "# NHL ALPHA FEED\nEstablishing ice parity weights...",
-      MLB: "# MLB ALPHA FEED\nSynchronizing pitching data..."
+      MLB: "# MLB ALPHA FEED\nSynchronizing pitching data...",
+      MLS: "# MLS ALPHA FEED\nAnalyzing pitch dynamics...",
+      SOCCER: "# SOCCER ALPHA FEED\nGlobal market synchronization...",
+      MMA: "# MMA ALPHA FEED\nCalculating octagon control metrics...",
+      HORSE: "# HORSE ALPHA FEED\nWiseRaceAi Terminal Synchronizing...",
+      GOLF: "# GOLF ALPHA FEED\nAnalyzing tournament strokes gained...",
+      VELOCITY: "# VELOCITY ASYMBETTING\nAgentic Betting Agents Synchronizing Crypto/DeFi/TradFi Alpha..."
   });
 
   useEffect(() => {
@@ -62,7 +69,7 @@ function App() {
         const { data: picksData } = await supabase.from('picks').select('*').order('created_at', { ascending: false });
         if (picksData) {
             setArchives(picksData as PickArchiveItem[]);
-            const sports: League[] = ['NFL', 'NBA', 'NHL', 'MLB'];
+            const sports: League[] = ['NFL', 'NBA', 'NHL', 'MLB', 'MLS', 'SOCCER', 'MMA', 'HORSE', 'GOLF', 'VELOCITY'];
             sports.forEach(s => {
                 const latest = picksData.find(p => p.league === s);
                 if (latest) setLeaguePicks(prev => ({ ...prev, [s]: latest.content }));
@@ -158,10 +165,11 @@ function App() {
             propsData={[]}
           />
         );
-      case 'odds': return <OddsBoard />;
-      case 'binary-alpha': return <PredictionMarkets />;
-      case 'superposition': return <Superposition />;
-      case 'statsedge': return <StatsEdge />;
+      case 'odds': return <OddsBoard activeLeague={activeLeague} />;
+      case 'binary-alpha': return <PredictionMarkets activeLeague={activeLeague} />;
+      case 'horse-terminal': return <WiseRaceTerminal />;
+      case 'superposition': return <Superposition activeLeague={activeLeague} />;
+      case 'statsedge': return <StatsEdge activeLeague={activeLeague} />;
       case 'trading-desk': return <TradingDesk onClose={() => setCurrentView('picks')} />;
       default: return <Picks league={activeLeague} currentContent={leaguePicks[activeLeague]} archives={archives} gameSummaries={gameSummaries} propsData={[]} />;
     }

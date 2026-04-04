@@ -30,12 +30,38 @@ const TEAMS: Record<League, string[]> = {
     'COL', 'DET', 'HOU', 'KC', 'LAA', 'LAD', 'MIA', 'MIL', 
     'MIN', 'NYM', 'NYY', 'OAK', 'PHI', 'PIT', 'SD', 'SF', 
     'SEA', 'STL', 'TB', 'TEX', 'TOR', 'WSH'
+  ],
+  MLS: [
+    'ATL', 'CLT', 'CHI', 'COL', 'CLB', 'DC', 'HOU', 'LAFC', 
+    'LA', 'MIA', 'MIN', 'MTL', 'NSH', 'NE', 'NYC', 'NY', 
+    'ORL', 'PHI', 'POR', 'RSL', 'SJ', 'SEA', 'SKC', 'STL', 
+    'TOR', 'VAN'
+  ],
+  SOCCER: [
+    'ARG', 'BRA', 'FRA', 'ENG', 'GER', 'ESP', 'ITA', 'POR', 
+    'NED', 'BEL', 'CRO', 'MEX', 'USA', 'JPN', 'MAR', 'SEN'
+  ],
+  MMA: [
+    'UFC', 'PFL', 'BELL', 'ONE', 'RIZ', 'KSW', 'LFA', 'CAGE'
+  ],
+  HORSE: [
+    'CD', 'SA', 'GP', 'BEL', 'SAR', 'KEE', 'DMR', 'AQU'
+  ],
+  GOLF: [
+    'SCHEFFLER', 'MCILROY', 'RAHM', 'SCHAUFFELE', 'HOVLAND', 'MORIKAWA', 'SPIETH', 'THOMAS'
+  ],
+  VELOCITY: [
+    'BTC', 'ETH', 'SOL', 'AAVE', 'LINK', 'UNI', 'MKR', 'SNX'
   ]
 };
 
 export const TeamTicker: React.FC<TeamTickerProps> = ({ activeLeague }) => {
   const currentTeams = TEAMS[activeLeague] || TEAMS.NFL;
-  const leaguePath = activeLeague.toLowerCase();
+  const leaguePath = activeLeague === 'SOCCER' ? 'soccer' : 
+                    activeLeague === 'MMA' ? 'mma' :
+                    activeLeague === 'HORSE' ? 'horse' :
+                    activeLeague === 'GOLF' ? 'golf' :
+                    activeLeague.toLowerCase();
 
   return (
     <div className="w-full bg-gradient-to-r from-[#0a0a0a] via-[#111322] to-[#0a0a0a] border-b border-indigo-500/10 overflow-hidden py-3 relative z-40 backdrop-blur-sm">

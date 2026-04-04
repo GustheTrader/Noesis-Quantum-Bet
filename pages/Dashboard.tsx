@@ -240,12 +240,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ weeks, stats, chartData, a
                         </div>
                     </div>
                 </div>
-                <div className="lg:col-span-2">
+                <div className="lg:col-span-3">
                     <WeekView weeks={weeks} />
                 </div>
-                <div className="lg:col-span-1">
-                    <HighlightReel />
-                </div>
+            </div>
+            <div className="mt-12">
+                <HighlightReel activeLeague={activeLeague} />
             </div>
           </>
       ) : (

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Radar, TrendingUp, AlertTriangle, RefreshCw, Trophy, Layers, ArrowRightLeft, Calculator, Target, BookOpen, Info, ChevronRight, CheckCircle2 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { supabase } from '../lib/supabase';
+import { League } from '../types';
 
 // --- CONFIGURATION: DFS PAYOUT MULTIPLIERS & IMPLIED ODDS ---
 const PAYOUT_MATRIX = [
@@ -49,7 +50,11 @@ interface ScannerRow {
     edge: number; // Probability Gap
 }
 
-export const StatsEdge: React.FC = () => {
+interface StatsEdgeProps {
+  activeLeague: League;
+}
+
+export const StatsEdge: React.FC<StatsEdgeProps> = ({ activeLeague }) => {
   const [scannerRows, setScannerRows] = useState<ScannerRow[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [lastScanTime, setLastScanTime] = useState<Date | null>(null);
@@ -145,10 +150,10 @@ export const StatsEdge: React.FC = () => {
         <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
             <div>
                 <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-500 mb-2 uppercase tracking-tighter">
-                    StatsEdge Arbitrage
+                    {activeLeague} StatsEdge Arbitrage
                 </h1>
                 <p className="text-slate-400 text-sm max-w-xl leading-relaxed">
-                    The engine identifies <span className="text-white font-bold">price dislocations</span> between high-limit sharp books (Pinnacle/Circa) and fixed-payout DFS multipliers.
+                    The engine identifies <span className="text-white font-bold">price dislocations</span> between high-limit sharp books (Pinnacle/Circa) and fixed-payout DFS multipliers for <span className="text-emerald-400 font-bold">{activeLeague}</span>.
                     We exploit the gap between "True Probability" and "Implied Probability".
                 </p>
             </div>

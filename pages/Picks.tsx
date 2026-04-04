@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Target, Archive, BookOpen, Zap, Star, FileText, Plus, X, DollarSign, Loader2, Play, Info, AlertTriangle, Shield, Layers, TrendingUp, ChevronRight, BarChart3, Activity, Lock, Trash2, ShoppingCart, Anchor } from 'lucide-react';
+import { Target, Archive, BookOpen, Zap, Star, FileText, Plus, X, DollarSign, Loader2, Play, Info, AlertTriangle, Shield, Layers, TrendingUp, ChevronRight, BarChart3, Activity, Lock, Trash2, ShoppingCart, Anchor, Cpu } from 'lucide-react';
 import { PickArchiveItem, GameSummary, League } from '../types';
 import { HighlightReel } from '../components/HighlightReel';
 import { LiveOdds } from '../components/LiveOdds';
@@ -19,10 +19,23 @@ const TEAM_MAP: Record<string, { code: string; league: string }> = {
   // NHL
   'Maple Leafs': { code: 'tor', league: 'nhl' }, 'Bruins': { code: 'bos', league: 'nhl' }, 'Rangers': { code: 'nyr', league: 'nhl' },
   // MLB
-  'Dodgers': { code: 'lad', league: 'mlb' }, 'Yankees': { code: 'nyy', league: 'mlb' }, 'Braves': { code: 'atl', league: 'mlb' }
+  'Dodgers': { code: 'lad', league: 'mlb' }, 'Yankees': { code: 'nyy', league: 'mlb' }, 'Braves': { code: 'atl', league: 'mlb' },
+  // MLS
+  'Inter Miami': { code: 'mia', league: 'mls' }, 'LAFC': { code: 'lafc', league: 'mls' }, 'Sounders': { code: 'sea', league: 'mls' },
+  // SOCCER
+  'Argentina': { code: 'arg', league: 'soccer' }, 'Brazil': { code: 'bra', league: 'soccer' }, 'France': { code: 'fra', league: 'soccer' },
+  // MMA
+  'UFC': { code: 'ufc', league: 'mma' }, 'Jones': { code: 'ufc', league: 'mma' }, 'McGregor': { code: 'ufc', league: 'mma' },
+  // HORSE
+  'Churchill Downs': { code: 'cd', league: 'horse' }, 'WiseRace': { code: 'wiserace', league: 'horse' },
+  // GOLF
+  'Scheffler': { code: 'golf', league: 'golf' }, 'McIlroy': { code: 'golf', league: 'golf' }, 'Rahm': { code: 'golf', league: 'golf' },
+  // VELOCITY
+  'BTC': { code: 'btc', league: 'velocity' }, 'ETH': { code: 'eth', league: 'velocity' }, 'SOL': { code: 'sol', league: 'velocity' }, 'AAVE': { code: 'aave', league: 'velocity' }
 };
 
 const getTeamInfo = (entity: string) => {
+  if (!entity) return null;
   const normalized = entity.toLowerCase();
   for (const [team, info] of Object.entries(TEAM_MAP)) {
     if (normalized.includes(team.toLowerCase())) return info;
@@ -66,7 +79,15 @@ const PositionCard: React.FC<{ pick: ExtractedPick; unitValue: number; onAddPick
     return (
         <div className={clsx(
             "bg-[#0a0e17] rounded-[40px] border border-[#2d334a]/40 overflow-hidden flex flex-col h-full shadow-[0_30px_60px_rgba(0,0,0,0.6)] group transition-all",
-            league === 'NFL' ? "hover:border-emerald-500/50" : league === 'NBA' ? "hover:border-orange-500/50" : league === 'NHL' ? "hover:border-cyan-500/50" : "hover:border-rose-500/50"
+            league === 'NFL' ? "hover:border-emerald-500/50" : 
+            league === 'NBA' ? "hover:border-orange-500/50" : 
+            league === 'NHL' ? "hover:border-cyan-500/50" : 
+            league === 'MLB' ? "hover:border-rose-500/50" :
+            league === 'MLS' ? "hover:border-pink-500/50" :
+            league === 'MMA' ? "hover:border-red-500/50" :
+            league === 'HORSE' ? "hover:border-amber-500/50" :
+            league === 'GOLF' ? "hover:border-lime-500/50" :
+            "hover:border-indigo-500/50"
         )}>
             <div className="p-8 relative flex-grow">
                 <div className="flex justify-between items-start mb-8">
@@ -147,7 +168,16 @@ const PositionCard: React.FC<{ pick: ExtractedPick; unitValue: number; onAddPick
                     onClick={() => onAddPick(pick)}
                     className={clsx(
                         "w-16 h-16 text-white rounded-3xl flex items-center justify-center transition-all shadow-2xl active:scale-95 group/btn",
-                        league === 'NFL' ? "bg-emerald-600 hover:bg-emerald-500" : league === 'NBA' ? "bg-orange-600 hover:bg-orange-500" : league === 'NHL' ? "bg-cyan-600 hover:bg-cyan-500" : "bg-rose-600 hover:bg-rose-500"
+                        league === 'NFL' ? "bg-emerald-600 hover:bg-emerald-500" : 
+                        league === 'NBA' ? "bg-orange-600 hover:bg-orange-500" : 
+                        league === 'NHL' ? "bg-cyan-600 hover:bg-cyan-500" : 
+                        league === 'MLB' ? "bg-rose-600 hover:bg-rose-500" :
+                        league === 'MLS' ? "bg-pink-600 hover:bg-pink-500" :
+                        league === 'MMA' ? "bg-red-600 hover:bg-red-500" :
+                        league === 'HORSE' ? "bg-amber-600 hover:bg-amber-500" :
+                        league === 'GOLF' ? "bg-lime-600 hover:bg-lime-500" :
+                        league === 'VELOCITY' ? "bg-fuchsia-600 hover:bg-fuchsia-500 shadow-[0_0_20px_rgba(192,38,211,0.4)]" :
+                        "bg-indigo-600 hover:bg-indigo-500"
                     )}
                 >
                     <Plus size={36} strokeWidth={3} className="group-hover/btn:rotate-90 transition-transform" />
@@ -223,7 +253,16 @@ export const Picks: React.FC<PicksProps> = ({ league, currentContent, archives, 
   const handleClearSlip = useCallback(() => setBetSlip([]), []);
   const handleRemovePick = (id: string) => setBetSlip(prev => prev.filter(p => p.id !== id));
 
-  const accentColor = league === 'NFL' ? 'emerald' : league === 'NBA' ? 'orange' : league === 'NHL' ? 'cyan' : 'rose';
+  const accentColor = league === 'NFL' ? 'emerald' : 
+                     league === 'NBA' ? 'orange' : 
+                     league === 'NHL' ? 'cyan' : 
+                     league === 'MLB' ? 'rose' :
+                     league === 'MLS' ? 'pink' :
+                     league === 'MMA' ? 'red' :
+                     league === 'HORSE' ? 'amber' :
+                     league === 'GOLF' ? 'lime' :
+                     league === 'VELOCITY' ? 'fuchsia' :
+                     'indigo';
   const accentClass = `text-${accentColor}-500`;
   const bgAccentClass = `bg-${accentColor}-600`;
 
@@ -284,7 +323,7 @@ export const Picks: React.FC<PicksProps> = ({ league, currentContent, archives, 
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
             <div className="lg:col-span-3 space-y-12">
-                {league === 'NFL' && <LiveOdds />}
+                <LiveOdds league={league} />
 
                 <div className="bg-[#0a0e17] p-10 rounded-[48px] border border-white/5 shadow-3xl relative overflow-hidden">
                     <div className={clsx("absolute top-0 right-0 p-6 opacity-5 pointer-events-none", accentClass)}>
@@ -356,6 +395,52 @@ export const Picks: React.FC<PicksProps> = ({ league, currentContent, archives, 
             </div>
 
             <div className="lg:col-span-9">
+                {league === 'VELOCITY' && (
+                    <div className="mb-12 glass-panel p-8 rounded-[48px] border border-fuchsia-500/30 bg-gradient-to-br from-fuchsia-900/20 to-transparent relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
+                            <Cpu size={120} className="text-fuchsia-400" />
+                        </div>
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative z-10">
+                            <div>
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-2 h-2 rounded-full bg-fuchsia-500 animate-ping"></div>
+                                    <span className="text-[10px] font-black text-fuchsia-400 uppercase tracking-[0.4em]">Agentic_Terminal_v4.2</span>
+                                </div>
+                                <h2 className="text-4xl font-black text-white uppercase tracking-tighter mb-2 italic">Velocity <span className="text-fuchsia-400">AsymBetting</span></h2>
+                                <p className="text-slate-400 text-sm max-w-xl">
+                                    Autonomous agents are scanning <span className="text-white font-bold">Uniswap, Aave, and CME</span> for structural yield dislocations.
+                                    Execution is sub-millisecond via Flashbots RPC.
+                                </p>
+                            </div>
+                            <div className="flex gap-4">
+                                <button className="px-8 py-4 bg-fuchsia-600 hover:bg-fuchsia-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-fuchsia-500/20 flex items-center gap-3">
+                                    <Play size={14} /> Run Agents
+                                </button>
+                                <button className="px-8 py-4 bg-black/40 border border-white/10 hover:border-fuchsia-500/50 text-slate-400 hover:text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-3">
+                                    <Shield size={14} /> Audit Trail
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
+                            {[
+                                { label: 'DeFi TVL Scan', value: '$14.2B', status: 'OK' },
+                                { label: 'TradFi Arb Gap', value: '0.42%', status: 'HIGH' },
+                                { label: 'Agent Confidence', value: '94.8%', status: 'STABLE' },
+                                { label: 'Flashbots Relay', value: '12ms', status: 'FAST' }
+                            ].map((stat, i) => (
+                                <div key={i} className="bg-black/40 p-4 rounded-2xl border border-white/5">
+                                    <div className="text-[8px] text-slate-500 font-black uppercase tracking-widest mb-1">{stat.label}</div>
+                                    <div className="flex justify-between items-end">
+                                        <div className="text-lg font-black text-white font-mono">{stat.value}</div>
+                                        <div className={clsx("text-[8px] font-black px-1.5 py-0.5 rounded", stat.status === 'HIGH' ? "bg-rose-500/20 text-rose-400" : "bg-emerald-500/20 text-emerald-400")}>{stat.status}</div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-20">
                     {singlePicks.map(pick => (
                         <PositionCard key={pick.id} pick={pick} unitValue={unitValue} onAddPick={(p) => setBetSlip(prev => [...prev, {...p, stake: p.units*unitValue, toWin: 0}])} league={league} />
@@ -371,9 +456,11 @@ export const Picks: React.FC<PicksProps> = ({ league, currentContent, archives, 
                         <p className="text-[10px] text-slate-800 font-mono mt-4 uppercase tracking-widest">Connect Admin Terminal to Broadcast Alpha</p>
                     </div>
                 )}
-                
-                <HighlightReel />
             </div>
+        </div>
+
+        <div className="mt-20">
+            <HighlightReel activeLeague={league} />
         </div>
     </div>
   );
