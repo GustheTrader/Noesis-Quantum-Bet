@@ -256,7 +256,7 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
     const executeTrade = (market: MarketTicker, side: 'BUY' | 'SELL', amount: number) => {
         const price = side === 'BUY' ? market.ask : market.bid;
         const newTrade: Trade = {
-            id: `trd-${Date.now()}`,
+            id: `trd-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             time: new Date().toLocaleTimeString([], { hour12: false }),
             symbol: market.symbol,
             side,
@@ -302,6 +302,9 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
         if (onClose) onClose();
     };
 
+    const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+    const chartRef = useRef<HTMLDivElement>(null);
+
     // Helper for Equity Curve Path
     const generateEquityPath = (data: number[], width: number, height: number) => {
         if (data.length < 2) return `M0,${height/2} L${width},${height/2}`;
@@ -320,6 +323,14 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
             const paddedY = normalizedY * 0.8 + height * 0.1;
             return `${idx === 0 ? 'M' : 'L'}${x},${paddedY}`;
         }).join(' ');
+    };
+
+    const handleMouseMove = (e: React.MouseEvent) => {
+        if (!chartRef.current || equityHistory.length === 0) return;
+        const rect = chartRef.current.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const index = Math.round((x / rect.width) * (equityHistory.length - 1));
+        setHoveredIndex(Math.max(0, Math.min(index, equityHistory.length - 1)));
     };
 
     return (
@@ -467,7 +478,12 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
                                 {pnl >= 0 ? '+' : ''}{((pnl / 10000) * 100).toFixed(2)}% ROI
                             </div>
                         </div>
-                        <div className="flex-grow bg-slate-900/30 rounded border border-slate-800 relative overflow-hidden">
+                        <div 
+                            ref={chartRef}
+                            onMouseMove={handleMouseMove}
+                            onMouseLeave={() => setHoveredIndex(null)}
+                            className="flex-grow bg-slate-900/30 rounded border border-slate-800 relative overflow-hidden"
+                        >
                             <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
                                 <path 
                                     d={generateEquityPath(equityHistory, 400, 100)}
@@ -481,7 +497,29 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
                                     fill={pnl >= 0 ? "rgba(16, 185, 129, 0.1)" : "rgba(244, 63, 94, 0.1)"}
                                     stroke="none"
                                 />
+                                {/* Hover Indicator */}
+                                {hoveredIndex !== null && (
+                                    <circle 
+                                        cx={(hoveredIndex / (equityHistory.length - 1)) * 400} 
+                                        cy={100 - ((equityHistory[hoveredIndex] - Math.min(...equityHistory)) / (Math.max(...equityHistory) - Math.min(...equityHistory) || 1)) * 80 - 10} 
+                                        r="4" 
+                                        fill="white" 
+                                    />
+                                )}
                             </svg>
+                            {/* Tooltip */}
+                            {hoveredIndex !== null && (
+                                <div 
+                                    className="absolute bg-black border border-slate-700 text-white text-[10px] p-2 rounded shadow-lg pointer-events-none"
+                                    style={{
+                                        left: `${(hoveredIndex / (equityHistory.length - 1)) * 100}%`,
+                                        top: '10px',
+                                        transform: 'translateX(-50%)'
+                                    }}
+                                >
+                                    P&L: ${equityHistory[hoveredIndex].toFixed(2)}
+                                </div>
+                            )}
                         </div>
                         <div className="flex justify-between mt-2 text-[9px] text-slate-600 font-mono">
                             <span>09:30 EST</span>

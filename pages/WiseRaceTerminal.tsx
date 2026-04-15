@@ -164,9 +164,15 @@ export const WiseRaceTerminal: React.FC = () => {
                           </div>
 
                           {/* AI Prob */}
-                          <div className="col-span-2 text-center">
-                              <div className="inline-block px-3 py-1 bg-indigo-500/10 border border-indigo-500/30 rounded text-indigo-400 font-black text-sm">
+                          <div className="col-span-2 flex items-center justify-center gap-3">
+                              <div className="text-indigo-400 font-black text-sm w-10 text-right">
                                   {r.winProb}%
+                              </div>
+                              <div className="w-24 h-1.5 bg-slate-800/50 rounded-full overflow-hidden border border-slate-700/50 relative">
+                                  <div 
+                                      className="absolute top-0 left-0 h-full bg-gradient-to-r from-indigo-600 to-cyan-400 transition-all duration-500 ease-out shadow-[0_0_10px_rgba(99,102,241,0.5)]" 
+                                      style={{ width: `${r.winProb}%` }}
+                                  />
                               </div>
                           </div>
 

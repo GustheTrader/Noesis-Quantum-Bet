@@ -107,7 +107,7 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
         if (result.text) {
           if (activeTab === 'RESULTS') {
             const parsed = JSON.parse(result.text);
-            const entry = { ...parsed, id: `w-${Date.now()}`, league: targetLeague, date: new Date().toISOString() };
+            const entry = { ...parsed, id: `w-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, league: targetLeague, date: new Date().toISOString() };
             const { error } = await supabase.from('weeks').insert(entry);
             if (error) throw error;
             onDataUploaded(entry);
@@ -156,7 +156,7 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
         });
         if (res.text) {
             const parsed = JSON.parse(res.text);
-            const entry = { ...parsed, id: `w-${Date.now()}`, league: targetLeague, date: new Date().toISOString() };
+            const entry = { ...parsed, id: `w-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, league: targetLeague, date: new Date().toISOString() };
             await supabase.from('weeks').insert(entry);
             onDataUploaded(entry);
         }

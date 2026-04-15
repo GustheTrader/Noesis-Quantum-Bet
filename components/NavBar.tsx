@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { LayoutDashboard, Target, MonitorPlay, ExternalLink, Mic, ShieldAlert, Trophy, Radio, BarChart3, Infinity, Calculator, Globe } from 'lucide-react';
+import { LayoutDashboard, Target, MonitorPlay, ExternalLink, Mic, ShieldAlert, Trophy, Radio, BarChart3, Infinity, Calculator, Globe, Bot } from 'lucide-react';
 import { clsx } from 'clsx';
 import { League } from '../types';
 
@@ -150,15 +150,24 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
             </button>
 
             <button 
+              id="nav-quantum"
+              onClick={() => setCurrentView('quantum-edge')}
+              className={getButtonClass(currentView === 'quantum-edge', 'text-indigo-400', 'shadow-[0_10px_20px_-10px_rgba(99,102,241,0.3)]')}
+            >
+              <Bot size={14} strokeWidth={3} />
+              Quantum Edge
+            </button>
+          </div>
+          
+          <div className="ml-4 pl-4 border-l border-white/10 flex items-center gap-2 shrink-0">
+            <button 
               id="nav-superposition"
               onClick={() => setCurrentView('superposition')}
               className={getButtonClass(currentView === 'superposition', 'text-pink-400', 'shadow-[0_10px_20px_-10px_rgba(236,72,153,0.3)]')}
             >
               <Infinity size={14} strokeWidth={3} />
-              Analytics
+              Model Analytics
             </button>
-
-            <div className="w-px h-6 bg-white/10 mx-2"></div>
 
             <button 
               id="nav-dashboard"
@@ -166,11 +175,11 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
               className={getButtonClass(currentView === 'dashboard', 'text-slate-100', 'shadow-[0_10px_20px_-10px_rgba(255,255,255,0.1)]')}
             >
               <LayoutDashboard size={14} strokeWidth={3} />
-              Analytics
+              Player Analytics
             </button>
-          </div>
-          
-          <div className="ml-4 pl-4 border-l border-white/10 flex items-center gap-2 shrink-0">
+
+            <div className="w-px h-6 bg-white/10 mx-2"></div>
+
               <button
                 id="nav-admin"
                 onClick={() => setCurrentView('admin')}

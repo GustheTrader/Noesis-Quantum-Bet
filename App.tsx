@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
+import { QuantumEdge } from './pages/QuantumEdge';
 import { NavBar } from './components/NavBar';
 import { Dashboard } from './pages/Dashboard';
 import { Admin } from './pages/Admin';
@@ -94,7 +95,7 @@ function App() {
 
   const handlePicksUpdate = async (content: string, filename: string, league: League, fileUrl?: string) => {
      const newArchive: PickArchiveItem = {
-         id: `arch-${Date.now()}`,
+         id: `arch-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
          title: filename,
          date: new Date().toLocaleDateString(),
          content: content,
@@ -170,6 +171,7 @@ function App() {
       case 'horse-terminal': return <WiseRaceTerminal />;
       case 'superposition': return <Superposition activeLeague={activeLeague} />;
       case 'statsedge': return <StatsEdge activeLeague={activeLeague} />;
+      case 'quantum-edge': return <QuantumEdge />;
       case 'trading-desk': return <TradingDesk onClose={() => setCurrentView('picks')} />;
       default: return <Picks league={activeLeague} currentContent={leaguePicks[activeLeague]} archives={archives} gameSummaries={gameSummaries} propsData={[]} />;
     }

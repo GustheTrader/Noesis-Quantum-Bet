@@ -47,23 +47,29 @@ export const HighlightReel: React.FC<HighlightReelProps> = ({ activeLeague }) =>
         // Try league specific news first
         let response;
         try {
-            // Remove headers and mode: 'cors' to avoid preflight issues if any
-            response = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${path}/news`);
+            // Use a CORS proxy to avoid 'Failed to fetch' errors in the browser
+            const targetUrl = `https://site.api.espn.com/apis/site/v2/sports/${path}/news`;
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+            response = await fetch(proxyUrl);
         } catch (e) {
-            // If league specific fails with "Failed to fetch", try general sports news
+            // If league specific fails, try general sports news
             console.warn(`Specific news fetch failed for ${activeLeague}, falling back to general news`);
-            response = await fetch(`https://site.api.espn.com/apis/site/v2/sports/news`);
+            const targetUrl = `https://site.api.espn.com/apis/site/v2/sports/news`;
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+            response = await fetch(proxyUrl);
         }
 
         if (!response.ok) {
             // If 404 or other error, try general sports news
-            response = await fetch(`https://site.api.espn.com/apis/site/v2/sports/news`);
+            const targetUrl = `https://site.api.espn.com/apis/site/v2/sports/news`;
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+            response = await fetch(proxyUrl);
         }
 
         const data = await response.json();
         setNews(data.articles || []);
       } catch (err) {
-        console.error("ESPN News Error", err);
+        console.warn("ESPN News fallback triggered:", err);
         // Final fallback: provide some mock news items so the UI isn't empty
         setNews([
           {
