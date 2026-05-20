@@ -12,6 +12,7 @@ import { GoogleGenAI } from "@google/genai";
 import { supabase } from '../lib/supabase';
 import { formatError } from '../utils';
 import { clsx } from 'clsx';
+import Papa from 'papaparse';
 
 interface AdminProps {
   onDataUploaded: (data: WeekData) => void;
@@ -22,7 +23,7 @@ interface AdminProps {
   onFactoryReset: () => void;
 }
 
-type IngestType = 'POSITIONS' | 'PROPS' | 'RESULTS' | 'SYSTEM';
+type IngestType = 'POSITIONS' | 'PROPS' | 'RESULTS' | 'SYSTEM' | 'CSV_IMPORT';
 type PositionSubTab = 'TEAM' | 'PARLAY';
 
 export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteReport, onUpdatePicks, onUploadSummary, onFactoryReset }) => {
@@ -139,8 +140,52 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
     e.stopPropagation();
     setDragActive(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      runOCRAndIngest(e.dataTransfer.files);
+      if (activeTab === 'CSV_IMPORT') {
+        const fileArray = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.csv') || f.type.includes('csv'));
+        if (fileArray.length > 0) {
+           fileArray.forEach(f => handleCSVImport(f));
+        } else {
+           addLog("No valid CSV files dropped.");
+        }
+      } else {
+        runOCRAndIngest(e.dataTransfer.files);
+      }
     }
+  };
+
+  const handleCSVImport = async (file: File) => {
+    setIsProcessing(true);
+    addLog(`Reading CSV: ${file.name}...`);
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        try {
+          const tableName = `stats_${targetLeague.toLowerCase()}`;
+          addLog(`Parsed ${results.data.length} rows. Uploading to ${tableName}...`);
+          
+          const chunkSize = 100;
+          for (let i = 0; i < results.data.length; i += chunkSize) {
+            const chunk = results.data.slice(i, i + chunkSize);
+            const { error } = await supabase.from(tableName).insert(chunk);
+            if (error) {
+              addLog(`ERROR matching table structure in ${tableName}. Please ensure CSV matches DB columns. Detail: ${error.message}`);
+              setIsProcessing(false);
+              return;
+            }
+          }
+          addLog(`SUCCESS: ${results.data.length} rows imported to ${tableName}.`);
+        } catch (err) {
+          addLog(`ERROR during CSV import: ${formatError(err)}`);
+        } finally {
+          setIsProcessing(false);
+        }
+      },
+      error: (error: any) => {
+        addLog(`ERROR parsing CSV: ${error.message}`);
+        setIsProcessing(false);
+      }
+    });
   };
 
   const handleManualSubmit = async () => {
@@ -221,6 +266,7 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
                         { id: 'POSITIONS', label: 'NFL Edge', icon: Target },
                         { id: 'PROPS', label: 'Prop Alpha', icon: Zap },
                         { id: 'RESULTS', label: 'Ledger Sync', icon: BarChart3 },
+                        { id: 'CSV_IMPORT', label: 'CSV Import', icon: Database },
                         { id: 'SYSTEM', label: 'System', icon: Settings }
                     ] as const).map(tab => (
                         <button
@@ -300,7 +346,7 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
                             
                             <h2 className="text-3xl font-black text-white uppercase tracking-tighter mb-4">Channel Ingestion</h2>
                             <p className="text-slate-500 text-sm mb-10 max-w-sm font-medium leading-relaxed">
-                                Drop <span className="text-indigo-400">MD, TXT, or PDF</span> files here for Neural Parsing. Our RL core will reconcile entries for <span className="text-white">{targetLeague} {activeTab === 'POSITIONS' ? positionSubTab : activeTab}</span>.
+                                Drop <span className="text-indigo-400">{activeTab === 'CSV_IMPORT' ? 'CSV' : 'MD, TXT, or PDF'}</span> files here for Neural Parsing. Our RL core will reconcile entries for <span className="text-white">{targetLeague} {activeTab === 'POSITIONS' ? positionSubTab : (activeTab === 'CSV_IMPORT' ? 'stats table' : activeTab)}</span>.
                             </p>
 
                             <div className="flex flex-col gap-4 w-full max-w-xs">
@@ -314,7 +360,16 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
                                     ref={fileInputRef}
                                     type="file" 
                                     multiple 
-                                    onChange={(e) => runOCRAndIngest(e.target.files)} 
+                                    accept={activeTab === 'CSV_IMPORT' ? ".csv" : undefined}
+                                    onChange={(e) => {
+                                      if (e.target.files) {
+                                        if (activeTab === 'CSV_IMPORT') {
+                                          Array.from(e.target.files).forEach(f => handleCSVImport(f));
+                                        } else {
+                                          runOCRAndIngest(e.target.files);
+                                        }
+                                      }
+                                    }} 
                                     className="hidden" 
                                 />
                                 <div className="text-[9px] text-slate-700 font-black uppercase tracking-widest">
@@ -336,6 +391,94 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
                                 </button>
                             </div>
                         </div>
+
+                        {/* 3. GOOGLE SHEETS AUTOMATION (ONLY FOR CSV_IMPORT) */}
+                        {activeTab === 'CSV_IMPORT' && (
+                            <div className="bg-[#05070a] rounded-[48px] p-12 border border-white/5 shadow-2xl md:col-span-2">
+                                <h3 className="text-xl font-black text-white uppercase tracking-widest flex items-center gap-3 mb-4">
+                                    <Zap className="text-amber-400" /> Google Sheets Automation
+                                </h3>
+                                <p className="text-slate-400 text-sm mb-6 leading-relaxed max-w-3xl">
+                                    Fully automate data updates using Google Apps Script. 
+                                    Open your Google Sheet, select <strong className="text-white">Extensions &gt; Apps Script</strong>, paste the code below, and run the <code className="bg-slate-800 text-indigo-400 px-2 py-0.5 rounded">syncToSupabase</code> function. You can set up a Time-driven trigger to run this sync hourly.
+                                </p>
+                                
+                                <div className="bg-black/50 p-6 rounded-2xl border border-slate-700 relative group overflow-x-auto">
+                                    <button 
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(`// Quantum Bets - Automated Google Sheets Sync
+const SUPABASE_URL = "https://rrwvhjcdgkwixxnqcfom.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJyd3ZoamNkZ2t3aXh4bnFjZm9tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ0MzQ1NDMsImV4cCI6MjA4MDAxMDU0M30.f1aGXUrNdQeVhrL-OoPKTJ7XOqb0N8PVo6dSEdhnHG4";
+const TARGET_TABLE = "stats_${targetLeague.toLowerCase()}";
+
+function syncToSupabase() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const data = sheet.getDataRange().getValues();
+  if (data.length < 2) return;
+
+  const headers = data[0].map(h => h.toString().trim());
+  const payload = [];
+
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    let obj = {};
+    let emptyRow = true;
+    for (let j = 0; j < headers.length; j++) {
+      if (!headers[j] || headers[j] === "") continue;
+      obj[headers[j]] = row[j];
+      if (row[j] !== "") emptyRow = false;
+    }
+    if (!emptyRow) payload.push(obj);
+  }
+
+  const options = {
+    method: "post",
+    contentType: "application/json",
+    headers: {
+      "apikey": SUPABASE_ANON_KEY,
+      "Authorization": "Bearer " + SUPABASE_ANON_KEY,
+      "Prefer": "resolution=merge-duplicates"
+    },
+    payload: JSON.stringify(payload)
+  };
+
+  const response = UrlFetchApp.fetch(SUPABASE_URL + "/rest/v1/" + TARGET_TABLE, options);
+  Logger.log("Response Code: " + response.getResponseCode());
+  Logger.log("Response Body: " + response.getContentText());
+}`);
+                                            addLog("Automation script copied to clipboard!");
+                                        }}
+                                        className="absolute top-4 right-4 bg-slate-800 hover:bg-indigo-600 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2 text-xs font-bold"
+                                    >
+                                        <Database size={14} /> Copy Script
+                                    </button>
+                                    <pre className="text-[11px] font-mono text-indigo-300 whitespace-pre-wrap">{`// Quantum Bets - Automated Google Sheets Sync
+const SUPABASE_URL = "https://rrwvhjcdgkwixxnqcfom.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR...";
+const TARGET_TABLE = "stats_${targetLeague.toLowerCase()}";
+
+function syncToSupabase() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const data = sheet.getDataRange().getValues();
+  if (data.length < 2) return;
+
+  const headers = data[0].map(h => h.toString().trim());
+  const payload = [];
+
+  // ... (Click 'Copy Script' to get the full logic)
+  
+  const options = {
+    method: "post",
+    contentType: "application/json",
+    headers: { "apikey": SUPABASE_ANON_KEY, "Authorization": "..."},
+    payload: JSON.stringify(payload)
+  };
+
+  UrlFetchApp.fetch(SUPABASE_URL + "/rest/v1/" + TARGET_TABLE, options);
+}`}</pre>
+                                </div>
+                            </div>
+                        )}
                     </>
                 )}
 

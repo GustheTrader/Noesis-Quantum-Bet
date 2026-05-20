@@ -144,7 +144,9 @@ export const LiveOdds: React.FC<LiveOddsProps> = ({ league }) => {
         const path = leagueMap[league] || 'football/nfl';
         let response;
         try {
-            response = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${path}/scoreboard`);
+            const targetUrl = `https://site.api.espn.com/apis/site/v2/sports/${path}/scoreboard`;
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+            response = await fetch(proxyUrl);
         } catch (e) {
             console.warn(`Live odds fetch failed for ${league}, using mock data`);
             setOdds(MOCK_ODDS);

@@ -74,7 +74,9 @@ const LiveIntelDrawer: React.FC<{ game: Matchup; onClose: () => void }> = ({ gam
 
     const fetchLiveDetails = async () => {
         try {
-            const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${config.espnPath}/scoreboard`);
+            const targetUrl = `https://site.api.espn.com/apis/site/v2/sports/${config.espnPath}/scoreboard`;
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+            const res = await fetch(proxyUrl);
             if (!res.ok) return;
             const data = await res.json();
             const espnGame = data.events?.find((e: any) => 
@@ -93,7 +95,9 @@ const LiveIntelDrawer: React.FC<{ game: Matchup; onClose: () => void }> = ({ gam
                     detail: espnGame.status.type.detail
                 });
 
-                const detailRes = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${config.espnPath}/summary?event=${espnGame.id}`);
+                const targetUrl = `https://site.api.espn.com/apis/site/v2/sports/${config.espnPath}/summary?event=${espnGame.id}`;
+                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+                const detailRes = await fetch(proxyUrl);
                 if (detailRes.ok) {
                     const detailData = await detailRes.json();
                     const allPlays = detailData.plays || detailData.drives?.current?.plays || detailData.drives?.previous?.flatMap((d: any) => d.plays) || [];
@@ -302,7 +306,9 @@ export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
             let season = '2024REG';
             
             if (activeLeague === 'NFL') {
-                const weekRes = await fetch(`https://api.sportsdata.io/v3/nfl/scores/json/CurrentWeek?key=${SPORTSDATA_KEY}`);
+                const targetUrl = `https://api.sportsdata.io/v3/nfl/scores/json/CurrentWeek?key=${SPORTSDATA_KEY}`;
+                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+                const weekRes = await fetch(proxyUrl);
                 if (weekRes.ok) {
                     const w = await weekRes.json();
                     if (typeof w === 'number') week = w;
@@ -311,7 +317,9 @@ export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
                 season = '2025';
             }
 
-            const res = await fetch(`https://api.sportsdata.io/v3/${leaguePath}/odds/json/GameOddsByWeek/${season}/${week}?key=${SPORTSDATA_KEY}`);
+            const targetUrl = `https://api.sportsdata.io/v3/${leaguePath}/odds/json/GameOddsByWeek/${season}/${week}?key=${SPORTSDATA_KEY}`;
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+            const res = await fetch(proxyUrl);
             if (!res.ok) throw new Error(`API Sync Failure: ${res.statusText}`);
             const data = await res.json();
             

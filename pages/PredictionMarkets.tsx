@@ -19,6 +19,7 @@ interface BinaryMarket {
     id: string;
     event: string;
     marketName: string;
+    book: string;
     yesPrice: number; // 0-99 cents
     noPrice: number;
     volume: number;
@@ -32,20 +33,20 @@ interface BinaryMarket {
 // MOCK DATA GENERATOR
 const generateMarkets = (): BinaryMarket[] => [
     // IN-GAME (Fast Decay)
-    { id: 'ig-1', event: 'KC vs BAL', marketName: 'Next Drive: Touchdown', yesPrice: 34, noPrice: 68, volume: 15400, timeLeft: 'Drive 4', type: 'IN_GAME', trueProb: 41, edge: 7 },
-    { id: 'ig-2', event: 'KC vs BAL', marketName: 'Mahomes 2+ Passing TDs', yesPrice: 88, noPrice: 13, volume: 45000, timeLeft: 'Q4 12:00', type: 'IN_GAME' },
-    { id: 'ig-3', event: 'KC vs BAL', marketName: 'Next Score: Field Goal', yesPrice: 45, noPrice: 57, volume: 8900, timeLeft: 'Drive 4', type: 'IN_GAME' },
-    { id: 'ig-4', event: 'SF vs LAR', marketName: 'CMC Anytime TD', yesPrice: 72, noPrice: 29, volume: 12000, timeLeft: 'Q2 5:00', type: 'IN_GAME' },
+    { id: 'ig-1', event: 'KC vs BAL', marketName: 'Next Drive: Touchdown', book: 'Kalshi', yesPrice: 34, noPrice: 68, volume: 15400, timeLeft: 'Drive 4', type: 'IN_GAME', trueProb: 41, edge: 7 },
+    { id: 'ig-2', event: 'KC vs BAL', marketName: 'Mahomes 2+ Passing TDs', book: 'Polymarket', yesPrice: 88, noPrice: 13, volume: 45000, timeLeft: 'Q4 12:00', type: 'IN_GAME' },
+    { id: 'ig-3', event: 'KC vs BAL', marketName: 'Next Score: Field Goal', book: 'Kalshi', yesPrice: 45, noPrice: 57, volume: 8900, timeLeft: 'Drive 4', type: 'IN_GAME' },
+    { id: 'ig-4', event: 'SF vs LAR', marketName: 'CMC Anytime TD', book: 'Polymarket', yesPrice: 72, noPrice: 29, volume: 12000, timeLeft: 'Q2 5:00', type: 'IN_GAME' },
     
     // PREGAME (Macro)
-    { id: 'pg-1', event: 'BUF vs MIA', marketName: 'Bills Win Game', yesPrice: 58, noPrice: 44, volume: 120000, timeLeft: 'Sun 8:20PM', type: 'PREGAME' },
-    { id: 'pg-2', event: 'PHI vs DAL', marketName: 'Eagles Win Game', yesPrice: 62, noPrice: 40, volume: 98000, timeLeft: 'Sun 4:25PM', type: 'PREGAME' },
-    { id: 'pg-3', event: 'DET vs CHI', marketName: 'Total Points > 48.5', yesPrice: 51, noPrice: 51, volume: 34000, timeLeft: 'Sun 1:00PM', type: 'PREGAME' },
+    { id: 'pg-1', event: 'BUF vs MIA', marketName: 'Bills Win Game', book: 'Kalshi', yesPrice: 58, noPrice: 44, volume: 120000, timeLeft: 'Sun 8:20PM', type: 'PREGAME' },
+    { id: 'pg-2', event: 'PHI vs DAL', marketName: 'Eagles Win Game', book: 'Polymarket', yesPrice: 62, noPrice: 40, volume: 98000, timeLeft: 'Sun 4:25PM', type: 'PREGAME' },
+    { id: 'pg-3', event: 'DET vs CHI', marketName: 'Total Points > 48.5', book: 'Kalshi', yesPrice: 51, noPrice: 51, volume: 34000, timeLeft: 'Sun 1:00PM', type: 'PREGAME' },
     
     // ASYMMETRICAL (High Edge / Low Risk)
-    { id: 'as-1', event: 'NYJ vs NE', marketName: 'Patriots Win (Moneyline)', yesPrice: 22, noPrice: 80, volume: 5000, timeLeft: 'Sun 1:00PM', type: 'PREGAME', isAsymmetrical: true, trueProb: 35, edge: 13 },
-    { id: 'as-2', event: 'KC vs BAL', marketName: 'Next Play: Turnover', yesPrice: 4, noPrice: 97, volume: 2000, timeLeft: 'Live', type: 'IN_GAME', isAsymmetrical: true, trueProb: 9, edge: 5 },
-    { id: 'as-3', event: 'GB vs MIN', marketName: 'Love 300+ Pass Yds', yesPrice: 18, noPrice: 84, volume: 4100, timeLeft: 'Sun 1:00PM', type: 'PREGAME', isAsymmetrical: true, trueProb: 28, edge: 10 },
+    { id: 'as-1', event: 'NYJ vs NE', marketName: 'Patriots Win (Moneyline)', book: 'Polymarket', yesPrice: 22, noPrice: 80, volume: 5000, timeLeft: 'Sun 1:00PM', type: 'PREGAME', isAsymmetrical: true, trueProb: 35, edge: 13 },
+    { id: 'as-2', event: 'KC vs BAL', marketName: 'Next Play: Turnover', book: 'Kalshi', yesPrice: 4, noPrice: 97, volume: 2000, timeLeft: 'Live', type: 'IN_GAME', isAsymmetrical: true, trueProb: 9, edge: 5 },
+    { id: 'as-3', event: 'GB vs MIN', marketName: 'Love 300+ Pass Yds', book: 'Kalshi', yesPrice: 18, noPrice: 84, volume: 4100, timeLeft: 'Sun 1:00PM', type: 'PREGAME', isAsymmetrical: true, trueProb: 28, edge: 10 },
 ];
 
 const DECAY_DATA = [
@@ -173,8 +174,13 @@ export const PredictionMarkets: React.FC<PredictionMarketsProps> = ({ activeLeag
                           <div key={m.id} className="bg-slate-900/50 border border-yellow-500/20 p-6 rounded-2xl flex flex-col justify-between group hover:bg-yellow-900/10 transition-colors">
                               <div>
                                   <div className="flex justify-between items-start mb-2">
-                                      <span className="text-[10px] text-slate-500 font-bold bg-black/40 px-2 py-1 rounded">{m.event}</span>
-                                      <span className="text-[10px] text-emerald-400 font-mono font-bold">+{m.edge}% Edge</span>
+                                      <div className="flex items-center gap-2">
+                                          <span className="text-[10px] text-slate-500 font-bold bg-black/40 px-2 py-1 rounded">{m.event}</span>
+                                          <span className={clsx("text-[10px] font-bold px-2 py-1 rounded border", m.book === 'Kalshi' ? "bg-pink-500/20 text-pink-400 border-pink-500/30" : "bg-indigo-500/20 text-indigo-400 border-indigo-500/30")}>
+                                              {m.book}
+                                          </span>
+                                      </div>
+                                      <span className="text-[12px] bg-emerald-500/20 px-2 py-1 rounded border border-emerald-500/30 text-emerald-400 font-mono font-black shadow-[0_0_10px_rgba(16,185,129,0.3)]">+{m.edge}% EDGE</span>
                                   </div>
                                   <h4 className="text-white font-bold text-lg leading-tight mb-4">{m.marketName}</h4>
                               </div>
@@ -212,8 +218,16 @@ export const PredictionMarkets: React.FC<PredictionMarketsProps> = ({ activeLeag
                               <div className="flex items-center gap-2 mb-1">
                                   {m.type === 'IN_GAME' && <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>}
                                   <span className="text-xs font-bold text-slate-400">{m.event}</span>
+                                  <span className={clsx("text-[9px] font-bold px-1.5 py-0.5 rounded border", m.book === 'Kalshi' ? "bg-pink-500/10 text-pink-400 border-pink-500/20" : "bg-indigo-500/10 text-indigo-400 border-indigo-500/20")}>
+                                      {m.book}
+                                  </span>
                               </div>
                               <div className="text-base font-black text-white group-hover:text-pink-400 transition-colors">{m.marketName}</div>
+                              {m.isAsymmetrical && (
+                                  <div className="inline-block mt-1.5 bg-emerald-500/20 px-2 py-0.5 rounded border border-emerald-500/30 text-[10px] text-emerald-400 font-mono font-black shadow-[0_0_5px_rgba(16,185,129,0.2)]">
+                                      +{m.edge}% EDGE REVEALED
+                                  </div>
+                              )}
                           </div>
 
                           {/* Status */}

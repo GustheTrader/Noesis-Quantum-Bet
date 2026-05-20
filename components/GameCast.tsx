@@ -79,7 +79,9 @@ export const GameCast: React.FC = () => {
     const fetchGames = async () => {
         setLoading(true);
         try {
-            const res = await fetch('https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard');
+            const targetUrl = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard';
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+            const res = await fetch(proxyUrl);
             if (!res.ok) throw new Error('Failed to fetch scoreboard');
             const data = await res.json();
             
@@ -125,7 +127,9 @@ export const GameCast: React.FC = () => {
                 return;
             }
 
-            const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=${gameId}`);
+            const targetUrl = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=${gameId}`;
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+            const res = await fetch(proxyUrl);
             if (!res.ok) throw new Error('Failed to fetch game summary');
             const data = await res.json();
             
