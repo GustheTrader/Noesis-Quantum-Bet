@@ -61,7 +61,7 @@ export const EmailGate: React.FC<EmailGateProps> = ({ onUnlock }) => {
                             <CheckCircle size={14} /> Neural Interface Established
                         </div>
                         <h1 className="text-5xl md:text-7xl font-black text-white uppercase tracking-tighter mb-4 leading-none">
-                            Quantum<span className="text-cyan-400">Bets</span>
+                            ASYM<span className="text-cyan-400">Bet</span>
                         </h1>
                         <p className="text-slate-500 text-sm font-mono uppercase tracking-widest">Select Operational Mode // ID: {email.split('@')[0].toUpperCase()}</p>
                     </div>
@@ -148,7 +148,7 @@ export const EmailGate: React.FC<EmailGateProps> = ({ onUnlock }) => {
                         </div>
 
                         <h1 className="text-4xl font-black text-white uppercase tracking-tighter mb-4 leading-none">
-                            Quantum<span className="text-cyan-400">Bets</span>
+                            ASYM<span className="text-cyan-400">Bet</span>
                         </h1>
                         <p className="text-slate-400 text-sm leading-relaxed mb-10 font-medium">
                             Authorized personnel only. Initialize session via encrypted email handshake.

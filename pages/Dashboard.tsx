@@ -4,6 +4,7 @@ import { SummaryCards } from '../components/SummaryCards';
 import { PerformanceChart } from '../components/PerformanceChart';
 import { WeekView } from '../components/WeekView';
 import { HighlightReel } from '../components/HighlightReel';
+import { MonthlyHeatmap } from '../components/MonthlyHeatmap';
 import { WeekData, DashboardStats, ChartDataPoint, UserBet, SummaryStats, League } from '../types';
 import { calculateStats, generateChartData } from '../utils';
 import { clsx } from 'clsx';
@@ -228,6 +229,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ weeks, stats, chartData, a
             </div>
             <SummaryCards stats={stats[statsView]} allStats={stats} />
             <PerformanceChart data={chartData} />
+            
+            {/* Monthly Betting ROI Performance Heatmap */}
+            <MonthlyHeatmap weeks={weeks} activeLeague={activeLeague} />
+            
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                 <div className="lg:col-span-1 space-y-8">
                     <div className="p-8 rounded-2xl relative overflow-hidden border bg-gradient-to-br from-indigo-950 to-purple-950 border-indigo-500/30">

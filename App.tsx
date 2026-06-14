@@ -20,6 +20,7 @@ import { TeamTicker } from './components/TeamTicker';
 import { OnboardingTour } from './components/OnboardingTour';
 import { VoiceAgent } from './components/VoiceAgent';
 import { EmailGate } from './components/EmailGate';
+import { PremiumGate } from './components/PremiumGate';
 import { INITIAL_PICKS_CONTENT, INITIAL_WEEK_DATA, INITIAL_ARCHIVE, INITIAL_GAME_SUMMARIES } from './constants';
 import { calculateStats, generateChartData, formatError } from './utils';
 import { WeekData, PickArchiveItem, GameSummary, League } from './types';
@@ -35,6 +36,7 @@ function App() {
   const [sessionMode, setSessionMode] = useState<'none' | 'tour' | 'voice' | 'direct'>('none');
   const [checkingAccess, setCheckingAccess] = useState(true);
   const [showVoiceAgent, setShowVoiceAgent] = useState(false);
+  const [isPremiumUnlocked, setIsPremiumUnlocked] = useState<boolean>(() => localStorage.getItem('asym_premium_unlocked') === 'true');
 
   const [weeks, setWeeks] = useState<WeekData[]>([]);
   const [archives, setArchives] = useState<PickArchiveItem[]>([]);
@@ -128,6 +130,19 @@ function App() {
   }
 
   const renderContent = () => {
+    const isPremiumView = ['binary-alpha', 'quantum-edge', 'trading-desk'].includes(currentView);
+    if (isPremiumView && !isPremiumUnlocked) {
+        return (
+            <PremiumGate 
+                currentViewName={currentView}
+                onUnlockPremium={() => {
+                    localStorage.setItem('asym_premium_unlocked', 'true');
+                    setIsPremiumUnlocked(true);
+                }}
+            />
+        );
+    }
+
     if (isLoadingData && currentView !== 'trading-desk') {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh]">
@@ -177,7 +192,7 @@ function App() {
     }
   };
 
-  const isTradingDesk = currentView === 'trading-desk';
+  const isTradingDesk = currentView === 'trading-desk' && isPremiumUnlocked;
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col relative overflow-x-hidden">
@@ -188,6 +203,7 @@ function App() {
             onLaunchArby={() => setShowVoiceAgent(true)}
             activeLeague={activeLeague}
             setActiveLeague={setActiveLeague}
+            isPremiumUnlocked={isPremiumUnlocked}
           />
       )}
 

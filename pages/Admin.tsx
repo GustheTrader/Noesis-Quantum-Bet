@@ -100,7 +100,7 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
         }
 
         const result = await ai.models.generateContent({
-          model: 'gemini-3-flash-preview',
+          model: 'gemini-3.5-flash',
           contents: `SYSTEM CONTEXT: QuantumBets Admin terminal. TASK: ${prompt}. INPUT DATA: ${text}`,
           config: { responseMimeType: responseMime }
         });
@@ -141,7 +141,7 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
     setDragActive(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       if (activeTab === 'CSV_IMPORT') {
-        const fileArray = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.csv') || f.type.includes('csv'));
+        const fileArray = (Array.from(e.dataTransfer.files) as File[]).filter(f => f.name.endsWith('.csv') || f.type.includes('csv'));
         if (fileArray.length > 0) {
            fileArray.forEach(f => handleCSVImport(f));
         } else {
@@ -195,7 +195,7 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
       if (activeTab === 'RESULTS') {
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const res = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: 'gemini-3.5-flash',
             contents: `Convert this text to Results Ledger JSON for ${targetLeague}: ${manualContent}`,
             config: { responseMimeType: "application/json" }
         });
@@ -364,7 +364,7 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
                                     onChange={(e) => {
                                       if (e.target.files) {
                                         if (activeTab === 'CSV_IMPORT') {
-                                          Array.from(e.target.files).forEach(f => handleCSVImport(f));
+                                          (Array.from(e.target.files) as File[]).forEach(f => handleCSVImport(f));
                                         } else {
                                           runOCRAndIngest(e.target.files);
                                         }

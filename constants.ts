@@ -1,7 +1,7 @@
 
 import { WeekData, BetResult, PickArchiveItem, GameSummary } from './types';
 
-export const APP_NAME = "Quantum Bets";
+export const APP_NAME = "ASYMBet";
 export const APP_VERSION = "2025.1.0";
 export const AUTHORIZED_ADMIN = "jeffgus@gmail.com";
 

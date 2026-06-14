@@ -1,7 +1,10 @@
 {
-  "name": "Quantum Bets",
-  "description": "High-performance NFL betting model tracker and analytics dashboard featuring real-time ROI tracking, unit management, and OCR reporting tools.",
+  "name": "ASYMBet",
+  "description": "High-performance dynamic predictive model tracker and analytics dashboard featuring ASYMBet Premium subscription, Dual-Exchange Arbitrage terminal, and advanced machine learning modeling engines.",
   "requestFramePermissions": [
     "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
   ]
 }

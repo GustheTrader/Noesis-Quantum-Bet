@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Activity, Radio, Play, Pause, Power, Crosshair, BarChart3, Clock, AlertTriangle, ArrowUp, ArrowDown, Wifi, DollarSign, Bot, MousePointerClick, RefreshCw, Layers, Zap, TrendingUp, Search, Filter, Split, LineChart, Eye, EyeOff, List, ZoomIn, ZoomOut } from 'lucide-react';
 import { clsx } from 'clsx';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
 
 // PROFESSIONAL MARKET DATA TYPES
 interface MarketTicker {
@@ -153,6 +154,7 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
     const [openPositions, setOpenPositions] = useState(0);
     const [searchTerm, setSearchTerm] = useState('');
     const [showPnl, setShowPnl] = useState(true);
+    const [depthTab, setDepthTab] = useState<'SIDE_BY_SIDE' | 'DELTA'>('SIDE_BY_SIDE');
     
     // Execution State
     const [orderSize, setOrderSize] = useState(100);
@@ -288,6 +290,47 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
     const handleManualExec = (side: 'BUY' | 'SELL') => {
         if (selectedMarket) executeTrade(selectedMarket, side, orderSize);
     };
+
+    // Calculate the order book depth levels & volumes deterministically from the selected market price & time
+    const depthData = React.useMemo(() => {
+        if (!selectedMarket) return [];
+        
+        // Use a deterministic seed from base characters of selectedMarket symbol and properties
+        const seedValue = selectedMarket.symbol.split('').reduce((acc, char) => acc + char.charCodeAt(0), 100) + Math.abs(selectedMarket.bid || 100);
+        
+        return Array.from({ length: 5 }).map((_, i) => {
+            // Incorporate smooth live progression based on current seconds
+            const secondsFactor = Math.sin((currentTime.getTime() / 1500) + i);
+            
+            // Scaled base volume levels (representing thicker orders as we go deeper into the book)
+            const baseBidVol = Math.round((seedValue * (i + 1) * 31) % 180 + 120 + (i * 40));
+            const baseAskVol = Math.round((seedValue * (i + 1) * 73) % 180 + 120 + (i * 40));
+            
+            // Apply slight interactive simulation wiggle 
+            const bidVol = Math.max(15, Math.round(baseBidVol + (secondsFactor * 30)));
+            const askVol = Math.max(15, Math.round(baseAskVol + (-secondsFactor * 30)));
+            
+            // Calculate delta
+            const delta = bidVol - askVol;
+            const absDelta = Math.abs(delta);
+            
+            // Calculate corresponding prices above and below spread
+            const bidPrice = selectedMarket.bid - (i * 2);
+            const askPrice = selectedMarket.ask + (i * 2);
+            
+            return {
+                level: `Lvl ${i + 1}`,
+                bidPrice,
+                askPrice,
+                bid: bidVol,
+                ask: askVol,
+                delta,
+                absDelta,
+                // Highlight dominant side for this level
+                dominant: delta > 0 ? 'bid' : 'ask'
+            };
+        });
+    }, [selectedMarket, currentTime]);
 
     const filteredMarkets = markets.filter(m => 
         m.symbol.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -722,38 +765,157 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
                     </div>
 
                     {/* ORDER BOOK (Moved from Footer) */}
-                    <div className="border-b border-slate-800 bg-[#050505]">
-                        <div className="p-2 bg-slate-900/50 border-b border-slate-800 text-[10px] font-bold text-slate-500 uppercase flex items-center gap-2">
-                            <List size={12} /> Live Depth
+                    <div className="border-b border-slate-800 bg-[#050505]" id="live-depth-container">
+                        <div className="p-2 bg-slate-900/50 border-b border-slate-800 text-[10px] font-bold text-slate-500 uppercase flex items-center justify-between">
+                            <span className="flex items-center gap-2">
+                                <List size={12} /> Live Depth
+                            </span>
+                            {/* Tabs for Order Book visualization */}
+                            <div className="flex gap-1">
+                                <button
+                                    id="depth-tab-volume"
+                                    onClick={() => setDepthTab('SIDE_BY_SIDE')}
+                                    className={clsx(
+                                        "px-1.5 py-0.5 rounded text-[8px] font-black tracking-wider transition-all uppercase",
+                                        depthTab === 'SIDE_BY_SIDE' ? "bg-cyan-600 text-white shadow-sm" : "bg-slate-800 text-slate-400 hover:text-white"
+                                    )}
+                                >
+                                    Volume
+                                </button>
+                                <button
+                                    id="depth-tab-delta"
+                                    onClick={() => setDepthTab('DELTA')}
+                                    className={clsx(
+                                        "px-1.5 py-0.5 rounded text-[8px] font-black tracking-wider transition-all uppercase",
+                                        depthTab === 'DELTA' ? "bg-cyan-600 text-white shadow-sm" : "bg-slate-800 text-slate-400 hover:text-white"
+                                    )}
+                                >
+                                    Delta
+                                </button>
+                            </div>
                         </div>
-                        <div className="p-2 font-mono text-[10px]">
-                            {/* Asks */}
-                            <div className="flex flex-col-reverse gap-0.5 mb-1">
-                                {[...Array(5)].map((_, i) => (
-                                    <div key={`ask-${i}`} className="flex justify-between px-2 py-0.5 relative overflow-hidden group">
-                                        <div className="absolute right-0 top-0 bottom-0 bg-rose-900/20 group-hover:bg-rose-900/40 transition-all" style={{ width: `${Math.random() * 80 + 20}%`}}></div>
-                                        <span className="relative z-10 text-slate-400">{(selectedMarket?.ask || 0) - i - 1}</span>
-                                        <span className="relative z-10 text-rose-400">{(Math.random() * 500 + 100).toFixed(0)}</span>
-                                    </div>
-                                ))}
-                            </div>
-                            
-                            {/* Spread Divider */}
-                            <div className="flex justify-between px-2 py-1 bg-slate-900 border-y border-slate-800 text-slate-500 font-bold my-1">
-                                <span>SPREAD</span>
-                                <span>{Math.abs((selectedMarket?.ask || 0) - (selectedMarket?.bid || 0)).toFixed(1)}</span>
-                            </div>
 
-                            {/* Bids */}
-                            <div className="flex flex-col gap-0.5">
-                                {[...Array(5)].map((_, i) => (
-                                    <div key={`bid-${i}`} className="flex justify-between px-2 py-0.5 relative overflow-hidden group">
-                                        <div className="absolute left-0 top-0 bottom-0 bg-emerald-900/20 group-hover:bg-emerald-900/40 transition-all" style={{ width: `${Math.random() * 80 + 20}%`}}></div>
-                                        <span className="relative z-10 text-emerald-400">{(Math.random() * 500 + 100).toFixed(0)}</span>
-                                        <span className="relative z-10 text-slate-400">{(selectedMarket?.bid || 0) + i + 1}</span>
+                        {/* Summary Metrics block detailing order book pressure */}
+                        <div className="px-3 py-1.5 bg-slate-950 flex justify-between items-center text-[9px] font-bold border-b border-slate-900/80" id="live-depth-imbalance-summary">
+                            <span className="text-slate-500">Imbalance Pressure:</span>
+                            {(() => {
+                                const totalBids = depthData.reduce((acc, d) => acc + d.bid, 0);
+                                const totalAsks = depthData.reduce((acc, d) => acc + d.ask, 0);
+                                const diff = totalBids - totalAsks;
+                                const totalVal = totalBids + totalAsks;
+                                const bidPct = totalVal > 0 ? (totalBids / totalVal) * 100 : 50;
+                                
+                                return (
+                                    <div className="flex items-center gap-1.5">
+                                        <span className={clsx("font-extrabold", diff >= 0 ? "text-emerald-400" : "text-rose-400")}>
+                                            {diff >= 0 ? 'Bids' : 'Asks'} {diff >= 0 ? '+' : ''}{diff} ({bidPct.toFixed(0)}%)
+                                        </span>
                                     </div>
-                                ))}
+                                );
+                            })()}
+                        </div>
+
+                        {/* Spread Indicator Box */}
+                        <div className="p-2 bg-slate-950 font-mono text-[9px] grid grid-cols-3 text-center border-b border-slate-900 text-slate-500 font-bold" id="live-depth-spread-info">
+                            <div>
+                                <span className="block text-[8px] text-slate-600">BEST BID</span>
+                                <span className="text-emerald-400 font-black">{selectedMarket?.bid || '---'}</span>
                             </div>
+                            <div className="border-x border-slate-900 flex flex-col justify-center">
+                                <span className="block text-[8px] text-slate-600">SPREAD</span>
+                                <span className="text-white font-black">{Math.abs((selectedMarket?.ask || 0) - (selectedMarket?.bid || 0)).toFixed(1)}</span>
+                            </div>
+                            <div>
+                                <span className="block text-[8px] text-slate-600">BEST ASK</span>
+                                <span className="text-rose-400 font-black">{selectedMarket?.ask || '---'}</span>
+                            </div>
+                        </div>
+
+                        {/* Rendering different chart based on selection */}
+                        <div className="p-2 h-44 w-full" id="live-depth-chart-wrapper">
+                            <ResponsiveContainer width="100%" height="100%">
+                                {depthTab === 'SIDE_BY_SIDE' ? (
+                                    // Bids vs Asks side-by-side comparative horizontal bar chart
+                                    <BarChart 
+                                        data={depthData} 
+                                        layout="vertical" 
+                                        margin={{ top: 0, right: 10, left: -25, bottom: 0 }}
+                                    >
+                                        <XAxis type="number" hide />
+                                        <YAxis dataKey="level" type="category" stroke="#475569" fontSize={8} tickLine={false} />
+                                        <Tooltip 
+                                            content={({ active, payload }) => {
+                                                if (active && payload && payload.length) {
+                                                    const data = payload[0].payload as any;
+                                                    return (
+                                                        <div className="bg-[#090d13] border border-slate-800 p-2 rounded shadow-xl text-[9px] font-mono leading-normal">
+                                                            <div className="text-slate-400 text-[8px] font-bold border-b border-slate-800 pb-1 mb-1">{data.level} Details</div>
+                                                            <div className="flex justify-between gap-4">
+                                                                <span className="text-emerald-400">Bid (Price: {data.bidPrice}):</span>
+                                                                <span className="text-white font-bold">{data.bid} Vol</span>
+                                                            </div>
+                                                            <div className="flex justify-between gap-4">
+                                                                <span className="text-rose-400">Ask (Price: {data.askPrice}):</span>
+                                                                <span className="text-white font-bold">{data.ask} Vol</span>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                }
+                                                return null;
+                                            }}
+                                        />
+                                        <Bar dataKey="bid" fill="#10b981" radius={[0, 2, 2, 0]} barSize={6} />
+                                        <Bar dataKey="ask" fill="#f43f5e" radius={[0, 2, 2, 0]} barSize={6} />
+                                    </BarChart>
+                                ) : (
+                                    // Order Book Delta (Bids - Asks) horizontal bar chart relative to center line (zero)
+                                    <BarChart 
+                                        data={depthData} 
+                                        layout="vertical" 
+                                        margin={{ top: 10, right: 10, left: -25, bottom: 5 }}
+                                    >
+                                        <XAxis type="number" stroke="#334155" fontSize={8} tickLine={false} />
+                                        <YAxis dataKey="level" type="category" stroke="#475569" fontSize={8} tickLine={false} />
+                                        <Tooltip 
+                                            content={({ active, payload }) => {
+                                                if (active && payload && payload.length) {
+                                                    const data = payload[0].payload as any;
+                                                    return (
+                                                        <div className="bg-[#090d13] border border-slate-800 p-2 rounded shadow-xl text-[9px] font-mono leading-normal">
+                                                            <div className="text-slate-400 text-[8px] font-bold border-b border-slate-800 pb-1 mb-1">{data.level} Imbalance</div>
+                                                            <div className="flex justify-between gap-4">
+                                                                <span className="text-slate-400">Bid Price:</span>
+                                                                <span className="text-emerald-400 font-bold">{data.bidPrice}</span>
+                                                            </div>
+                                                            <div className="flex justify-between gap-4">
+                                                                <span className="text-slate-400">Ask Price:</span>
+                                                                <span className="text-rose-400 font-bold">{data.askPrice}</span>
+                                                            </div>
+                                                            <div className="flex justify-between gap-4 border-t border-slate-900 pt-1 mt-1">
+                                                                <span className="text-slate-300 font-bold">Net Delta:</span>
+                                                                <span className={clsx("font-bold", data.delta >= 0 ? "text-emerald-400" : "text-rose-400")}>
+                                                                    {data.delta >= 0 ? '+' : ''}{data.delta} Vol
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                }
+                                                return null;
+                                            }}
+                                        />
+                                        <ReferenceLine x={0} stroke="#475569" strokeDasharray="3 3" />
+                                        <Bar dataKey="delta">
+                                            {depthData.map((entry, index) => (
+                                                <Cell 
+                                                    key={`cell-${index}`} 
+                                                    fill={entry.delta >= 0 ? '#10b981' : '#f43f5e'} 
+                                                    radius={entry.delta >= 0 ? [0, 2, 2, 0] : [2, 0, 0, 2]}
+                                                />
+                                            ))}
+                                        </Bar>
+                                    </BarChart>
+                                )}
+                            </ResponsiveContainer>
                         </div>
                     </div>
 

@@ -52,7 +52,7 @@ export const VoiceAgent: React.FC<VoiceAgentProps> = ({ onClose }) => {
 
             // 3. Connect to Gemini Live
             const sessionPromise = ai.live.connect({
-                model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+                model: 'gemini-3.1-flash-live-preview',
                 callbacks: {
                     onopen: () => {
                         console.log("ARBY-BOT Connected");

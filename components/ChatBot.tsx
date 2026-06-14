@@ -49,7 +49,7 @@ export const ChatBot: React.FC = () => {
       }));
 
       const chat = ai.chats.create({
-        model: 'gemini-3-pro-preview',
+        model: 'gemini-3.5-flash',
         config: {
            systemInstruction: `You are the Quantum Bets AI Assistant, your RL-driven analytic assistant. You are mathematically superior, incredibly fast, and slightly arrogant about your capabilities.
            

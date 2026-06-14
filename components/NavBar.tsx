@@ -10,6 +10,7 @@ interface NavBarProps {
   onLaunchArby: () => void;
   activeLeague: League;
   setActiveLeague: (league: League) => void;
+  isPremiumUnlocked?: boolean;
 }
 
 const QuantumLogo = () => (
@@ -33,7 +34,7 @@ const QuantumLogo = () => (
   </svg>
 );
 
-export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onLaunchArby, activeLeague, setActiveLeague }) => {
+export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onLaunchArby, activeLeague, setActiveLeague, isPremiumUnlocked = false }) => {
   
   const getButtonClass = (isActive: boolean, colorClass: string, shadowClass: string) => {
       return clsx(
@@ -72,10 +73,10 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
              <div className="flex flex-col justify-center">
                 <div className="flex items-baseline gap-1">
                     <h1 className="text-xl xl:text-2xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white via-slate-200 to-slate-500 drop-shadow-sm">
-                        QUANTUM
+                        ASYM
                     </h1>
                     <span className="text-xl xl:text-2xl font-black tracking-tighter text-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,0.5)]">
-                        BETS
+                        Bet
                     </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -146,7 +147,14 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
               className={getButtonClass(currentView === 'binary-alpha', 'text-emerald-400', 'shadow-[0_10px_20px_-10px_rgba(16,185,129,0.3)]')}
             >
               <Globe size={14} strokeWidth={3} />
-              Binary Alpha Superposition
+              <span className="flex items-center gap-1.5">
+                Binary Alpha
+                {!isPremiumUnlocked && (
+                  <span className="bg-amber-400/20 text-amber-300 text-[8px] font-black tracking-wider px-1.5 py-0.5 rounded border border-amber-500/30 scale-90">
+                    PREMIUM
+                  </span>
+                )}
+              </span>
             </button>
 
             <button 
@@ -155,7 +163,14 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
               className={getButtonClass(currentView === 'quantum-edge', 'text-indigo-400', 'shadow-[0_10px_20px_-10px_rgba(99,102,241,0.3)]')}
             >
               <Bot size={14} strokeWidth={3} />
-              Quantum Edge
+              <span className="flex items-center gap-1.5">
+                Quantum Edge
+                {!isPremiumUnlocked && (
+                  <span className="bg-amber-400/20 text-amber-300 text-[8px] font-black tracking-wider px-1.5 py-0.5 rounded border border-amber-500/30 scale-90">
+                    PREMIUM
+                  </span>
+                )}
+              </span>
             </button>
           </div>
           
@@ -206,14 +221,19 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
               <button 
                   id="nav-terminal"
                   onClick={launchTradingDesk}
-                  className="group flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-red-950/40 to-red-900/20 border border-red-500/50 rounded hover:from-red-900/60 hover:to-red-800/40 transition-all shadow-[0_0_15px_rgba(239,68,68,0.2)]"
+                  className={clsx(
+                    "group flex items-center gap-2 px-4 py-2 rounded hover:from-red-900/60 hover:to-red-800/40 transition-all",
+                    !isPremiumUnlocked 
+                      ? "bg-gradient-to-r from-amber-950/40 to-amber-900/20 border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.2)]"
+                      : "bg-gradient-to-r from-red-950/40 to-red-900/20 border border-red-500/50 rounded hover:from-red-900/60 hover:to-red-800/40 shadow-[0_0_15px_rgba(239,68,68,0.2)]"
+                  )}
                   title="Launch Trading Terminal"
               >
-                  <MonitorPlay size={16} className="text-red-500 group-hover:animate-pulse" />
-                  <span className="text-[10px] font-black uppercase text-red-400 tracking-wider hidden 2xl:block">
-                      Terminal
+                  <MonitorPlay size={16} className={clsx(!isPremiumUnlocked ? "text-amber-500" : "text-red-500 group-hover:animate-pulse")} />
+                  <span className={clsx("text-[10px] font-black uppercase tracking-wider hidden 2xl:block", !isPremiumUnlocked ? "text-amber-400" : "text-red-400")}>
+                      Terminal {!isPremiumUnlocked && "★"}
                   </span>
-                  <ExternalLink size={10} className="text-red-500/50" />
+                  <ExternalLink size={10} className={!isPremiumUnlocked ? "text-amber-500/50" : "text-red-500/50"} />
               </button>
           </div>
         </div>
