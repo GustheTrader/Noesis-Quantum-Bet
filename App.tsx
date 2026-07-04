@@ -47,12 +47,13 @@ function App() {
       NBA: "# NBA ALPHA FEED\nEstablishing daily hoops signal...",
       NHL: "# NHL ALPHA FEED\nEstablishing ice parity weights...",
       MLB: "# MLB ALPHA FEED\nSynchronizing pitching data...",
+      CFL: "# CFL ALPHA FEED\nCanadian Football League Alpha Feed\nSynchronizing Rouge, wide field, and 3-down model parameters...",
       MLS: "# MLS ALPHA FEED\nAnalyzing pitch dynamics...",
       SOCCER: "# SOCCER ALPHA FEED\nGlobal market synchronization...",
       MMA: "# MMA ALPHA FEED\nCalculating octagon control metrics...",
       HORSE: "# HORSE ALPHA FEED\nWiseRaceAi Terminal Synchronizing...",
       GOLF: "# GOLF ALPHA FEED\nAnalyzing tournament strokes gained...",
-      VELOCITY: "# VELOCITY ASYMBETTING\nAgentic Betting Agents Synchronizing Crypto/DeFi/TradFi Alpha..."
+      VELOCITY: "# PREDICTION LABS GNOESIS LAB\nAgentic Prediction Agents Synchronizing Crypto/DeFi/TradFi Alpha..."
   });
 
   useEffect(() => {
@@ -72,7 +73,7 @@ function App() {
         const { data: picksData } = await supabase.from('picks').select('*').order('created_at', { ascending: false });
         if (picksData) {
             setArchives(picksData as PickArchiveItem[]);
-            const sports: League[] = ['NFL', 'NBA', 'NHL', 'MLB', 'MLS', 'SOCCER', 'MMA', 'HORSE', 'GOLF', 'VELOCITY'];
+            const sports: League[] = ['NFL', 'NBA', 'NHL', 'MLB', 'CFL', 'MLS', 'SOCCER', 'MMA', 'HORSE', 'GOLF', 'VELOCITY'];
             sports.forEach(s => {
                 const latest = picksData.find(p => p.league === s);
                 if (latest) setLeaguePicks(prev => ({ ...prev, [s]: latest.content }));

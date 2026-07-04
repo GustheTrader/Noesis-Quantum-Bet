@@ -13,14 +13,14 @@ export const PremiumGate: React.FC<PremiumGateProps> = ({ onUnlockPremium, curre
     const [selectedTier, setSelectedTier] = useState<'monthly' | 'annual'>('monthly');
 
     const logs = [
-        "Handshaking with ASYMBet Secure Ledger...",
+        "Handshaking with Gnoesis Labs Secure Ledger...",
         "Authorizing Arbitrage API credentials...",
         "Routing through Kalshi event pipeline...",
         "Linking real-time Polymarket order feeds...",
         "Spinning up custom reinforcement learning weights...",
         "Syncing low-latency MetLife Stadium scoreboards...",
         "Encrypting private subscriber secure key...",
-        "Activating ASYMBet Premium Multi-Tier Pass!"
+        "Activating Gnoesis Labs Premium Multi-Tier Pass!"
     ];
 
     useEffect(() => {
@@ -142,7 +142,7 @@ export const PremiumGate: React.FC<PremiumGateProps> = ({ onUnlockPremium, curre
                                 Premium Unlocked
                             </h2>
                             <p className="text-slate-400 font-mono text-xs uppercase tracking-widest mt-2">
-                                Welcome to the ASYMBet Elite Layer
+                                Welcome to Gnoesis Labs Elite Layer
                             </p>
                         </div>
 
@@ -188,7 +188,7 @@ export const PremiumGate: React.FC<PremiumGateProps> = ({ onUnlockPremium, curre
                 </div>
                 
                 <h1 className="text-4xl md:text-6xl font-black text-white uppercase tracking-tighter leading-none">
-                    ASYM<span className="text-cyan-400">Bet</span> Premium Suite
+                    GNO<span className="text-cyan-400">Ξ</span>SIS LABS Premium Suite
                 </h1>
                 
                 <p className="text-slate-400 text-sm leading-relaxed max-w-2xl mx-auto font-light">
@@ -254,7 +254,7 @@ export const PremiumGate: React.FC<PremiumGateProps> = ({ onUnlockPremium, curre
                                 <span className="text-slate-400 text-xs font-semibold">Virtual Sandbox Subscription</span>
                             </div>
                             
-                            <h4 className="text-2xl font-black text-white uppercase tracking-tighter">ASYMBet Premium Access Pass</h4>
+                            <h4 className="text-2xl font-black text-white uppercase tracking-tighter">Gnoesis Labs Premium Access Pass</h4>
                             <p className="text-slate-400 text-xs leading-relaxed max-w-sm">
                                 Full, unrestricted VIP access. Includes immediate execution across day-trading feeds, interactive simulation engines, and portfolio tools.
                             </p>

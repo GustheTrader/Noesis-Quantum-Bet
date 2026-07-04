@@ -52,6 +52,9 @@ const TEAMS: Record<League, string[]> = {
   ],
   VELOCITY: [
     'BTC', 'ETH', 'SOL', 'AAVE', 'LINK', 'UNI', 'MKR', 'SNX'
+  ],
+  CFL: [
+    'MTL', 'WPG', 'TOR', 'HAM', 'BC', 'CGY', 'EDM', 'SSK', 'OTT'
   ]
 };
 

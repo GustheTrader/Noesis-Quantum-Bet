@@ -3,6 +3,7 @@ import React from 'react';
 import { LayoutDashboard, Target, MonitorPlay, ExternalLink, Mic, ShieldAlert, Trophy, Radio, BarChart3, Infinity, Calculator, Globe, Bot } from 'lucide-react';
 import { clsx } from 'clsx';
 import { League } from '../types';
+import { GnoesisLogoIcon, GnoesisBrandText } from './GnoesisLogo';
 
 interface NavBarProps {
   currentView: string;
@@ -12,27 +13,6 @@ interface NavBarProps {
   setActiveLeague: (league: League) => void;
   isPremiumUnlocked?: boolean;
 }
-
-const QuantumLogo = () => (
-  <svg width="48" height="48" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="drop-shadow-[0_0_15px_rgba(0,255,255,0.3)]">
-    <defs>
-      <linearGradient id="silver-sheen" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#ffffff" />
-        <stop offset="20%" stopColor="#cbd5e1" />
-        <stop offset="50%" stopColor="#475569" />
-        <stop offset="80%" stopColor="#cbd5e1" />
-        <stop offset="100%" stopColor="#ffffff" />
-      </linearGradient>
-      <linearGradient id="cyan-glow" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stopColor="#06b6d4" />
-        <stop offset="100%" stopColor="#00ffff" />
-      </linearGradient>
-    </defs>
-    <path d="M50 5L93.3 30V80L50 105L6.7 80V30L50 5Z" fill="url(#silver-sheen)" stroke="#1e293b" strokeWidth="2" transform="scale(0.9) translate(5, 0)" />
-    <path d="M50 25L75 40V70L50 85L25 70V40L50 25Z" fill="#0f172a" />
-    <path d="M50 35L55 50L70 55L55 60L50 75L45 60L30 55L45 50L50 35Z" fill="url(#cyan-glow)" className="animate-pulse" />
-  </svg>
-);
 
 export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onLaunchArby, activeLeague, setActiveLeague, isPremiumUnlocked = false }) => {
   
@@ -64,25 +44,17 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
         <div className="flex items-center justify-between h-24">
           
           {/* Logo Section */}
-          <div className="flex items-center gap-4 cursor-pointer group shrink-0" onClick={() => setCurrentView('picks')}>
+          <div className="flex items-center gap-3.5 cursor-pointer group shrink-0" onClick={() => setCurrentView('picks')}>
              <div className="relative group-hover:scale-105 transition-transform duration-500 ease-out">
-                <QuantumLogo />
-                <div className="absolute inset-0 bg-cyan-500/20 blur-xl rounded-full -z-10 group-hover:bg-cyan-500/30 transition-colors"></div>
+                <GnoesisLogoIcon size={52} />
+                <div className="absolute inset-0 bg-cyan-500/10 blur-xl rounded-full -z-10 group-hover:bg-cyan-500/25 transition-colors"></div>
              </div>
              
-             <div className="flex flex-col justify-center">
-                <div className="flex items-baseline gap-1">
-                    <h1 className="text-xl xl:text-2xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white via-slate-200 to-slate-500 drop-shadow-sm">
-                        ASYM
-                    </h1>
-                    <span className="text-xl xl:text-2xl font-black tracking-tighter text-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,0.5)]">
-                        Bet
-                    </span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className="h-[1px] w-6 bg-indigo-500/50"></div>
-                    <span className="text-[9px] text-indigo-300 font-mono tracking-[0.2em] uppercase">
-                        v2025.2
+             <div className="flex items-center gap-3">
+                <GnoesisBrandText textSizeClass="text-lg xl:text-xl" subSizeClass="text-[8px] xl:text-[9px]" />
+                <div className="hidden sm:flex items-center gap-2 border-l border-slate-800 pl-3">
+                    <span className="text-[9px] text-cyan-400 font-mono tracking-[0.15em] uppercase bg-cyan-950/40 px-1.5 py-0.5 rounded border border-cyan-500/20">
+                        v2026.1
                     </span>
                 </div>
              </div>
@@ -90,7 +62,7 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
 
           {/* League Selector */}
           <div className="hidden lg:flex items-center gap-1 mx-4 bg-slate-900/80 p-1 rounded-lg border border-slate-800 shadow-inner">
-            {(['NFL', 'NBA', 'NHL', 'MLB', 'MLS', 'SOCCER', 'MMA', 'HORSE', 'GOLF', 'VELOCITY'] as League[]).map(league => {
+            {(['NFL', 'NBA', 'NHL', 'MLB', 'CFL', 'MLS', 'SOCCER', 'MMA', 'HORSE', 'GOLF', 'VELOCITY'] as League[]).map(league => {
               const isVelocity = league === 'VELOCITY';
               return (
                 <button

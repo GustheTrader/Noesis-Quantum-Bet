@@ -6,7 +6,7 @@ export enum BetResult {
   PENDING = 'PENDING'
 }
 
-export type League = 'NFL' | 'NBA' | 'NHL' | 'MLB' | 'MLS' | 'SOCCER' | 'MMA' | 'HORSE' | 'GOLF' | 'VELOCITY';
+export type League = 'NFL' | 'NBA' | 'NHL' | 'MLB' | 'MLS' | 'SOCCER' | 'MMA' | 'HORSE' | 'GOLF' | 'VELOCITY' | 'CFL';
 export type BetType = 'SINGLE' | 'PARLAY';
 
 export interface Bet {

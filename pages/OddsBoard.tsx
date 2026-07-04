@@ -57,6 +57,7 @@ const LEAGUE_CONFIG = {
     NBA: { accent: 'orange', color: '#f97316', espnPath: 'basketball/nba', label: 'Hardwood Edge' },
     NHL: { accent: 'cyan', color: '#06b6d4', espnPath: 'hockey/nhl', label: 'Ice Parity' },
     MLB: { accent: 'blue', color: '#3b82f6', espnPath: 'baseball/mlb', label: 'Diamond Edge' },
+    CFL: { accent: 'rose', color: '#f43f5e', espnPath: 'football/cfl', label: 'Canadian Football' },
     MLS: { accent: 'green', color: '#22c55e', espnPath: 'soccer/usa.1', label: 'Pitch Alpha' },
     SOCCER: { accent: 'indigo', color: '#6366f1', espnPath: 'soccer/eng.1', label: 'Global Pitch' },
     MMA: { accent: 'red', color: '#ef4444', espnPath: 'mma/ufc', label: 'Octagon Edge' },
@@ -120,6 +121,12 @@ const FALLBACK_MATCHUPS: Record<League, Array<{ homeTeam: string; homeAbr: strin
     VELOCITY: [
         { homeTeam: 'Bitcoin Bull Run', homeAbr: 'BTC', homeLogo: 'https://assets.coingecko.com/coins/images/1/large/bitcoin.png', awayTeam: 'Ethereum Gas War', awayAbr: 'ETH', awayLogo: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png' },
         { homeTeam: 'Solana Breakdown', homeAbr: 'SOL', homeLogo: 'https://assets.coingecko.com/coins/images/4128/large/solana.png', awayTeam: 'Cardano Ghost', awayAbr: 'ADA', awayLogo: 'https://assets.coingecko.com/coins/images/975/large/cardano.png' }
+    ],
+    CFL: [
+        { homeTeam: 'Montreal Alouettes', homeAbr: 'MTL', homeLogo: 'https://a.espncdn.com/i/teamlogos/cfl/500/mtl.png', awayTeam: 'Winnipeg Blue Bombers', awayAbr: 'WPG', awayLogo: 'https://a.espncdn.com/i/teamlogos/cfl/500/wpg.png' },
+        { homeTeam: 'Hamilton Tiger-Cats', homeAbr: 'HAM', homeLogo: 'https://a.espncdn.com/i/teamlogos/cfl/500/ham.png', awayTeam: 'Toronto Argonauts', awayAbr: 'TOR', awayLogo: 'https://a.espncdn.com/i/teamlogos/cfl/500/tor.png' },
+        { homeTeam: 'Saskatchewan Roughriders', homeAbr: 'SSK', homeLogo: 'https://a.espncdn.com/i/teamlogos/cfl/500/ssk.png', awayTeam: 'BC Lions', awayAbr: 'BC', awayLogo: 'https://a.espncdn.com/i/teamlogos/cfl/500/bc.png' },
+        { homeTeam: 'Calgary Stampeders', homeAbr: 'CGY', homeLogo: 'https://a.espncdn.com/i/teamlogos/cfl/500/cgy.png', awayTeam: 'Edmonton Elks', awayAbr: 'EDM', awayLogo: 'https://a.espncdn.com/i/teamlogos/cfl/500/edm.png' }
     ]
 };
 
@@ -160,6 +167,8 @@ const getDeterministicLines = (seedId: string, league: string, homeName: string,
     } else {
         if (league === 'NFL') {
             baseTotal = 40.5 + (seed % 14);
+        } else if (league === 'CFL') {
+            baseTotal = 46.5 + (seed % 10);
         } else if (league === 'NBA') {
             baseTotal = 210.5 + (seed % 25);
         } else if (league === 'NHL') {
@@ -309,6 +318,13 @@ const LiveIntelDrawer: React.FC<{ game: Matchup; onClose: () => void }> = ({ gam
                         "SOL transaction speed surges to 3,400 TPS with zero contract failures on execution loop.",
                         "Ethereum gas fees tumble to 6 gwei, triggering high-frequency automated restaking flows.",
                         "High leverage short liquidation event spotted on perpetual desks, pushing prices +1.4% higher.",
+                    ],
+                    CFL: [
+                        "Touchdown! Winnipeg connects on a beautiful 35-yard pass in the deep corner of the 20-yard end zone.",
+                        "Rouge! A missed field goal kick sails deep out of bounds through the end zone for a single point.",
+                        "Winnipeg quarterback sacked for a loss of 6 yards, forcing 3rd and long on 3-down rules.",
+                        "Interception! Montreal picks off the pass at the 45-yard line and returns it for 12 yards.",
+                        "Field Goal is GOOD! Montreal splits the uprights from 42 yards out.",
                     ]
                 };
 

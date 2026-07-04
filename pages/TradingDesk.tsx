@@ -47,16 +47,21 @@ const ChartViz: React.FC<{
     volatility: number;
     timeScale: number; // 1 = Normal, 2 = Zoomed In, 0.5 = Zoomed Out
     isMacro?: boolean;
-}> = ({ dataSeed, color, label, price, volatility, timeScale, isMacro }) => {
+    dataView?: 'VOLUME' | 'ALPHA';
+}> = ({ dataSeed, color, label, price, volatility, timeScale, isMacro, dataView = 'VOLUME' }) => {
     const [path, setPath] = useState('');
+    const [alphaPath, setAlphaPath] = useState('');
     const [yAxisLabels, setYAxisLabels] = useState<number[]>([]);
     const [xAxisLabels, setXAxisLabels] = useState<string[]>([]);
+    const [volumeBars, setVolumeBars] = useState<{ x: number; height: number }[]>([]);
     
     // Generate simulated data points on render/update
     useEffect(() => {
         const width = 1000; // Internal SVG coordinate width
         const height = 300; // Internal SVG coordinate height
         const points: [number, number][] = [];
+        const alphaPoints: [number, number][] = [];
+        const volBars: { x: number; height: number }[] = [];
         
         // Dynamic Range Calculation
         const range = price * (volatility * (isMacro ? 4 : 1)); // Macro shows wider range
@@ -93,6 +98,16 @@ const ChartViz: React.FC<{
             // Clamp
             const clampedY = Math.max(10, Math.min(height - 10, normalizedY));
             points.push([x, clampedY]);
+
+            // Volume bar generation (heights between 10 and 60 pixels from bottom)
+            const volHeight = Math.abs(Math.sin(i * 0.15 + dataSeed) * Math.cos(i * 0.08)) * 60 + 10;
+            volBars.push({ x: x, height: volHeight });
+
+            // Alpha predicted line (shifted slightly earlier/different shape)
+            const alphaNoise = (Math.sin(i * 0.11 + dataSeed + 0.4) * Math.cos(i * 0.04)) * (range * 0.7);
+            const alphaSimulated = price + alphaNoise + trend + (range * 0.08);
+            const alphaY = height - ((alphaSimulated - minPrice) / (maxPrice - minPrice)) * height;
+            alphaPoints.push([x, Math.max(10, Math.min(height - 10, alphaY))]);
         }
 
         // Construct SVG Path d attribute
@@ -100,6 +115,13 @@ const ChartViz: React.FC<{
             const d = `M ${points[0][0]},${points[0][1]} ` + points.map(p => `L ${p[0]},${p[1]}`).join(' ');
             setPath(d);
         }
+
+        if (alphaPoints.length > 0) {
+            const alphaD = `M ${alphaPoints[0][0]},${alphaPoints[0][1]} ` + alphaPoints.map(p => `L ${p[0]},${p[1]}`).join(' ');
+            setAlphaPath(alphaD);
+        }
+
+        setVolumeBars(volBars);
 
     }, [dataSeed, price, volatility, timeScale, isMacro]);
 
@@ -120,6 +142,29 @@ const ChartViz: React.FC<{
                 <line x1="250" y1="0" x2="250" y2="300" stroke="#1e293b" strokeWidth="1" strokeDasharray="4 4" />
                 <line x1="500" y1="0" x2="500" y2="300" stroke="#1e293b" strokeWidth="1" strokeDasharray="4 4" />
                 <line x1="750" y1="0" x2="750" y2="300" stroke="#1e293b" strokeWidth="1" strokeDasharray="4 4" />
+
+                {/* Dynamic Volume Bars */}
+                {dataView === 'VOLUME' && volumeBars.map((bar, index) => {
+                    if (index % 4 === 0) {
+                        return (
+                            <rect 
+                                key={index} 
+                                x={bar.x} 
+                                y={300 - bar.height} 
+                                width="5" 
+                                height={bar.height} 
+                                fill="#22d3ee" 
+                                opacity="0.10" 
+                            />
+                        );
+                    }
+                    return null;
+                })}
+
+                {/* Alpha Prediction Line */}
+                {dataView === 'ALPHA' && (
+                    <path d={alphaPath} fill="none" stroke="#6366f1" strokeWidth="1.5" strokeDasharray="6 3" opacity="0.75" />
+                )}
 
                 {/* The Chart Line */}
                 <path d={path} fill="none" stroke={color} strokeWidth="2" vectorEffect="non-scaling-stroke" />
@@ -162,9 +207,17 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
     // Zoom State
     const [timeScale, setTimeScale] = useState(1);
 
+    // Background Real-Time Synchronization State
+    const [syncLatency, setSyncLatency] = useState(0.85);
+    const [lastSyncStatus, setLastSyncStatus] = useState<'PARITY_OK' | 'SYNCING'>('PARITY_OK');
+
     // Agent State
     const [isAgentRunning, setIsAgentRunning] = useState(false);
     const agentIntervalRef = useRef<any>(null);
+
+    // Floating Data View State
+    const [deskDataView, setDeskDataView] = useState<'VOLUME' | 'ALPHA'>('VOLUME');
+    const [activePreset, setActivePreset] = useState<string>('Standard Sharp Core');
 
     // Derived State for Safety
     const selectedMarket = markets.find(m => m.id === selectedMarketId);
@@ -234,9 +287,33 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
             }));
         }, 1200);
 
+        // Real-time background synchronization check for low-duration assets (PROPS / high volatility)
+        const syncInterval = setInterval(() => {
+            setLastSyncStatus('SYNCING');
+            setTimeout(() => {
+                setSyncLatency(parseFloat((0.3 + Math.random() * 0.6).toFixed(2)));
+                setLastSyncStatus('PARITY_OK');
+                // Ensure price parity & data freshness for low-duration assets
+                setMarkets(prev => prev.map(m => {
+                    if (m.type === 'PROP' || m.volatility > 0.15) {
+                        const correctedBid = Math.round((m.bid * 0.85) + (m.clv * 0.15));
+                        const spread = Math.abs(m.bid - m.ask) || 2;
+                        return {
+                            ...m,
+                            bid: correctedBid,
+                            ask: correctedBid + spread,
+                            last: Math.round(correctedBid + (spread / 2))
+                        };
+                    }
+                    return m;
+                }));
+            }, 180);
+        }, 3500);
+
         return () => {
             clearInterval(timer);
             clearInterval(simInterval);
+            clearInterval(syncInterval);
             if (agentIntervalRef.current) clearInterval(agentIntervalRef.current);
         };
     }, []);
@@ -381,8 +458,12 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
             
             {/* 1. TOP GLOBAL TICKER */}
             <div className="h-8 bg-gradient-to-r from-[#020617] via-[#0f172a] to-[#020617] border-b border-indigo-500/20 flex items-center gap-6 px-4 overflow-hidden whitespace-nowrap shadow-lg z-20">
-                <div className="flex items-center gap-2 text-emerald-400 font-bold">
+                <div className="flex items-center gap-2 text-emerald-400 font-bold shrink-0">
                     <Activity size={12} /> SYSTEM ONLINE
+                </div>
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-cyan-950/50 border border-cyan-500/30 text-cyan-400 font-mono text-[10px] shrink-0">
+                    <span className={`w-1.5 h-1.5 rounded-full ${lastSyncStatus === 'SYNCING' ? 'bg-amber-400 animate-ping' : 'bg-cyan-400'}`}></span>
+                    <span>SYNC PARITY: {lastSyncStatus === 'SYNCING' ? 'CHECKING...' : `OK (${syncLatency}ms)`}</span>
                 </div>
                 {markets.slice(0, 8).map(m => (
                     <div key={`tick-${m.id}`} className="flex items-center gap-2 opacity-70">
@@ -617,6 +698,7 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
                                     volatility={selectedMarket?.volatility || 0.1}
                                     timeScale={timeScale}
                                     isMacro={true}
+                                    dataView={deskDataView}
                                 />
                              </div>
                              {/* Micro Chart (Live) */}
@@ -628,6 +710,7 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
                                     price={selectedMarket?.last || 100} 
                                     volatility={selectedMarket?.volatility || 0.1}
                                     timeScale={timeScale}
+                                    dataView={deskDataView}
                                 />
                              </div>
                          </div>
@@ -644,6 +727,7 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
                                     volatility={selectedMarket?.volatility || 0.1}
                                     timeScale={timeScale}
                                     isMacro={true}
+                                    dataView={deskDataView}
                                 />
                              </div>
                              {/* Micro Chart (Live) */}
@@ -655,7 +739,79 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
                                     price={(selectedMarket?.last || 100) - 2} 
                                     volatility={selectedMarket?.volatility || 0.1}
                                     timeScale={timeScale}
+                                    dataView={deskDataView}
                                 />
+                             </div>
+                         </div>
+
+                         {/* FLOATING CONTROL OVERLAY */}
+                         <div className="absolute bottom-4 right-4 bg-[#0a0d14]/90 border border-cyan-500/30 p-4 rounded-2xl backdrop-blur-md w-64 shadow-[0_20px_50px_rgba(0,0,0,0.8)] z-20 flex flex-col gap-3 font-sans text-[11px] animate-in fade-in zoom-in-95 duration-200">
+                             <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                                 <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-widest flex items-center gap-1.5">
+                                     <Layers size={12} className="text-cyan-400" />
+                                     DESK OVERLAY
+                                 </span>
+                                 <div className="flex items-center gap-1">
+                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                     <span className="text-[8px] font-mono text-emerald-400 uppercase font-black">Live</span>
+                                 </div>
+                             </div>
+
+                             {/* Preset Selector */}
+                             <div className="flex flex-col gap-1">
+                                 <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Active Preset</span>
+                                 <select 
+                                     value={activePreset} 
+                                     onChange={(e) => setActivePreset(e.target.value)}
+                                     className="bg-[#04060a] border border-slate-800 rounded-lg px-2.5 py-2 text-[10px] font-mono text-cyan-300 focus:outline-none focus:border-cyan-500/50 cursor-pointer"
+                                 >
+                                     <option value="Standard Sharp Core">Standard Sharp Core</option>
+                                     <option value="High Volatility Props">High Volatility Props</option>
+                                     <option value="Asymmetric Spreads">Asymmetric Spreads</option>
+                                     <option value="MLB Alpha Special">MLB Alpha Special</option>
+                                 </select>
+                             </div>
+
+                             {/* Toggle Controls */}
+                             <div className="flex flex-col gap-1.5">
+                                 <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Data View</span>
+                                 <div className="flex bg-[#04060a] p-0.5 rounded-lg border border-slate-800">
+                                     <button
+                                         onClick={() => setDeskDataView('VOLUME')}
+                                         className={clsx(
+                                             "flex-1 py-2 text-[9px] font-black uppercase rounded-md transition-all flex items-center justify-center gap-1.5",
+                                             deskDataView === 'VOLUME' ? "bg-cyan-950/80 text-cyan-400 border border-cyan-500/30 shadow-inner" : "text-slate-500 hover:text-slate-300 border border-transparent"
+                                         )}
+                                     >
+                                         <BarChart3 size={10} />
+                                         Volume
+                                     </button>
+                                     <button
+                                         onClick={() => setDeskDataView('ALPHA')}
+                                         className={clsx(
+                                             "flex-1 py-2 text-[9px] font-black uppercase rounded-md transition-all flex items-center justify-center gap-1.5",
+                                             deskDataView === 'ALPHA' ? "bg-indigo-950/80 text-indigo-400 border border-indigo-500/30 shadow-inner" : "text-slate-500 hover:text-slate-300 border border-transparent"
+                                         )}
+                                     >
+                                         <Zap size={10} />
+                                         Alpha
+                                     </button>
+                                 </div>
+                             </div>
+
+                             {/* Selected view details */}
+                             <div className="bg-black/60 border border-slate-800/80 rounded-lg p-2.5 text-[9px] font-mono text-slate-400">
+                                 {deskDataView === 'VOLUME' ? (
+                                     <div className="flex justify-between">
+                                         <span>AGGREGATED VOL:</span>
+                                         <span className="text-cyan-400 font-bold">{(selectedMarket?.volume ? selectedMarket.volume * 1.5 : 12450).toLocaleString()} contracts</span>
+                                     </div>
+                                 ) : (
+                                     <div className="flex justify-between">
+                                         <span>PREDICTED ALPHA:</span>
+                                         <span className="text-indigo-400 font-bold">+{selectedMarket ? (selectedMarket.edge * 1.25).toFixed(2) : '3.12'}% edge</span>
+                                     </div>
+                                 )}
                              </div>
                          </div>
 

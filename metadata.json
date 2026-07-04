@@ -1,6 +1,6 @@
 {
   "name": "ASYMBet",
-  "description": "High-performance dynamic predictive model tracker and analytics dashboard featuring ASYMBet Premium subscription, Dual-Exchange Arbitrage terminal, and advanced machine learning modeling engines.",
+  "description": "Prediction Labs Gnoesis Lab predictive model tracker and analytics dashboard featuring Dual-Exchange Arbitrage terminal and advanced machine learning modeling engines.",
   "requestFramePermissions": [
     "microphone"
   ],

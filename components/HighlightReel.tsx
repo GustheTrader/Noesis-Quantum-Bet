@@ -26,6 +26,7 @@ export const HighlightReel: React.FC<HighlightReelProps> = ({ activeLeague }) =>
       try {
         const leagueMap: Record<League, string> = {
             NFL: 'football/nfl',
+            CFL: 'football/cfl',
             NBA: 'basketball/nba',
             NHL: 'hockey/nhl',
             MLB: 'baseball/mlb',

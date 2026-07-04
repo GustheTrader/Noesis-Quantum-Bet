@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowRight, Loader2, ShieldCheck, Zap, CheckCircle, Map, Mic, Target, Cpu, Lock, Terminal } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { clsx } from 'clsx';
+import { GnoesisLogoIcon, GnoesisBrandText } from './GnoesisLogo';
 
 interface EmailGateProps {
     onUnlock: (mode: 'tour' | 'voice' | 'direct') => void;
@@ -60,9 +61,10 @@ export const EmailGate: React.FC<EmailGateProps> = ({ onUnlock }) => {
                         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-black uppercase tracking-[0.3em] mb-6">
                             <CheckCircle size={14} /> Neural Interface Established
                         </div>
-                        <h1 className="text-5xl md:text-7xl font-black text-white uppercase tracking-tighter mb-4 leading-none">
-                            ASYM<span className="text-cyan-400">Bet</span>
-                        </h1>
+                        <div className="flex flex-col items-center justify-center mb-6">
+                            <GnoesisLogoIcon size={80} className="mb-4" />
+                            <GnoesisBrandText textSizeClass="text-4xl md:text-6xl" subSizeClass="text-xs md:text-sm" />
+                        </div>
                         <p className="text-slate-500 text-sm font-mono uppercase tracking-widest">Select Operational Mode // ID: {email.split('@')[0].toUpperCase()}</p>
                     </div>
 
@@ -143,13 +145,10 @@ export const EmailGate: React.FC<EmailGateProps> = ({ onUnlock }) => {
                 <div className="glass-panel p-1 rounded-[48px] border border-cyan-500/30 shadow-[0_0_100px_rgba(6,182,212,0.1)]">
                     <div className="bg-[#0a0e17]/95 rounded-[46px] p-10 md:p-12 text-center relative overflow-hidden">
                         
-                        <div className="w-24 h-24 mx-auto mb-10 bg-cyan-500/10 rounded-3xl flex items-center justify-center border border-cyan-500/30 shadow-[0_0_40px_rgba(6,182,212,0.1)] group">
-                            <Cpu className="text-cyan-400 group-hover:scale-110 transition-transform" size={48} />
+                        <div className="flex flex-col items-center justify-center mb-8">
+                            <GnoesisLogoIcon size={96} className="mb-6 hover:scale-105 transition-transform" />
+                            <GnoesisBrandText textSizeClass="text-3xl md:text-4xl" subSizeClass="text-[10px] md:text-xs" />
                         </div>
-
-                        <h1 className="text-4xl font-black text-white uppercase tracking-tighter mb-4 leading-none">
-                            ASYM<span className="text-cyan-400">Bet</span>
-                        </h1>
                         <p className="text-slate-400 text-sm leading-relaxed mb-10 font-medium">
                             Authorized personnel only. Initialize session via encrypted email handshake.
                         </p>

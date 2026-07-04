@@ -264,6 +264,10 @@ export const PredictionMarkets: React.FC<PredictionMarketsProps> = ({ activeLeag
   const [wcLogAlert, setWcLogAlert] = useState<string | null>(null);
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
+  // Background Real-Time Synchronization State
+  const [lastSyncLagMs, setLastSyncLagMs] = useState(0.74);
+  const [syncPulse, setSyncPulse] = useState(false);
+
   useEffect(() => {
       setMarkets(generateMarkets());
       // Simulate live price updates
@@ -310,7 +314,43 @@ export const PredictionMarkets: React.FC<PredictionMarketsProps> = ({ activeLeag
           });
 
       }, 3000);
-      return () => clearInterval(interval);
+
+      // Background real-time synchronization parity check for low-duration assets (IN_GAME)
+      const paritySyncInterval = setInterval(() => {
+          setSyncPulse(true);
+          setTimeout(() => {
+              setLastSyncLagMs(parseFloat((0.3 + Math.random() * 0.5).toFixed(2)));
+              setSyncPulse(false);
+              // Ensure price parity & data freshness for low-duration assets (IN_GAME)
+              setMarkets(prev => prev.map(m => {
+                  if (m.type === 'IN_GAME') {
+                      const impliedNo = Math.max(1, 100 - m.yesPrice);
+                      return { ...m, noPrice: impliedNo };
+                  }
+                  return m;
+              }));
+              setWcMarkets(prev => prev.map(m => {
+                  if (m.type === 'IN_GAME') {
+                      const avg = Math.round((m.kalshiYes + m.polyYes) / 2);
+                      if (Math.abs(m.kalshiYes - m.polyYes) > 5) {
+                          return {
+                              ...m,
+                              kalshiYes: avg,
+                              kalshiNo: 100 - avg,
+                              polyYes: avg,
+                              polyNo: 100 - avg
+                          };
+                      }
+                  }
+                  return m;
+              }));
+          }, 150);
+      }, 4000);
+
+      return () => {
+          clearInterval(interval);
+          clearInterval(paritySyncInterval);
+      };
   }, []);
 
   // Volatility Shocks
@@ -488,10 +528,15 @@ export const PredictionMarkets: React.FC<PredictionMarketsProps> = ({ activeLeag
             </div>
             <h1 className="text-4xl font-black text-white uppercase tracking-tighter">{activeLeague} Binary Edge Alpha</h1>
           </div>
-          <p className="text-slate-400 text-lg leading-relaxed">
+          <p className="text-slate-400 text-lg leading-relaxed mb-4">
             Direct feed of Event Contracts from <span className="text-pink-400 font-bold underline">Kalshi</span> and <span className="text-indigo-400 font-bold underline">Polymarket</span>. 
             Identify and trade mispriced probabilities, pregame hedges, and real-time in-play contracts.
           </p>
+          <div className="inline-flex items-center gap-2 font-mono text-xs px-3 py-1.5 rounded-lg bg-slate-900/80 border border-cyan-500/30 text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.1)]">
+            <span className={`w-2 h-2 rounded-full ${syncPulse ? 'bg-amber-400 animate-ping' : 'bg-cyan-400'}`}></span>
+            <span className="font-bold tracking-wider text-slate-300">LOW-DURATION SYNC:</span>
+            <span>{syncPulse ? 'PARITY CHECKING...' : `VERIFIED (${lastSyncLagMs}ms parity lag)`}</span>
+          </div>
         </div>
 
         <div className="flex bg-slate-900/50 p-1 rounded-xl border border-slate-800 shadow-2xl overflow-x-auto max-w-full">
