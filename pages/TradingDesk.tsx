@@ -7,7 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLin
 // PROFESSIONAL MARKET DATA TYPES
 interface MarketTicker {
     id: string;
-    league: 'NFL' | 'NBA' | 'MLB';
+    league: 'NFL' | 'NBA' | 'MLB' | 'VELOCITY';
     symbol: string;
     description: string;
     type: 'SPREAD' | 'TOTAL' | 'MONEYLINE' | 'PROP';
@@ -21,6 +21,8 @@ interface MarketTicker {
     sentiment: number; // -1 to 1
     volume: number;
     change: number; // 24h change
+    book?: 'Polymarket' | 'Kalshi';
+    marketUrl?: string;
 }
 
 interface Trade {
@@ -198,6 +200,7 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
     const [equityHistory, setEquityHistory] = useState<number[]>([0]);
     const [openPositions, setOpenPositions] = useState(0);
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedLeague, setSelectedLeague] = useState<'ALL' | 'NFL' | 'NBA' | 'VELOCITY'>('ALL');
     const [showPnl, setShowPnl] = useState(true);
     const [depthTab, setDepthTab] = useState<'SIDE_BY_SIDE' | 'DELTA'>('SIDE_BY_SIDE');
     
@@ -248,6 +251,12 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
                 { id: 'm13', league: 'NFL', symbol: 'T.Hill o80.5', description: 'Rec Yards', type: 'PROP', bid: -114, ask: -114, last: -114, clv: -114, edge: 0.0, volatility: 0.2, sentiment: 0.5, volume: 1200, change: 0 },
                 { id: 'm14', league: 'NBA', symbol: 'L.James o24.5', description: 'Points', type: 'PROP', bid: -118, ask: -112, last: -115, clv: -122, edge: 1.9, volatility: 0.25, sentiment: 0.6, volume: 900, change: 1.2 },
                 { id: 'm15', league: 'NBA', symbol: 'S.Curry 4+ 3PM', description: 'Threes Made', type: 'PROP', bid: -140, ask: -130, last: -135, clv: -145, edge: 3.5, volatility: 0.2, sentiment: 0.7, volume: 1100, change: 0.5 },
+
+                // Velocity Crypto Prediction Markets
+                { id: 'v1', league: 'VELOCITY', symbol: 'BTC > $100K Q2', description: 'Bitcoin price exceeds $100,000 at end of Q2', type: 'PROP', bid: 64, ask: 66, last: 65, clv: 68, edge: 3.0, volatility: 0.22, sentiment: 0.75, volume: 1250000, change: 4.2, book: 'Polymarket', marketUrl: 'https://polymarket.com' },
+                { id: 'v2', league: 'VELOCITY', symbol: 'ETH Gas < 15 gwei', description: 'Weekly median Ethereum gas price below 15 gwei', type: 'PROP', bid: 44, ask: 46, last: 45, clv: 42, edge: -1.5, volatility: 0.35, sentiment: -0.2, volume: 450000, change: -1.8, book: 'Kalshi', marketUrl: 'https://kalshi.com' },
+                { id: 'v3', league: 'VELOCITY', symbol: 'SOL Surpasses BNB', description: 'Solana market capitalization surpases BNB in 2026', type: 'PROP', bid: 28, ask: 30, last: 29, clv: 35, edge: 6.0, volatility: 0.45, sentiment: 0.82, volume: 854000, change: 12.5, book: 'Polymarket', marketUrl: 'https://polymarket.com' },
+                { id: 'v4', league: 'VELOCITY', symbol: 'SOL ETF Approval', description: 'SEC approves spot Solana ETF before Dec 31', type: 'PROP', bid: 18, ask: 20, last: 19, clv: 24, edge: 5.0, volatility: 0.50, sentiment: 0.4, volume: 620000, change: 8.4, book: 'Kalshi', marketUrl: 'https://kalshi.com' }
             ];
             return tickers;
         };
@@ -268,8 +277,11 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
                     const magnitude = Math.floor(Math.random() * 3) + 1; // 1-3 pts
                     
                     let newBid = m.bid + (direction * magnitude);
-                    // Ensure spreads don't cross zero weirdly for American odds (simplified)
-                    if (newBid > -100 && newBid < 100) newBid = 100;
+                    if (m.league === 'VELOCITY') {
+                        newBid = Math.max(2, Math.min(96, newBid));
+                    } else if (newBid > -100 && newBid < 100) {
+                        newBid = 100;
+                    }
 
                     const spreadWidth = Math.abs(m.bid - m.ask);
                     const newAsk = newBid + (spreadWidth > 0 ? spreadWidth : 2); // Maintain spread
@@ -409,11 +421,13 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
         });
     }, [selectedMarket, currentTime]);
 
-    const filteredMarkets = markets.filter(m => 
-        m.symbol.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        m.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        m.league.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredMarkets = markets.filter(m => {
+        const matchesSearch = m.symbol.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                             m.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                             m.league.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesLeague = selectedLeague === 'ALL' || m.league === selectedLeague;
+        return matchesSearch && matchesLeague;
+    });
 
     const handleExit = () => {
         if (document.exitFullscreen) {
@@ -467,9 +481,9 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
                 </div>
                 {markets.slice(0, 8).map(m => (
                     <div key={`tick-${m.id}`} className="flex items-center gap-2 opacity-70">
-                        <span className="text-slate-400">{m.symbol}</span>
+                        <span className="text-slate-400 font-bold">{m.symbol}</span>
                         <span className={m.change >= 0 ? "text-emerald-500" : "text-rose-500"}>
-                            {m.last} ({m.change > 0 ? '+' : ''}{m.change}%)
+                            {m.league === 'VELOCITY' ? `$0.${m.last}` : m.last > 0 ? `+${m.last}` : m.last} ({m.change > 0 ? '+' : ''}{m.change}%)
                         </span>
                     </div>
                 ))}
@@ -543,6 +557,26 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
                 {/* A. MARKET SCREENER & ANALYTICS (LEFT) */}
                 <div className="w-[450px] border-r border-slate-800 flex flex-col bg-[#0b0e14]">
                     
+                    {/* League Sub-Tabs */}
+                    <div className="flex bg-[#05080c] p-1.5 border-b border-slate-800 text-[10px] font-bold overflow-x-auto gap-1 shrink-0">
+                        {(['ALL', 'NFL', 'NBA', 'VELOCITY'] as const).map(l => (
+                            <button
+                                key={l}
+                                onClick={() => setSelectedLeague(l)}
+                                className={clsx(
+                                    "px-2.5 py-1 rounded transition-all whitespace-nowrap uppercase tracking-wider font-sans text-[9px] border",
+                                    selectedLeague === l
+                                        ? l === 'VELOCITY'
+                                            ? "bg-fuchsia-950/80 text-fuchsia-300 border-fuchsia-500/50 shadow-[0_0_10px_rgba(217,70,239,0.2)]"
+                                            : "bg-cyan-950/80 text-cyan-300 border-cyan-500/50 shadow-[0_0_10px_rgba(6,182,212,0.2)]"
+                                        : "text-slate-500 hover:text-slate-300 border-transparent bg-transparent"
+                                )}
+                            >
+                                {l === 'VELOCITY' ? 'Velocity Crypto' : l}
+                            </button>
+                        ))}
+                    </div>
+
                     {/* Headers */}
                     <div className="grid grid-cols-12 gap-2 px-3 py-2 border-b border-slate-800 text-[10px] font-bold text-slate-500 uppercase bg-[#08090f]">
                         <div className="col-span-4">Instrument</div>
@@ -566,8 +600,17 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
                                 {/* Symbol */}
                                 <div className="col-span-4 overflow-hidden">
                                     <div className="flex items-center gap-2 mb-0.5">
-                                        <span className={clsx("text-[9px] px-1 rounded font-bold", m.league === 'NFL' ? 'bg-blue-900/50 text-blue-400' : m.league === 'NBA' ? 'bg-orange-900/50 text-orange-400' : 'bg-slate-700 text-slate-300')}>
-                                            {m.league}
+                                        <span className={clsx(
+                                            "text-[9px] px-1 rounded font-bold uppercase border",
+                                            m.league === 'VELOCITY' 
+                                                ? 'bg-fuchsia-950/80 text-fuchsia-400 border-fuchsia-500/30' 
+                                                : m.league === 'NFL' 
+                                                    ? 'bg-blue-900/50 text-blue-400 border-blue-800/30' 
+                                                    : m.league === 'NBA' 
+                                                        ? 'bg-orange-900/50 text-orange-400 border-orange-800/30' 
+                                                        : 'bg-slate-700 text-slate-300 border-slate-600/30'
+                                        )}>
+                                            {m.league === 'VELOCITY' ? 'CRYPTO' : m.league}
                                         </span>
                                         <span className="font-bold text-slate-200 truncate">{m.symbol}</span>
                                     </div>
@@ -575,11 +618,17 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
                                 </div>
 
                                 {/* Quotes */}
-                                <div className="col-span-2 text-center font-mono text-emerald-400">{m.bid}</div>
-                                <div className="col-span-2 text-center font-mono text-rose-400">{m.ask}</div>
+                                <div className="col-span-2 text-center font-mono text-emerald-400">
+                                    {m.league === 'VELOCITY' ? `$0.${m.bid}` : m.bid > 0 ? `+${m.bid}` : m.bid}
+                                </div>
+                                <div className="col-span-2 text-center font-mono text-rose-400">
+                                    {m.league === 'VELOCITY' ? `$0.${m.ask}` : m.ask > 0 ? `+${m.ask}` : m.ask}
+                                </div>
                                 
                                 {/* CLV */}
-                                <div className="col-span-2 text-center font-mono text-slate-400 opacity-70">{m.clv}</div>
+                                <div className="col-span-2 text-center font-mono text-slate-400 opacity-70">
+                                    {m.league === 'VELOCITY' ? `$0.${m.clv}` : m.clv > 0 ? `+${m.clv}` : m.clv}
+                                </div>
 
                                 {/* Edge */}
                                 <div className="col-span-2 text-right">
@@ -660,7 +709,32 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
                          <div>
                             <h2 className="text-2xl font-black text-white flex items-center gap-3">
                                 {selectedMarket?.symbol || "LOADING..."}
-                                <span className="text-sm font-normal text-slate-500 bg-slate-900 px-2 py-0.5 rounded border border-slate-700">{selectedMarket?.description || "Market Data"}</span>
+                                <span className="text-sm font-normal text-slate-400 bg-slate-900/80 px-2.5 py-0.5 rounded border border-slate-800 font-sans">{selectedMarket?.description || "Market Data"}</span>
+                                {selectedMarket?.book && (
+                                    <div className="flex items-center gap-2">
+                                        <span className={clsx(
+                                            "text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border font-sans",
+                                            selectedMarket.book === 'Polymarket' 
+                                                ? 'bg-indigo-950/85 text-indigo-400 border-indigo-500/30 shadow-[0_0_12px_rgba(99,102,241,0.15)]' 
+                                                : 'bg-pink-950/85 text-pink-400 border-pink-500/30'
+                                        )}>
+                                            {selectedMarket.book}
+                                        </span>
+                                        <a 
+                                            href={selectedMarket.marketUrl || 'https://polymarket.com'} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer" 
+                                            className={clsx(
+                                                "text-[9px] font-black uppercase px-2 py-1 rounded border shadow-sm transition-all flex items-center gap-1 font-sans",
+                                                selectedMarket.book === 'Polymarket'
+                                                    ? "bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-400/50"
+                                                    : "bg-pink-600 hover:bg-pink-500 text-white border-pink-400/50"
+                                            )}
+                                        >
+                                            Review on {selectedMarket.book === 'Polymarket' ? 'polymarket.com' : 'Kalshi'}
+                                        </a>
+                                    </div>
+                                )}
                             </h2>
                          </div>
                          <div className="flex gap-4 items-center">
@@ -875,7 +949,9 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
                                 className="flex-1 bg-rose-950/30 border border-rose-600/30 hover:bg-rose-600 hover:text-white text-rose-500 rounded-lg flex flex-col items-center justify-center transition-all disabled:opacity-30 group"
                             >
                                 <span className="text-xs uppercase font-black tracking-widest mb-1 group-hover:text-rose-200">Sell / Short</span>
-                                <span className="text-4xl font-black font-mono">{selectedMarket?.bid || '---'}</span>
+                                <span className="text-4xl font-black font-mono">
+                                    {selectedMarket ? (selectedMarket.league === 'VELOCITY' ? `$0.${selectedMarket.bid}` : selectedMarket.bid > 0 ? `+${selectedMarket.bid}` : selectedMarket.bid) : '---'}
+                                </span>
                             </button>
                             <button 
                                 disabled={mode === 'AGENT'}
@@ -883,7 +959,9 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
                                 className="flex-1 bg-emerald-950/30 border border-emerald-600/30 hover:bg-emerald-600 hover:text-white text-emerald-500 rounded-lg flex flex-col items-center justify-center transition-all disabled:opacity-30 group"
                             >
                                 <span className="text-xs uppercase font-black tracking-widest mb-1 group-hover:text-emerald-200">Buy / Long</span>
-                                <span className="text-4xl font-black font-mono">{selectedMarket?.ask || '---'}</span>
+                                <span className="text-4xl font-black font-mono">
+                                    {selectedMarket ? (selectedMarket.league === 'VELOCITY' ? `$0.${selectedMarket.ask}` : selectedMarket.ask > 0 ? `+${selectedMarket.ask}` : selectedMarket.ask) : '---'}
+                                </span>
                             </button>
                         </div>
                     </div>
@@ -975,15 +1053,21 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
                         <div className="p-2 bg-slate-950 font-mono text-[9px] grid grid-cols-3 text-center border-b border-slate-900 text-slate-500 font-bold" id="live-depth-spread-info">
                             <div>
                                 <span className="block text-[8px] text-slate-600">BEST BID</span>
-                                <span className="text-emerald-400 font-black">{selectedMarket?.bid || '---'}</span>
+                                <span className="text-emerald-400 font-black">
+                                    {selectedMarket ? (selectedMarket.league === 'VELOCITY' ? `$0.${selectedMarket.bid}` : selectedMarket.bid > 0 ? `+${selectedMarket.bid}` : selectedMarket.bid) : '---'}
+                                </span>
                             </div>
                             <div className="border-x border-slate-900 flex flex-col justify-center">
                                 <span className="block text-[8px] text-slate-600">SPREAD</span>
-                                <span className="text-white font-black">{Math.abs((selectedMarket?.ask || 0) - (selectedMarket?.bid || 0)).toFixed(1)}</span>
+                                <span className="text-white font-black font-mono">
+                                    {selectedMarket ? (selectedMarket.league === 'VELOCITY' ? `$${(Math.abs(selectedMarket.ask - selectedMarket.bid) / 100).toFixed(2)}` : Math.abs(selectedMarket.ask - selectedMarket.bid).toFixed(1)) : '---'}
+                                </span>
                             </div>
                             <div>
                                 <span className="block text-[8px] text-slate-600">BEST ASK</span>
-                                <span className="text-rose-400 font-black">{selectedMarket?.ask || '---'}</span>
+                                <span className="text-rose-400 font-black">
+                                    {selectedMarket ? (selectedMarket.league === 'VELOCITY' ? `$0.${selectedMarket.ask}` : selectedMarket.ask > 0 ? `+${selectedMarket.ask}` : selectedMarket.ask) : '---'}
+                                </span>
                             </div>
                         </div>
 

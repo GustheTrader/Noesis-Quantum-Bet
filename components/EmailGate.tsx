@@ -3,7 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { ArrowRight, Loader2, ShieldCheck, Zap, CheckCircle, Map, Mic, Target, Cpu, Lock, Terminal } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { clsx } from 'clsx';
-import { GnoesisLogoIcon, GnoesisBrandText } from './GnoesisLogo';
+import quantumBetsLogoImg from '../src/assets/images/quantum_bets_logo_1783566041207.jpg';
+import gnoesisLabsLogoImg from '../src/assets/images/gnoesis_labs_logo_1783566057128.jpg';
 
 interface EmailGateProps {
     onUnlock: (mode: 'tour' | 'voice' | 'direct') => void;
@@ -62,8 +63,28 @@ export const EmailGate: React.FC<EmailGateProps> = ({ onUnlock }) => {
                             <CheckCircle size={14} /> Neural Interface Established
                         </div>
                         <div className="flex flex-col items-center justify-center mb-6">
-                            <GnoesisLogoIcon size={80} className="mb-4" />
-                            <GnoesisBrandText textSizeClass="text-4xl md:text-6xl" subSizeClass="text-xs md:text-sm" />
+                            <img 
+                              src={quantumBetsLogoImg} 
+                              alt="Quantum Bets Logo" 
+                              className="w-20 h-20 rounded-2.5xl border border-cyan-500/30 object-cover shadow-[0_0_30px_rgba(6,182,212,0.2)] mb-4 hover:scale-105 transition-transform duration-500 bg-slate-950"
+                              referrerPolicy="no-referrer"
+                            />
+                            <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter leading-none">
+                                Quantum<span className="text-cyan-400">Bets</span>
+                            </h2>
+                            
+                            {/* Powered by Gnoesis Labs */}
+                            <div className="flex items-center gap-1.5 mt-4">
+                                <span className="text-[9px] font-mono text-slate-500 uppercase tracking-wider font-black">
+                                    Powered by
+                                </span>
+                                <img 
+                                  src={gnoesisLabsLogoImg} 
+                                  alt="Gnoesis Labs" 
+                                  className="h-[54px] object-contain rounded"
+                                  referrerPolicy="no-referrer"
+                                />
+                            </div>
                         </div>
                         <p className="text-slate-500 text-sm font-mono uppercase tracking-widest">Select Operational Mode // ID: {email.split('@')[0].toUpperCase()}</p>
                     </div>
@@ -146,8 +167,29 @@ export const EmailGate: React.FC<EmailGateProps> = ({ onUnlock }) => {
                     <div className="bg-[#0a0e17]/95 rounded-[46px] p-10 md:p-12 text-center relative overflow-hidden">
                         
                         <div className="flex flex-col items-center justify-center mb-8">
-                            <GnoesisLogoIcon size={96} className="mb-6 hover:scale-105 transition-transform" />
-                            <GnoesisBrandText textSizeClass="text-3xl md:text-4xl" subSizeClass="text-[10px] md:text-xs" />
+                            <img 
+                              src={quantumBetsLogoImg} 
+                              alt="Quantum Bets Logo" 
+                              className="w-24 h-24 rounded-3xl border border-cyan-500/30 object-cover shadow-[0_0_40px_rgba(6,182,212,0.2)] mb-6 hover:scale-105 transition-all duration-500 bg-slate-950"
+                              referrerPolicy="no-referrer"
+                            />
+                            <h2 className="text-3xl md:text-4xl font-black text-white uppercase tracking-tighter leading-none">
+                                Quantum<span className="text-cyan-400">Bets</span>
+                            </h2>
+                            <p className="text-[10px] font-mono text-slate-500 uppercase tracking-[0.3em] mt-2">RL-Driven Predictions Terminal</p>
+                            
+                            {/* Powered by Gnoesis Labs */}
+                            <div className="flex items-center gap-2 mt-6 px-4 py-2 bg-slate-950/60 rounded-xl border border-slate-800/60 shadow-inner">
+                                <span className="text-[9px] font-mono text-slate-500 uppercase tracking-widest font-black">
+                                    Powered by
+                                </span>
+                                <img 
+                                  src={gnoesisLabsLogoImg} 
+                                  alt="Gnoesis Labs" 
+                                  className="h-15 object-contain rounded border border-slate-900/50"
+                                  referrerPolicy="no-referrer"
+                                />
+                            </div>
                         </div>
                         <p className="text-slate-400 text-sm leading-relaxed mb-10 font-medium">
                             Authorized personnel only. Initialize session via encrypted email handshake.

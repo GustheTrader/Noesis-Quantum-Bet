@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   BarChart3, Zap, Info, ShieldCheck, Globe, 
   TrendingDown, TrendingUp, Clock, ArrowRight,
@@ -33,21 +33,77 @@ interface BinaryMarket {
 // MOCK DATA GENERATOR
 const generateMarkets = (): BinaryMarket[] => [
     // IN-GAME (Fast Decay)
-    { id: 'ig-1', event: 'KC vs BAL', marketName: 'Next Drive: Touchdown', book: 'Kalshi', yesPrice: 34, noPrice: 68, volume: 15400, timeLeft: 'Drive 4', type: 'IN_GAME', trueProb: 41, edge: 7 },
-    { id: 'ig-2', event: 'KC vs BAL', marketName: 'Mahomes 2+ Passing TDs', book: 'Polymarket', yesPrice: 88, noPrice: 13, volume: 45000, timeLeft: 'Q4 12:00', type: 'IN_GAME' },
-    { id: 'ig-3', event: 'KC vs BAL', marketName: 'Next Score: Field Goal', book: 'Kalshi', yesPrice: 45, noPrice: 57, volume: 8900, timeLeft: 'Drive 4', type: 'IN_GAME' },
-    { id: 'ig-4', event: 'SF vs LAR', marketName: 'CMC Anytime TD', book: 'Polymarket', yesPrice: 72, noPrice: 29, volume: 12000, timeLeft: 'Q2 5:00', type: 'IN_GAME' },
+    { id: 'ig-1', event: 'KC vs BAL', marketName: 'Next Drive: Touchdown', book: 'Kalshi', yesPrice: 34, noPrice: 66, volume: 15400, timeLeft: 'Drive 4', type: 'IN_GAME', trueProb: 41, edge: 7 },
+    { id: 'ig-2', event: 'KC vs BAL', marketName: 'Mahomes 2+ Passing TDs', book: 'Polymarket', yesPrice: 88, noPrice: 12, volume: 45000, timeLeft: 'Q4 12:00', type: 'IN_GAME', trueProb: 91, edge: 3 },
+    { id: 'ig-3', event: 'KC vs BAL', marketName: 'Next Score: Field Goal', book: 'Kalshi', yesPrice: 45, noPrice: 55, volume: 8900, timeLeft: 'Drive 4', type: 'IN_GAME', trueProb: 48, edge: 3 },
+    { id: 'ig-4', event: 'SF vs LAR', marketName: 'CMC Anytime TD', book: 'Polymarket', yesPrice: 72, noPrice: 28, volume: 12000, timeLeft: 'Q2 5:00', type: 'IN_GAME', trueProb: 75, edge: 3 },
     
     // PREGAME (Macro)
-    { id: 'pg-1', event: 'BUF vs MIA', marketName: 'Bills Win Game', book: 'Kalshi', yesPrice: 58, noPrice: 44, volume: 120000, timeLeft: 'Sun 8:20PM', type: 'PREGAME' },
-    { id: 'pg-2', event: 'PHI vs DAL', marketName: 'Eagles Win Game', book: 'Polymarket', yesPrice: 62, noPrice: 40, volume: 98000, timeLeft: 'Sun 4:25PM', type: 'PREGAME' },
-    { id: 'pg-3', event: 'DET vs CHI', marketName: 'Total Points > 48.5', book: 'Kalshi', yesPrice: 51, noPrice: 51, volume: 34000, timeLeft: 'Sun 1:00PM', type: 'PREGAME' },
+    { id: 'pg-1', event: 'BUF vs MIA', marketName: 'Bills Win Game', book: 'Kalshi', yesPrice: 58, noPrice: 42, volume: 120000, timeLeft: 'Sun 8:20PM', type: 'PREGAME', trueProb: 61, edge: 3 },
+    { id: 'pg-2', event: 'PHI vs DAL', marketName: 'Eagles Win Game', book: 'Polymarket', yesPrice: 62, noPrice: 38, volume: 98000, timeLeft: 'Sun 4:25PM', type: 'PREGAME', trueProb: 65, edge: 3 },
+    { id: 'pg-3', event: 'DET vs CHI', marketName: 'Total Points > 48.5', book: 'Kalshi', yesPrice: 51, noPrice: 49, volume: 34000, timeLeft: 'Sun 1:00PM', type: 'PREGAME', trueProb: 55, edge: 4 },
     
     // ASYMMETRICAL (High Edge / Low Risk)
-    { id: 'as-1', event: 'NYJ vs NE', marketName: 'Patriots Win (Moneyline)', book: 'Polymarket', yesPrice: 22, noPrice: 80, volume: 5000, timeLeft: 'Sun 1:00PM', type: 'PREGAME', isAsymmetrical: true, trueProb: 35, edge: 13 },
-    { id: 'as-2', event: 'KC vs BAL', marketName: 'Next Play: Turnover', book: 'Kalshi', yesPrice: 4, noPrice: 97, volume: 2000, timeLeft: 'Live', type: 'IN_GAME', isAsymmetrical: true, trueProb: 9, edge: 5 },
-    { id: 'as-3', event: 'GB vs MIN', marketName: 'Love 300+ Pass Yds', book: 'Kalshi', yesPrice: 18, noPrice: 84, volume: 4100, timeLeft: 'Sun 1:00PM', type: 'PREGAME', isAsymmetrical: true, trueProb: 28, edge: 10 },
+    { id: 'as-1', event: 'NYJ vs NE', marketName: 'Patriots Win (Moneyline)', book: 'Polymarket', yesPrice: 22, noPrice: 78, volume: 5000, timeLeft: 'Sun 1:00PM', type: 'PREGAME', isAsymmetrical: true, trueProb: 35, edge: 13 },
+    { id: 'as-2', event: 'KC vs BAL', marketName: 'Next Play: Turnover', book: 'Kalshi', yesPrice: 4, noPrice: 96, volume: 2000, timeLeft: 'Live', type: 'IN_GAME', isAsymmetrical: true, trueProb: 9, edge: 5 },
+    { id: 'as-3', event: 'GB vs MIN', marketName: 'Love 300+ Pass Yds', book: 'Kalshi', yesPrice: 18, noPrice: 82, volume: 4100, timeLeft: 'Sun 1:00PM', type: 'PREGAME', isAsymmetrical: true, trueProb: 28, edge: 10 },
 ];
+
+const generateMarketsForLeague = (league: League): BinaryMarket[] => {
+    switch (league) {
+        case 'NFL':
+            return [
+                { id: 'nfl-1', event: 'KC vs BAL', marketName: 'Next Drive: Touchdown', book: 'Kalshi', yesPrice: 34, noPrice: 66, volume: 15400, timeLeft: 'Drive 4', type: 'IN_GAME', trueProb: 41, edge: 7 },
+                { id: 'nfl-2', event: 'KC vs BAL', marketName: 'Mahomes 2+ Passing TDs', book: 'Polymarket', yesPrice: 88, noPrice: 12, volume: 45000, timeLeft: 'Q4 12:00', type: 'IN_GAME', trueProb: 91, edge: 3 },
+                { id: 'nfl-3', event: 'SF vs LAR', marketName: 'CMC Anytime TD', book: 'Polymarket', yesPrice: 72, noPrice: 28, volume: 12000, timeLeft: 'Q2 5:00', type: 'IN_GAME', trueProb: 75, edge: 3 },
+                { id: 'nfl-4', event: 'BUF vs MIA', marketName: 'Bills Win Game', book: 'Kalshi', yesPrice: 58, noPrice: 42, volume: 120000, timeLeft: 'Sun 8:20PM', type: 'PREGAME', trueProb: 61, edge: 3 },
+                { id: 'nfl-5', event: 'PHI vs DAL', marketName: 'Eagles Win Game', book: 'Polymarket', yesPrice: 62, noPrice: 38, volume: 98000, timeLeft: 'Sun 4:25PM', type: 'PREGAME', trueProb: 65, edge: 3 },
+                { id: 'nfl-6', event: 'NYJ vs NE', marketName: 'Patriots Win (Moneyline)', book: 'Polymarket', yesPrice: 22, noPrice: 78, volume: 5000, timeLeft: 'Sun 1:00PM', type: 'PREGAME', isAsymmetrical: true, trueProb: 35, edge: 13 },
+                { id: 'nfl-7', event: 'KC vs BAL', marketName: 'Next Play: Turnover', book: 'Kalshi', yesPrice: 4, noPrice: 96, volume: 2000, timeLeft: 'Live', type: 'IN_GAME', isAsymmetrical: true, trueProb: 9, edge: 5 },
+                { id: 'nfl-8', event: 'GB vs MIN', marketName: 'Love 300+ Pass Yds', book: 'Kalshi', yesPrice: 18, noPrice: 82, volume: 4100, timeLeft: 'Sun 1:00PM', type: 'PREGAME', isAsymmetrical: true, trueProb: 28, edge: 10 },
+            ];
+        case 'NBA':
+            return [
+                { id: 'nba-1', event: 'LAL vs PHX', marketName: 'LeBron James Over 25.5 Points', book: 'Polymarket', yesPrice: 52, noPrice: 48, volume: 84000, timeLeft: 'Q3 8:15', type: 'IN_GAME', trueProb: 58, edge: 6 },
+                { id: 'nba-2', event: 'GSW vs SAC', marketName: 'Stephen Curry 6+ Threes Made', book: 'Kalshi', yesPrice: 35, noPrice: 65, volume: 92000, timeLeft: 'Tonight 10:00PM', type: 'PREGAME', trueProb: 44, edge: 9 },
+                { id: 'nba-3', event: 'BOS vs MIA', marketName: 'Celtics win by 10+ points', book: 'Polymarket', yesPrice: 68, noPrice: 32, volume: 110000, timeLeft: 'Tonight 7:30PM', type: 'PREGAME', trueProb: 74, edge: 6 },
+                { id: 'nba-4', event: 'MIL vs IND', marketName: 'Next Score: 3-Pointer', book: 'Kalshi', yesPrice: 42, noPrice: 58, volume: 11000, timeLeft: 'Live', type: 'IN_GAME', trueProb: 48, edge: 6 },
+                { id: 'nba-5', event: 'DAL vs LAC', marketName: 'Doncic Triple Double', book: 'Polymarket', yesPrice: 15, noPrice: 85, volume: 25000, timeLeft: 'Tonight 8:30PM', type: 'PREGAME', isAsymmetrical: true, trueProb: 25, edge: 10 },
+                { id: 'nba-6', event: 'LAL vs PHX', marketName: 'Next Foul: Anthony Davis', book: 'Kalshi', yesPrice: 8, noPrice: 92, volume: 4500, timeLeft: 'Live', type: 'IN_GAME', isAsymmetrical: true, trueProb: 15, edge: 7 },
+            ];
+        case 'NHL':
+            return [
+                { id: 'nhl-1', event: 'EDM vs FLA', marketName: 'McDavid Over 1.5 Points', book: 'Polymarket', yesPrice: 58, noPrice: 42, volume: 42000, timeLeft: 'P2 15:20', type: 'IN_GAME', trueProb: 65, edge: 7 },
+                { id: 'nhl-2', event: 'TOR vs BOS', marketName: 'Maple Leafs Win Game', book: 'Kalshi', yesPrice: 45, noPrice: 55, volume: 38000, timeLeft: 'Tonight 7:00PM', type: 'PREGAME', trueProb: 52, edge: 7 },
+                { id: 'nhl-3', event: 'NYR vs NJD', marketName: 'Total Goals Over 5.5', book: 'Polymarket', yesPrice: 55, noPrice: 45, volume: 51000, timeLeft: 'Tonight 7:00PM', type: 'PREGAME', trueProb: 60, edge: 5 },
+                { id: 'nhl-4', event: 'COL vs VGK', marketName: 'Next Goal: Vegas Golden Knights', book: 'Kalshi', yesPrice: 48, noPrice: 52, volume: 9200, timeLeft: 'Live P1', type: 'IN_GAME', trueProb: 53, edge: 5 },
+                { id: 'nhl-5', event: 'EDM vs FLA', marketName: 'Goal in first 5 minutes', book: 'Polymarket', yesPrice: 22, noPrice: 78, volume: 12000, timeLeft: 'Tonight 8:00PM', type: 'PREGAME', isAsymmetrical: true, trueProb: 34, edge: 12 },
+            ];
+        case 'MLB':
+            return [
+                { id: 'mlb-1', event: 'LAD vs SFG', marketName: 'Ohtani to Hit a Home Run', book: 'Polymarket', yesPrice: 28, noPrice: 72, volume: 75000, timeLeft: 'Inning 5', type: 'IN_GAME', trueProb: 35, edge: 7 },
+                { id: 'mlb-2', event: 'NYY vs BOS', marketName: 'Yankees to Win Game', book: 'Kalshi', yesPrice: 62, noPrice: 38, volume: 115000, timeLeft: 'Tonight 7:05PM', type: 'PREGAME', trueProb: 67, edge: 5 },
+                { id: 'mlb-3', event: 'ATL vs NYM', marketName: 'Total Strikeouts Over 14.5', book: 'Polymarket', yesPrice: 52, noPrice: 48, volume: 29000, timeLeft: 'Tonight 7:20PM', type: 'PREGAME', trueProb: 58, edge: 6 },
+                { id: 'mlb-4', event: 'CHC vs STL', marketName: 'Next Half-Inning: Zero Runs', book: 'Kalshi', yesPrice: 74, noPrice: 26, volume: 15000, timeLeft: 'Live', type: 'IN_GAME', trueProb: 80, edge: 6 },
+                { id: 'mlb-5', event: 'LAD vs SFG', marketName: 'Dodgers win by 5+ runs', book: 'Polymarket', yesPrice: 12, noPrice: 88, volume: 8500, timeLeft: 'Inning 5', type: 'IN_GAME', isAsymmetrical: true, trueProb: 22, edge: 10 },
+            ];
+        case 'VELOCITY':
+            return [
+                { id: 'vel-1', event: 'Prediction Markets', marketName: 'Bitcoin Over $100k by Q4', book: 'Polymarket', yesPrice: 65, noPrice: 35, volume: 1540000, timeLeft: 'Dec 31, 2026', type: 'PREGAME', trueProb: 72, edge: 7 },
+                { id: 'vel-2', event: 'Regulatory Hub', marketName: 'Solana ETF Approved this year', book: 'Kalshi', yesPrice: 24, noPrice: 76, volume: 450000, timeLeft: 'Dec 31, 2026', type: 'PREGAME', trueProb: 32, edge: 8 },
+                { id: 'vel-3', event: 'AI Industry', marketName: 'OpenAI announces GPT-5 before Oct', book: 'Polymarket', yesPrice: 48, noPrice: 52, volume: 890000, timeLeft: 'Oct 31, 2026', type: 'PREGAME', trueProb: 55, edge: 7 },
+                { id: 'vel-4', event: 'DeFi TVL', marketName: 'Base TVL exceeds $5B', book: 'Kalshi', yesPrice: 55, noPrice: 45, volume: 120000, timeLeft: 'Live Index', type: 'IN_GAME', trueProb: 61, edge: 6 },
+                { id: 'vel-5', event: 'DeFi TVL', marketName: 'Uniswap v4 launch before September', book: 'Polymarket', yesPrice: 18, noPrice: 82, volume: 34000, timeLeft: 'Sep 30, 2026', type: 'PREGAME', isAsymmetrical: true, trueProb: 28, edge: 10 },
+            ];
+        default:
+            return [
+                { id: 'gen-1', event: `${league} Live event`, marketName: 'Leader Wins Match Outright', book: 'Polymarket', yesPrice: 74, noPrice: 26, volume: 32000, timeLeft: 'Live', type: 'IN_GAME', trueProb: 80, edge: 6 },
+                { id: 'gen-2', event: `${league} Showcase`, marketName: 'Underdog covers spread', book: 'Kalshi', yesPrice: 42, noPrice: 58, volume: 24000, timeLeft: 'Upcoming', type: 'PREGAME', trueProb: 48, edge: 6 },
+                { id: 'gen-3', event: `${league} Special`, marketName: 'Total points/scores exceed projection', book: 'Polymarket', yesPrice: 51, noPrice: 49, volume: 15000, timeLeft: 'Upcoming', type: 'PREGAME', trueProb: 55, edge: 4 },
+                { id: 'gen-4', event: `${league} Live event`, marketName: 'Overtime or Extra Session required', book: 'Kalshi', yesPrice: 12, noPrice: 88, volume: 8000, timeLeft: 'Live', type: 'IN_GAME', isAsymmetrical: true, trueProb: 20, edge: 8 },
+            ];
+    }
+};
 
 const DECAY_DATA = [
   { time: '3:00', posProb: 81, turnProb: 9.4, label: 'Baseline' },
@@ -232,9 +288,10 @@ const COMMENTARY_LIST = [
 ];
 
 export const PredictionMarkets: React.FC<PredictionMarketsProps> = ({ activeLeague }) => {
-  const [activeTab, setActiveTab] = useState<'terminal' | 'world-cup' | 'analysis'>('world-cup');
+  const [activeTab, setActiveTab] = useState<'terminal' | 'world-cup' | 'analysis'>('terminal');
   const [marketFilter, setMarketFilter] = useState<'ALL' | 'IN_GAME' | 'PREGAME' | 'ASYMMETRY'>('ALL');
   const [markets, setMarkets] = useState<BinaryMarket[]>([]);
+  const [selectedTerminalMarket, setSelectedTerminalMarket] = useState<BinaryMarket | null>(null);
 
   // World Cup state
   const [wcMarkets, setWcMarkets] = useState<WorldCupMarket[]>(INITIAL_WORLD_CUP_MARKETS);
@@ -269,13 +326,22 @@ export const PredictionMarkets: React.FC<PredictionMarketsProps> = ({ activeLeag
   const [syncPulse, setSyncPulse] = useState(false);
 
   useEffect(() => {
-      setMarkets(generateMarkets());
+      const initialMarkets = generateMarketsForLeague(activeLeague);
+      setMarkets(initialMarkets);
+      if (initialMarkets.length > 0) {
+          setSelectedTerminalMarket(initialMarkets[0]);
+      }
+  }, [activeLeague]);
+
+  useEffect(() => {
       // Simulate live price updates
       const interval = setInterval(() => {
           setMarkets(prev => prev.map(m => {
               if (m.type === 'IN_GAME' || Math.random() > 0.8) {
                   const shift = Math.floor(Math.random() * 3) - 1; // -1, 0, 1
-                  return { ...m, yesPrice: Math.min(99, Math.max(1, m.yesPrice + shift)) };
+                  const newPrice = Math.min(99, Math.max(1, m.yesPrice + shift));
+                  const impliedNo = Math.max(1, 100 - newPrice);
+                  return { ...m, yesPrice: newPrice, noPrice: impliedNo };
               }
               return m;
           }));
@@ -447,15 +513,76 @@ export const PredictionMarkets: React.FC<PredictionMarketsProps> = ({ activeLeag
       }, 4000);
   };
 
+  const executeTerminalTrade = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!selectedTerminalMarket) return;
+
+      const price = wcSelectedTradeType === 'YES' ? selectedTerminalMarket.yesPrice : selectedTerminalMarket.noPrice;
+      const dollarsSpend = wcTradeAmount;
+      if (dollarsSpend > wallet) {
+          alert("Insufficient virtual treasury balance!");
+          return;
+      }
+
+      const contractsBought = Math.floor((dollarsSpend / (price / 100)));
+      if (contractsBought <= 0) {
+          alert("Trade allocation is too small for current pricing!");
+          return;
+      }
+
+      const newPos: WorldCupPosition = {
+          id: `pos-${Date.now()}`,
+          marketId: selectedTerminalMarket.id,
+          marketName: selectedTerminalMarket.marketName,
+          book: selectedTerminalMarket.book as 'Kalshi' | 'Polymarket',
+          outcome: wcSelectedTradeType,
+          entryPrice: price,
+          contracts: contractsBought,
+          timestamp: 'Just now',
+          type: selectedTerminalMarket.type
+      };
+
+      setWallet(prev => prev - dollarsSpend);
+      setWcPositions(prev => [newPos, ...prev]);
+      setSuccessToast(`SUCCESS: Acquired ${contractsBought} contracts at ${price}¢!`);
+      setSelectedTerminalMarket(null);
+
+      setTimeout(() => {
+          setSuccessToast(null);
+      }, 4000);
+  };
+
+  const terminalChartData = useMemo(() => {
+      if (!selectedTerminalMarket) return [];
+      const base = selectedTerminalMarket.yesPrice;
+      const trueProb = selectedTerminalMarket.trueProb || (selectedTerminalMarket.yesPrice + (selectedTerminalMarket.edge || 4));
+      const data = [];
+      for (let i = 8; i >= 0; i--) {
+          const time = i === 0 ? 'Now' : `${i * 5}m ago`;
+          // Create a deterministic walk based on market id
+          const seed = selectedTerminalMarket.id.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+          const noise = Math.sin(i * 1.5 + seed) * 4;
+          const price = Math.max(5, Math.min(95, base - (i * 0.8) + noise));
+          data.push({
+              time,
+              "Exchange Price": price,
+              "Model Prob": Math.max(5, Math.min(95, trueProb - (i * 0.2) + (noise / 2)))
+          });
+      }
+      return data;
+  }, [selectedTerminalMarket]);
+
   // Cash Out liquidator
   const cashOutPosition = (pos: WorldCupPosition) => {
       // Find current market price
-      const market = wcMarkets.find(m => m.id === pos.marketId);
+      const market = wcMarkets.find(m => m.id === pos.marketId) || markets.find(m => m.id === pos.marketId);
       if (!market) return;
 
-      const currentPrice = pos.book === 'Kalshi'
-          ? (pos.outcome === 'YES' ? market.kalshiYes : market.kalshiNo)
-          : (pos.outcome === 'YES' ? market.polyYes : market.polyNo);
+      const currentPrice = "kalshiYes" in market 
+          ? (pos.book === 'Kalshi'
+              ? (pos.outcome === 'YES' ? (market as WorldCupMarket).kalshiYes : (market as WorldCupMarket).kalshiNo)
+              : (pos.outcome === 'YES' ? (market as WorldCupMarket).polyYes : (market as WorldCupMarket).polyNo))
+          : (pos.outcome === 'YES' ? (market as BinaryMarket).yesPrice : (market as BinaryMarket).noPrice);
 
       const returnedCash = pos.contracts * (currentPrice / 100);
       setWallet(prev => prev + returnedCash);
@@ -1205,137 +1332,495 @@ export const PredictionMarkets: React.FC<PredictionMarketsProps> = ({ activeLeag
 
           </div>
       ) : activeTab === 'terminal' ? (
-          <div className="space-y-8">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
               
-              {/* TERMINAL CONTROLS */}
-              <div className="flex gap-4 border-b border-slate-800 pb-4">
-                  {(['ALL', 'IN_GAME', 'PREGAME', 'ASYMMETRY'] as const).map(f => (
-                      <button
-                        key={f}
-                        onClick={() => setMarketFilter(f)}
-                        className={clsx(
-                            "px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border",
-                            marketFilter === f 
-                                ? f === 'ASYMMETRY' ? "bg-yellow-500/20 border-yellow-500 text-yellow-400" : "bg-white text-black border-white"
-                                : "bg-transparent border-transparent text-slate-500 hover:text-white hover:bg-slate-800"
-                        )}
-                      >
-                          {f === 'ASYMMETRY' && <Zap size={12} className="inline mr-2" />}
-                          {f.replace('_', ' ')}
-                      </button>
-                  ))}
-              </div>
-
-              {/* ASYMMETRY HIGHLIGHT HEADER (If Filter is ALL or ASYMMETRY) */}
-              {(marketFilter === 'ALL' || marketFilter === 'ASYMMETRY') && (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="glass-panel p-6 rounded-2xl border-l-4 border-l-yellow-500 relative overflow-hidden">
-                          <div className="absolute top-0 right-0 p-4 opacity-10">
-                              <Zap size={64} className="text-yellow-500" />
+              {/* LEFT COLUMN: CHARTS + MARKETS (col-span-2) */}
+              <div className="xl:col-span-2 space-y-6">
+                  
+                  {/* LIVE PRICE DECAY / PROBABILITY DIVERGENCE CHART */}
+                  {selectedTerminalMarket && (
+                      <div className="glass-panel p-6 rounded-3xl border border-slate-800 bg-[#080b11]/80 relative overflow-hidden">
+                          <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+                              <Layers size={96} className="text-cyan-500" />
                           </div>
-                          <h3 className="text-yellow-400 font-bold uppercase text-xs mb-2 flex items-center gap-2">
-                              <Zap size={14} /> Great Asymmetrical Bets
-                          </h3>
-                          <p className="text-slate-300 text-sm leading-relaxed mb-4">
-                              Opportunities where the market prices an outcome below 25¢ ($0.25), but our models project &gt; 35% probability. Low risk, high convexity.
-                          </p>
-                          <div className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">
-                              Scanning {markets.filter(m => m.isAsymmetrical).length} Active Nodes...
+                          
+                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                              <div>
+                                  <div className="flex items-center gap-2 mb-1">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
+                                      <span className="text-[10px] text-cyan-400 font-mono font-bold uppercase tracking-wider">Live Model Feed Integration</span>
+                                      <span className={clsx("text-[9px] font-bold px-1.5 py-0.2 rounded border", selectedTerminalMarket.book === 'Kalshi' ? "bg-pink-500/10 text-pink-400 border-pink-500/20" : "bg-indigo-500/10 text-indigo-400 border-indigo-500/20")}>
+                                          {selectedTerminalMarket.book} Exchange Contract
+                                      </span>
+                                  </div>
+                                  <h3 className="text-xl font-black text-white uppercase tracking-tight">
+                                      {selectedTerminalMarket.marketName}
+                                  </h3>
+                                  <p className="text-slate-500 text-[10px] font-mono uppercase tracking-widest mt-0.5">
+                                      {selectedTerminalMarket.event} // {selectedTerminalMarket.timeLeft}
+                                  </p>
+                              </div>
+                              
+                              <div className="flex gap-4">
+                                  <div className="bg-black/40 px-3 py-2 rounded-xl border border-slate-800 text-center min-w-[70px]">
+                                      <span className="text-[8px] text-slate-500 uppercase font-mono block">Bid Price</span>
+                                      <span className="text-lg font-black text-yellow-400 font-mono">{selectedTerminalMarket.yesPrice}¢</span>
+                                  </div>
+                                  <div className="bg-black/40 px-3 py-2 rounded-xl border border-slate-800 text-center min-w-[70px]">
+                                      <span className="text-[8px] text-slate-500 uppercase font-mono block">Model Prob</span>
+                                      <span className="text-lg font-black text-cyan-400 font-mono">
+                                          {selectedTerminalMarket.trueProb || (selectedTerminalMarket.yesPrice + (selectedTerminalMarket.edge || 4))}%
+                                      </span>
+                                  </div>
+                                  <div className="bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 rounded-xl text-center min-w-[70px] flex flex-col justify-center">
+                                      <span className="text-[8px] text-emerald-500 uppercase font-mono block">Model Edge</span>
+                                      <span className="text-md font-black text-emerald-400 font-mono">+{selectedTerminalMarket.edge || 4}%</span>
+                                  </div>
+                              </div>
+                          </div>
+
+                          {/* RECHARTS AREA CHART */}
+                          <div className="h-[240px] w-full">
+                              <ResponsiveContainer width="100%" height="100%">
+                                  <AreaChart data={terminalChartData}>
+                                      <defs>
+                                          <linearGradient id="priceGrad" x1="0" y1="0" x2="0" y2="1">
+                                              <stop offset="5%" stopColor={selectedTerminalMarket.book === 'Kalshi' ? "#ec4899" : "#6366f1"} stopOpacity={0.25}/>
+                                              <stop offset="95%" stopColor={selectedTerminalMarket.book === 'Kalshi' ? "#ec4899" : "#6366f1"} stopOpacity={0}/>
+                                          </linearGradient>
+                                          <linearGradient id="probGradTerminal" x1="0" y1="0" x2="0" y2="1">
+                                              <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.25}/>
+                                              <stop offset="95%" stopColor="#06b6d4" stopOpacity={0}/>
+                                          </linearGradient>
+                                      </defs>
+                                      <CartesianGrid strokeDasharray="3 3" stroke="#121824" vertical={false} />
+                                      <XAxis dataKey="time" stroke="#475569" tick={{fontSize: 9}} axisLine={false} />
+                                      <YAxis stroke="#475569" tick={{fontSize: 9}} axisLine={false} domain={[0, 100]} unit="¢" />
+                                      <Tooltip 
+                                          contentStyle={{ backgroundColor: '#06090e', border: '1px solid #1e293b', borderRadius: '12px' }}
+                                          itemStyle={{ fontSize: '11px', fontWeight: 'bold' }}
+                                      />
+                                      <Area 
+                                          type="monotone" 
+                                          name="Exchange Contract Price (¢)" 
+                                          dataKey="Exchange Price" 
+                                          stroke={selectedTerminalMarket.book === 'Kalshi' ? "#ec4899" : "#6366f1"} 
+                                          strokeWidth={3} 
+                                          fill="url(#priceGrad)" 
+                                          dot={{ r: 3, fill: selectedTerminalMarket.book === 'Kalshi' ? "#ec4899" : "#6366f1" }} 
+                                      />
+                                      <Area 
+                                          type="monotone" 
+                                          name="Model True Prob (%)" 
+                                          dataKey="Model Prob" 
+                                          stroke="#06b6d4" 
+                                          strokeWidth={2} 
+                                          fill="url(#probGradTerminal)" 
+                                          strokeDasharray="4 4" 
+                                      />
+                                  </AreaChart>
+                              </ResponsiveContainer>
                           </div>
                       </div>
-                      
-                      {/* Featured Asymmetry Cards */}
-                      {markets.filter(m => m.isAsymmetrical).slice(0, 2).map(m => (
-                          <div key={m.id} className="bg-slate-900/50 border border-yellow-500/20 p-6 rounded-2xl flex flex-col justify-between group hover:bg-yellow-900/10 transition-colors">
+                  )}
+
+                  {/* TERMINAL CONTROLS */}
+                  <div className="flex gap-3 border-b border-slate-800 pb-4">
+                      {(['ALL', 'IN_GAME', 'PREGAME', 'ASYMMETRY'] as const).map(f => (
+                          <button
+                            key={f}
+                            onClick={() => setMarketFilter(f)}
+                            className={clsx(
+                                "px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border",
+                                marketFilter === f 
+                                    ? f === 'ASYMMETRY' ? "bg-yellow-500/20 border-yellow-500 text-yellow-400" : "bg-white text-black border-white"
+                                    : "bg-transparent border-transparent text-slate-500 hover:text-white hover:bg-slate-800"
+                            )}
+                          >
+                              {f === 'ASYMMETRY' && <Zap size={12} className="inline mr-2" />}
+                              {f.replace('_', ' ')}
+                          </button>
+                      ))}
+                  </div>
+
+                  {/* ASYMMETRY HIGHLIGHT HEADER (If Filter is ALL or ASYMMETRY) */}
+                  {(marketFilter === 'ALL' || marketFilter === 'ASYMMETRY') && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* Scan Summary Card */}
+                          <div className="glass-panel p-5 rounded-2xl border-l-4 border-l-yellow-500 relative overflow-hidden flex flex-col justify-between">
+                              <div className="absolute top-0 right-0 p-3 opacity-[0.03] pointer-events-none">
+                                  <Zap size={64} className="text-yellow-500" />
+                              </div>
                               <div>
-                                  <div className="flex justify-between items-start mb-2">
-                                      <div className="flex items-center gap-2">
-                                          <span className="text-[10px] text-slate-500 font-bold bg-black/40 px-2 py-1 rounded">{m.event}</span>
-                                          <span className={clsx("text-[10px] font-bold px-2 py-1 rounded border", m.book === 'Kalshi' ? "bg-pink-500/20 text-pink-400 border-pink-500/30" : "bg-indigo-500/20 text-indigo-400 border-indigo-500/30")}>
+                                  <h3 className="text-yellow-400 font-bold uppercase text-xs mb-1.5 flex items-center gap-1.5">
+                                      <Zap size={13} /> Great Asymmetrical Bets
+                                  </h3>
+                                  <p className="text-slate-400 text-xs leading-relaxed mb-3">
+                                      Low-risk, high-convexity contracts where exchange pricing is extremely discounted, but our quantitative intelligence signals major mathematical edges.
+                                  </p>
+                              </div>
+                              <div className="text-[9px] font-mono text-slate-500 uppercase tracking-widest">
+                                  Live Scanning {markets.filter(m => m.isAsymmetrical).length} Micro-Nodes...
+                              </div>
+                          </div>
+                          
+                          {/* Featured Asymmetry Card */}
+                          {markets.filter(m => m.isAsymmetrical).slice(0, 1).map(m => (
+                              <div 
+                                key={m.id} 
+                                onClick={() => setSelectedTerminalMarket(m)}
+                                className={clsx(
+                                  "bg-slate-950/40 border p-5 rounded-2xl flex flex-col justify-between cursor-pointer transition-all hover:bg-yellow-500/5",
+                                  selectedTerminalMarket?.id === m.id ? "border-yellow-500" : "border-yellow-500/20"
+                                )}
+                              >
+                                  <div>
+                                      <div className="flex justify-between items-start mb-2">
+                                          <div className="flex items-center gap-1.5">
+                                              <span className="text-[9px] text-slate-400 font-mono bg-slate-900 px-2 py-0.5 rounded border border-slate-800">{m.event}</span>
+                                              <span className={clsx("text-[9px] font-bold px-1.5 py-0.5 rounded border", m.book === 'Kalshi' ? "bg-pink-500/10 text-pink-400 border-pink-500/20" : "bg-indigo-500/10 text-indigo-400 border-indigo-500/20")}>
+                                                  {m.book}
+                                              </span>
+                                          </div>
+                                          <span className="text-[10px] bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 text-emerald-400 font-mono font-bold">+{m.edge}% EDGE</span>
+                                      </div>
+                                      <h4 className="text-white font-bold text-sm leading-tight mb-2">{m.marketName}</h4>
+                                  </div>
+                                  <div className="flex items-end justify-between">
+                                      <div>
+                                          <div className="text-[9px] text-slate-500 uppercase font-black">Bid Price</div>
+                                          <div className="text-2xl font-black text-yellow-400 font-mono">{m.yesPrice}¢</div>
+                                      </div>
+                                      <div className="text-right">
+                                           <div className="text-[9px] text-slate-500 uppercase font-black">Model True</div>
+                                           <div className="text-md font-bold text-white font-mono">{m.trueProb}%</div>
+                                      </div>
+                                  </div>
+                              </div>
+                          ))}
+                      </div>
+                  )}
+
+                  {/* MARKET GRID */}
+                  <div className="grid grid-cols-1 gap-3">
+                      {/* Table Header */}
+                      <div className="grid grid-cols-12 px-5 py-2.5 bg-slate-950/80 rounded-xl text-[9px] font-bold text-slate-500 uppercase tracking-widest border border-slate-900">
+                          <div className="col-span-6">Event Contract</div>
+                          <div className="col-span-2 text-center">Expiry</div>
+                          <div className="col-span-2 text-center">YES (Bid)</div>
+                          <div className="col-span-2 text-center">NO (Ask)</div>
+                      </div>
+
+                      {filteredMarkets.length > 0 ? (
+                          filteredMarkets.map(m => (
+                              <div 
+                                key={m.id} 
+                                onClick={() => setSelectedTerminalMarket(m)}
+                                className={clsx(
+                                    "grid grid-cols-12 px-5 py-3.5 bg-[#070b11]/50 border rounded-xl items-center cursor-pointer transition-all",
+                                    selectedTerminalMarket?.id === m.id 
+                                        ? "border-cyan-500/60 bg-cyan-950/5 shadow-[0_0_15px_rgba(6,182,212,0.05)]" 
+                                        : "border-slate-900 hover:border-slate-800"
+                                )}
+                              >
+                                  {/* Event Name */}
+                                  <div className="col-span-6 pr-2">
+                                      <div className="flex items-center gap-2 mb-1">
+                                          {m.type === 'IN_GAME' && <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>}
+                                          <span className="text-[10px] font-bold text-slate-400">{m.event}</span>
+                                          <span className={clsx("text-[8px] font-bold px-1.5 py-0.2 rounded border", m.book === 'Kalshi' ? "bg-pink-500/10 text-pink-400 border-pink-500/20" : "bg-indigo-500/10 text-indigo-400 border-indigo-500/20")}>
                                               {m.book}
                                           </span>
                                       </div>
-                                      <span className="text-[12px] bg-emerald-500/20 px-2 py-1 rounded border border-emerald-500/30 text-emerald-400 font-mono font-black shadow-[0_0_10px_rgba(16,185,129,0.3)]">+{m.edge}% EDGE</span>
+                                      <div className="text-sm font-black text-white">{m.marketName}</div>
+                                      {m.isAsymmetrical && (
+                                          <div className="inline-block mt-1 bg-emerald-500/15 px-2 py-0.2 rounded border border-emerald-500/20 text-[9px] text-emerald-400 font-mono font-bold">
+                                              +{m.edge}% EDGE REVEALED
+                                          </div>
+                                      )}
                                   </div>
-                                  <h4 className="text-white font-bold text-lg leading-tight mb-4">{m.marketName}</h4>
+
+                                  {/* Expiry / TimeLeft */}
+                                  <div className="col-span-2 text-center">
+                                      <div className={clsx("text-[11px] font-mono font-bold", m.type === 'IN_GAME' ? "text-rose-400" : "text-slate-400")}>
+                                          {m.timeLeft}
+                                      </div>
+                                  </div>
+
+                                  {/* YES PRICE */}
+                                  <div className="col-span-2 flex justify-center">
+                                      <button 
+                                          type="button"
+                                          onClick={(e) => {
+                                              e.stopPropagation();
+                                              setSelectedTerminalMarket(m);
+                                              setWcSelectedTradeType('YES');
+                                          }}
+                                          className="flex flex-col items-center justify-center bg-emerald-950/15 border border-emerald-500/20 hover:bg-emerald-500 hover:text-black hover:border-emerald-400 w-16 h-10 rounded-lg transition-all group/btn"
+                                      >
+                                          <span className="text-[9px] font-bold text-emerald-500 group-hover/btn:text-black leading-none mb-0.5">Yes</span>
+                                          <span className="text-sm font-black text-white group-hover/btn:text-black leading-none">{m.yesPrice}¢</span>
+                                      </button>
+                                  </div>
+
+                                  {/* NO PRICE */}
+                                  <div className="col-span-2 flex justify-center">
+                                      <button 
+                                          type="button"
+                                          onClick={(e) => {
+                                              e.stopPropagation();
+                                              setSelectedTerminalMarket(m);
+                                              setWcSelectedTradeType('NO');
+                                          }}
+                                          className="flex flex-col items-center justify-center bg-rose-950/15 border border-rose-500/20 hover:bg-rose-500 hover:text-white hover:border-rose-400 w-16 h-10 rounded-lg transition-all group/btn"
+                                      >
+                                          <span className="text-[9px] font-bold text-rose-500 group-hover/btn:text-white leading-none mb-0.5">No</span>
+                                          <span className="text-sm font-black text-white group-hover/btn:text-white leading-none">{m.noPrice}¢</span>
+                                      </button>
+                                  </div>
                               </div>
-                              <div className="flex items-end justify-between">
-                                  <div>
-                                      <div className="text-[10px] text-slate-500 uppercase font-black">Buy Price</div>
-                                      <div className="text-3xl font-black text-yellow-400">${(m.yesPrice / 100).toFixed(2)}</div>
-                                  </div>
-                                  <div className="text-right">
-                                       <div className="text-[10px] text-slate-500 uppercase font-black">Model True</div>
-                                       <div className="text-xl font-bold text-white">{(m.trueProb! / 100).toFixed(2)}</div>
-                                  </div>
-                              </div>
+                          ))
+                      ) : (
+                          <div className="text-center py-12 border border-dashed border-slate-900 rounded-2xl">
+                              <p className="text-slate-500 text-xs">No active {activeLeague} event contracts matching this filter.</p>
                           </div>
-                      ))}
+                      )}
                   </div>
-              )}
-
-              {/* MARKET GRID */}
-              <div className="grid grid-cols-1 gap-4">
-                  {/* Table Header */}
-                  <div className="grid grid-cols-12 px-6 py-3 bg-slate-900/80 rounded-xl text-[10px] font-bold text-slate-500 uppercase tracking-widest border border-slate-800">
-                      <div className="col-span-4">Event Contract</div>
-                      <div className="col-span-2 text-center">Status</div>
-                      <div className="col-span-2 text-center">Market Vol</div>
-                      <div className="col-span-2 text-center">YES (Bid)</div>
-                      <div className="col-span-2 text-center">NO (Ask)</div>
-                  </div>
-
-                  {filteredMarkets.map(m => (
-                      <div key={m.id} className="grid grid-cols-12 px-6 py-4 bg-black/40 border border-slate-800 rounded-xl items-center hover:border-indigo-500/30 transition-all group">
-                          
-                          {/* Event Name */}
-                          <div className="col-span-4">
-                              <div className="flex items-center gap-2 mb-1">
-                                  {m.type === 'IN_GAME' && <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>}
-                                  <span className="text-xs font-bold text-slate-400">{m.event}</span>
-                                  <span className={clsx("text-[9px] font-bold px-1.5 py-0.5 rounded border", m.book === 'Kalshi' ? "bg-pink-500/10 text-pink-400 border-pink-500/20" : "bg-indigo-500/10 text-indigo-400 border-indigo-500/20")}>
-                                      {m.book}
-                                  </span>
-                              </div>
-                              <div className="text-base font-black text-white group-hover:text-pink-400 transition-colors">{m.marketName}</div>
-                              {m.isAsymmetrical && (
-                                  <div className="inline-block mt-1.5 bg-emerald-500/20 px-2 py-0.5 rounded border border-emerald-500/30 text-[10px] text-emerald-400 font-mono font-black shadow-[0_0_5px_rgba(16,185,129,0.2)]">
-                                      +{m.edge}% EDGE REVEALED
-                                  </div>
-                              )}
-                          </div>
-
-                          {/* Status */}
-                          <div className="col-span-2 text-center">
-                              <div className={clsx("text-xs font-mono font-bold", m.type === 'IN_GAME' ? "text-rose-400" : "text-slate-400")}>
-                                  {m.timeLeft}
-                              </div>
-                              {m.isAsymmetrical && <div className="text-[9px] text-yellow-500 uppercase font-black tracking-widest mt-1">Asymmetric</div>}
-                          </div>
-
-                          {/* Volume */}
-                          <div className="col-span-2 text-center">
-                              <div className="text-xs font-mono text-slate-300">${(m.volume / 1000).toFixed(1)}k</div>
-                          </div>
-
-                          {/* YES PRICE */}
-                          <div className="col-span-2 flex justify-center">
-                              <button className="flex flex-col items-center justify-center bg-emerald-900/10 border border-emerald-500/30 hover:bg-emerald-500 hover:text-black hover:border-emerald-400 w-20 h-12 rounded-lg transition-all group/btn">
-                                  <span className="text-xs font-bold text-emerald-500 group-hover/btn:text-black">Yes</span>
-                                  <span className="text-lg font-black text-white group-hover/btn:text-black">{m.yesPrice}¢</span>
-                              </button>
-                          </div>
-
-                          {/* NO PRICE */}
-                          <div className="col-span-2 flex justify-center">
-                              <button className="flex flex-col items-center justify-center bg-rose-900/10 border border-rose-500/30 hover:bg-rose-500 hover:text-white hover:border-rose-400 w-20 h-12 rounded-lg transition-all group/btn">
-                                  <span className="text-xs font-bold text-rose-500 group-hover/btn:text-white">No</span>
-                                  <span className="text-lg font-black text-white">{m.noPrice}¢</span>
-                              </button>
-                          </div>
-                      </div>
-                  ))}
               </div>
+
+              {/* RIGHT COLUMN: EXECUTIVE ORDER SLIP & TREASURY PORTFOLIO (col-span-1) */}
+              <div className="space-y-6">
+                  
+                  {/* ORDER SLIP BOX */}
+                  <div className="glass-panel p-6 rounded-3xl border border-slate-800 bg-[#080b11]/80 relative overflow-hidden">
+                      <h3 className="text-white font-black text-xs uppercase tracking-widest mb-4 flex items-center gap-2">
+                          <ArrowRightLeft className="text-cyan-400" size={14} />
+                          Executive Ticket Slip
+                      </h3>
+                      
+                      {selectedTerminalMarket ? (
+                          <form onSubmit={executeTerminalTrade} className="space-y-4">
+                              {/* Selected Contract Info */}
+                              <div className="bg-black/40 p-4 rounded-2xl border border-slate-900">
+                                  <div className="flex justify-between items-start mb-1">
+                                      <span className="text-[8px] text-slate-500 uppercase font-mono">Active Market Option</span>
+                                      <span className="text-[9px] font-bold text-yellow-400 bg-yellow-400/10 px-1.5 py-0.2 rounded border border-yellow-500/20">
+                                          {selectedTerminalMarket.book} Book
+                                      </span>
+                                  </div>
+                                  <div className="text-xs font-bold text-white uppercase line-clamp-2">
+                                      {selectedTerminalMarket.marketName}
+                                  </div>
+                              </div>
+                              
+                              {/* Option Side Selection */}
+                              <div className="grid grid-cols-2 gap-2">
+                                  <button
+                                      type="button"
+                                      onClick={() => setWcSelectedTradeType('YES')}
+                                      className={clsx(
+                                          "py-3 rounded-xl font-black uppercase text-xs tracking-wider transition-all border",
+                                          wcSelectedTradeType === 'YES' 
+                                              ? "bg-emerald-500 text-black border-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.25)]" 
+                                              : "bg-transparent border-slate-800 text-slate-400 hover:text-white"
+                                      )}
+                                  >
+                                      YES Option ({selectedTerminalMarket.yesPrice}¢)
+                                  </button>
+                                  <button
+                                      type="button"
+                                      onClick={() => setWcSelectedTradeType('NO')}
+                                      className={clsx(
+                                          "py-3 rounded-xl font-black uppercase text-xs tracking-wider transition-all border",
+                                          wcSelectedTradeType === 'NO' 
+                                              ? "bg-rose-500 text-white border-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.25)]" 
+                                              : "bg-transparent border-slate-800 text-slate-400 hover:text-white"
+                                      )}
+                                  >
+                                      NO Option ({selectedTerminalMarket.noPrice}¢)
+                                  </button>
+                              </div>
+
+                              {/* Trade Size/Stake allocation */}
+                              <div className="space-y-1.5">
+                                  <div className="flex justify-between text-[10px]">
+                                      <span className="text-slate-500 uppercase font-mono">Trade Allocation</span>
+                                      <span className="text-slate-400 font-bold font-mono">Max: ${wallet.toFixed(0)}</span>
+                                  </div>
+                                  <div className="relative">
+                                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">$</span>
+                                      <input
+                                          type="number"
+                                          min="10"
+                                          max={wallet}
+                                          value={wcTradeAmount}
+                                          onChange={(e) => setWcTradeAmount(Math.max(0, parseInt(e.target.value) || 0))}
+                                          className="w-full bg-black/60 border border-slate-800 rounded-xl py-3 pl-8 pr-12 focus:border-cyan-500 focus:outline-none font-bold text-white text-sm font-mono"
+                                      />
+                                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 font-bold text-[10px] font-mono">USD</span>
+                                  </div>
+                              </div>
+
+                              {/* Contract Projection calculations */}
+                              <div className="bg-black/20 rounded-2xl p-4 border border-slate-900/50 space-y-2 text-[11px] font-mono">
+                                  <div className="flex justify-between">
+                                      <span className="text-slate-500">Contract Unit Price:</span>
+                                      <span className="text-slate-300">
+                                          {wcSelectedTradeType === 'YES' ? selectedTerminalMarket.yesPrice : selectedTerminalMarket.noPrice}¢
+                                      </span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                      <span className="text-slate-500">Contracts Acquired:</span>
+                                      <span className="text-white font-bold">
+                                          {Math.floor((wcTradeAmount / ((wcSelectedTradeType === 'YES' ? selectedTerminalMarket.yesPrice : selectedTerminalMarket.noPrice) / 100)))} Units
+                                      </span>
+                                  </div>
+                                  <div className="flex justify-between border-t border-slate-900/50 pt-2 text-xs font-bold">
+                                      <span className="text-slate-400">Model Projected Payout:</span>
+                                      <span className="text-emerald-400">
+                                          ${(Math.floor((wcTradeAmount / ((wcSelectedTradeType === 'YES' ? selectedTerminalMarket.yesPrice : selectedTerminalMarket.noPrice) / 100)))).toFixed(2)}
+                                      </span>
+                                  </div>
+                              </div>
+
+                              {/* Kelly Recommendation Engine */}
+                              <div className="bg-[#05080c] rounded-2xl p-4 border border-slate-900 space-y-1 text-[11px]">
+                                  <div className="flex items-center gap-1.5 text-slate-400 font-bold uppercase text-[9px] tracking-wider mb-1">
+                                      <Calculator size={12} className="text-indigo-400" />
+                                      Kelly Capital Allocation Model
+                                  </div>
+                                  
+                                  {/* Custom Kelly formula for single book binary options */}
+                                  {(() => {
+                                      const priceFraction = (wcSelectedTradeType === 'YES' ? selectedTerminalMarket.yesPrice : selectedTerminalMarket.noPrice) / 100;
+                                      const modelProbability = (selectedTerminalMarket.trueProb || (selectedTerminalMarket.yesPrice + (selectedTerminalMarket.edge || 4))) / 100;
+                                      const odds = (1 - priceFraction) / priceFraction;
+                                      const kellyFraction = (modelProbability * (odds + 1) - 1) / odds;
+                                      const quartKellyStake = Math.max(0, kellyFraction * wallet * 0.25);
+                                      
+                                      return quartKellyStake > 0 ? (
+                                          <div className="space-y-2">
+                                              <p className="text-slate-400 leading-normal font-light">
+                                                  Model recognizes a <strong className="text-emerald-400 font-bold font-mono">+{selectedTerminalMarket.edge || 4}%</strong> statistical pricing edge on {selectedTerminalMarket.book}.
+                                              </p>
+                                              <div className="bg-cyan-950/20 border-l-2 border-cyan-500 p-2 text-cyan-400 flex justify-between items-center text-[10px] font-mono">
+                                                  <span>Suggested Stake (1/4 Kelly):</span>
+                                                  <strong className="text-white text-xs">${quartKellyStake.toFixed(0)}</strong>
+                                              </div>
+                                              <button
+                                                type="button"
+                                                onClick={() => setWcTradeAmount(Math.floor(quartKellyStake))}
+                                                className="w-full py-1.5 bg-cyan-500/10 border border-cyan-500/30 hover:bg-cyan-500 hover:text-black rounded-lg text-[9px] font-black uppercase tracking-wider text-cyan-400 transition-all font-mono"
+                                              >
+                                                  Select recommended size
+                                              </button>
+                                          </div>
+                                      ) : (
+                                          <p className="text-slate-500 leading-relaxed font-light">
+                                              No mathematical edge resides on this specific outcome. Staking of portfolio capital not advised.
+                                          </p>
+                                      );
+                                  })()}
+                              </div>
+
+                              {/* Execution buttons */}
+                              <div className="space-y-2 pt-2">
+                                  <button 
+                                    type="submit"
+                                    className="w-full py-4 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white rounded-xl text-xs font-black uppercase tracking-[0.2em] transition-all shadow-xl shadow-cyan-500/10"
+                                  >
+                                      Execute Option Wager
+                                  </button>
+                                  <button 
+                                    type="button"
+                                    onClick={() => setSelectedTerminalMarket(null)}
+                                    className="w-full py-2 border border-slate-900 text-slate-500 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all font-mono"
+                                  >
+                                      Cancel Ticket Order
+                                  </button>
+                              </div>
+                          </form>
+                      ) : (
+                          <div className="text-center py-16 border border-dashed border-slate-900 rounded-3xl">
+                              <Activity className="text-slate-600 mx-auto mb-3 animate-pulse" size={24} />
+                              <p className="text-slate-400 text-xs font-mono uppercase tracking-widest leading-relaxed px-4">
+                                  Select YES/NO pricing in the terminal grid to load order ticket
+                              </p>
+                          </div>
+                      )}
+                  </div>
+
+                  {/* PORTFOLIO POSITION MONITOR */}
+                  <div className="glass-panel p-6 rounded-3xl border border-slate-800 bg-[#080b11]/80">
+                      <div className="flex justify-between items-center mb-4">
+                          <h3 className="text-white font-black text-xs uppercase tracking-widest flex items-center gap-2">
+                              <Trophy className="text-yellow-500" size={14} />
+                              Virtual Treasury Portfolio
+                          </h3>
+                          <span className="text-[11px] font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded">
+                              ${wallet.toLocaleString()}
+                          </span>
+                      </div>
+
+                      {wcPositions.length > 0 ? (
+                          <div className="space-y-3 max-h-[280px] overflow-y-auto pr-1">
+                              {wcPositions.map((pos) => {
+                                  // Determine current contract value
+                                  const matchingWc = wcMarkets.find(m => m.id === pos.marketId);
+                                  const matchingTerminal = markets.find(m => m.id === pos.marketId);
+                                  const currentPrice = matchingWc 
+                                      ? (pos.book === 'Kalshi' ? (pos.outcome === 'YES' ? matchingWc.kalshiYes : matchingWc.kalshiNo) : (pos.outcome === 'YES' ? matchingWc.polyYes : matchingWc.polyNo))
+                                      : matchingTerminal
+                                          ? (pos.outcome === 'YES' ? matchingTerminal.yesPrice : matchingTerminal.noPrice)
+                                          : pos.entryPrice; // Fallback
+                                  
+                                  const pnlPerContract = (currentPrice - pos.entryPrice) / 100;
+                                  const totalPnl = pos.contracts * pnlPerContract;
+                                  const isPosPnl = totalPnl >= 0;
+
+                                  return (
+                                      <div key={pos.id} className="bg-black/40 border border-slate-900 rounded-2xl p-4 flex flex-col justify-between">
+                                          <div>
+                                              <div className="flex justify-between items-start mb-1 text-[10px]">
+                                                  <span className="text-slate-400 font-bold truncate max-w-[130px]">{pos.marketName}</span>
+                                                  <span className={clsx("font-bold px-1 rounded", pos.outcome === 'YES' ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400")}>
+                                                      {pos.outcome}
+                                                  </span>
+                                              </div>
+                                              <div className="flex justify-between text-[9px] font-mono text-slate-500 mb-2">
+                                                  <span>{pos.contracts} contracts @ {pos.entryPrice}¢ ({pos.book})</span>
+                                                  <span>Current: {currentPrice}¢</span>
+                                              </div>
+                                          </div>
+                                          
+                                          <div className="flex justify-between items-center border-t border-slate-900/50 pt-2">
+                                              <div>
+                                                  <span className="text-[9px] text-slate-500 uppercase block leading-none mb-0.5">Unrealized PNL</span>
+                                                  <span className={clsx("text-xs font-bold font-mono leading-none", isPosPnl ? "text-emerald-400" : "text-rose-400")}>
+                                                      {isPosPnl ? '+' : ''}${totalPnl.toFixed(2)}
+                                                  </span>
+                                              </div>
+                                              <button
+                                                  type="button"
+                                                  onClick={() => cashOutPosition(pos)}
+                                                  className="px-3 py-1.5 bg-rose-500/15 hover:bg-rose-500 hover:text-white border border-rose-500/20 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all font-mono"
+                                              >
+                                                  Liquidate Option
+                                              </button>
+                                          </div>
+                                      </div>
+                                  );
+                              })}
+                          </div>
+                      ) : (
+                          <div className="text-center py-8 text-slate-500 font-mono text-[10px]">
+                              No outstanding contract positions held in current ledger.
+                          </div>
+                      )}
+                  </div>
+
+              </div>
+
           </div>
       ) : (
         <div className="animate-in slide-in-from-bottom-4 duration-700">

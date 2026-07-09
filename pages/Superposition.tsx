@@ -32,7 +32,7 @@ export const Superposition: React.FC<SuperpositionProps> = ({ activeLeague }) =>
          {activeLeague === 'VELOCITY' ? (
             <div className="relative z-10 space-y-4">
                 <p className="text-2xl text-fuchsia-400 font-black uppercase tracking-[0.2em] animate-pulse">
-                    Velocity AsymBetting Active
+                    Velocity Crypto Active
                 </p>
                 <p className="text-xl text-slate-300 font-light max-w-3xl mx-auto leading-relaxed">
                     Agentic betting agents are now executing explosive edge strategies across <span className="text-white font-bold">Crypto, DeFi, and TradFi</span> markets.

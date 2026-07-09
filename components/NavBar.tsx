@@ -3,7 +3,8 @@ import React from 'react';
 import { LayoutDashboard, Target, MonitorPlay, ExternalLink, Mic, ShieldAlert, Trophy, Radio, BarChart3, Infinity, Calculator, Globe, Bot } from 'lucide-react';
 import { clsx } from 'clsx';
 import { League } from '../types';
-import { GnoesisLogoIcon, GnoesisBrandText } from './GnoesisLogo';
+import quantumBetsLogoImg from '../src/assets/images/quantum_bets_logo_1783566041207.jpg';
+import gnoesisLabsLogoImg from '../src/assets/images/gnoesis_labs_logo_1783566057128.jpg';
 
 interface NavBarProps {
   currentView: string;
@@ -44,18 +45,37 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
         <div className="flex items-center justify-between h-24">
           
           {/* Logo Section */}
-          <div className="flex items-center gap-3.5 cursor-pointer group shrink-0" onClick={() => setCurrentView('picks')}>
+          <div className="flex items-center gap-4 cursor-pointer group shrink-0" onClick={() => setCurrentView('picks')}>
              <div className="relative group-hover:scale-105 transition-transform duration-500 ease-out">
-                <GnoesisLogoIcon size={52} />
+                <img 
+                  src={quantumBetsLogoImg} 
+                  alt="Quantum Bets Logo" 
+                  className="w-12 h-12 rounded-xl border border-cyan-500/30 object-cover shadow-[0_0_20px_rgba(6,182,212,0.15)] bg-slate-950"
+                  referrerPolicy="no-referrer"
+                />
                 <div className="absolute inset-0 bg-cyan-500/10 blur-xl rounded-full -z-10 group-hover:bg-cyan-500/25 transition-colors"></div>
              </div>
              
-             <div className="flex items-center gap-3">
-                <GnoesisBrandText textSizeClass="text-lg xl:text-xl" subSizeClass="text-[8px] xl:text-[9px]" />
-                <div className="hidden sm:flex items-center gap-2 border-l border-slate-800 pl-3">
-                    <span className="text-[9px] text-cyan-400 font-mono tracking-[0.15em] uppercase bg-cyan-950/40 px-1.5 py-0.5 rounded border border-cyan-500/20">
+             <div className="flex flex-col justify-center">
+                <div className="flex items-center gap-2">
+                    <span className="text-xl font-black text-white tracking-tighter uppercase leading-none">
+                        Quantum<span className="text-cyan-400">Bets</span>
+                    </span>
+                    <span className="hidden sm:inline-block text-[9px] text-cyan-400 font-mono tracking-[0.15em] uppercase bg-cyan-950/40 px-1.5 py-0.5 rounded border border-cyan-500/20">
                         v2026.1
                     </span>
+                </div>
+                {/* Powered by Gnoesis Labs Badge */}
+                <div className="flex items-center gap-1.5 mt-1.5 opacity-80 hover:opacity-100 transition-opacity">
+                    <span className="text-[8px] font-mono text-slate-500 tracking-wider uppercase font-black">
+                        Powered by
+                    </span>
+                    <img 
+                      src={gnoesisLabsLogoImg} 
+                      alt="Gnoesis Labs" 
+                      className="h-9 md:h-[42px] object-contain rounded-sm border border-slate-800/50"
+                      referrerPolicy="no-referrer"
+                    />
                 </div>
              </div>
           </div>
@@ -92,7 +112,7 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
               className={getButtonClass(currentView === 'picks', 'text-cyan-400', 'shadow-[0_10px_20px_-10px_rgba(6,182,212,0.3)]')}
             >
               <Target size={14} strokeWidth={3} />
-              Daily Edge
+              Top Edge
             </button>
 
             <button 

@@ -63,7 +63,7 @@ const LEAGUE_CONFIG = {
     MMA: { accent: 'red', color: '#ef4444', espnPath: 'mma/ufc', label: 'Octagon Edge' },
     HORSE: { accent: 'amber', color: '#f59e0b', espnPath: 'horse-racing', label: 'WiseRace AI' },
     GOLF: { accent: 'lime', color: '#84cc16', espnPath: 'golf/pga', label: 'Fairway Alpha' },
-    VELOCITY: { accent: 'fuchsia', color: '#d946ef', espnPath: 'crypto', label: 'Velocity Asym' }
+    VELOCITY: { accent: 'fuchsia', color: '#d946ef', espnPath: 'crypto', label: 'Velocity Crypto' }
 };
 
 const FALLBACK_MATCHUPS: Record<League, Array<{ homeTeam: string; homeAbr: string; homeLogo: string; awayTeam: string; awayAbr: string; awayLogo: string }>> = {
