@@ -15,7 +15,7 @@ import {
   Filter, Search, ChevronUp, ChevronDown, ArrowUpDown
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 
 interface DashboardProps {
   weeks: WeekData[];
@@ -230,6 +230,82 @@ export const Dashboard: React.FC<DashboardProps> = ({ weeks, stats, chartData, a
             <SummaryCards stats={stats[statsView]} allStats={stats} />
             <PerformanceChart data={chartData} />
             
+            {/* Historical Weekly ROI Trends */}
+            <div id="historical-roi-trends-container" className="glass-panel p-8 rounded-2xl mb-10 border border-slate-800 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 blur-3xl rounded-full pointer-events-none opacity-20 bg-purple-500"></div>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 relative z-10">
+                    <div>
+                        <h3 className="text-xl font-bold text-white uppercase tracking-widest flex items-center gap-2">
+                            <TrendingUp className="text-purple-400" size={20} />
+                            Weekly ROI Trajectory
+                        </h3>
+                        <p className="text-slate-400 text-sm mt-1">Historical ROI performance tracking across weeks for {activeLeague}</p>
+                    </div>
+                    {weeks && weeks.length > 0 && (
+                        <div className="flex gap-4">
+                            <div className="bg-slate-900/50 px-4 py-2 rounded-xl border border-slate-800">
+                                <span className="text-[10px] uppercase font-bold text-slate-500 block">Peak Week ROI</span>
+                                <span className="text-base font-black text-emerald-400 font-mono">
+                                    +{Math.max(...weeks.map(w => w.overallRoi), 0).toFixed(1)}%
+                                </span>
+                            </div>
+                            <div className="bg-slate-900/50 px-4 py-2 rounded-xl border border-slate-800">
+                                <span className="text-[10px] uppercase font-bold text-slate-500 block">Avg Weekly ROI</span>
+                                <span className="text-base font-black text-indigo-400 font-mono">
+                                    {(weeks.reduce((acc, w) => acc + w.overallRoi, 0) / weeks.length).toFixed(1)}%
+                                </span>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <div className="h-[300px] w-full relative z-10">
+                    {weeks && weeks.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={weeks.map((w, idx) => ({
+                                name: w.title,
+                                roi: w.overallRoi,
+                                originalIndex: idx
+                            }))} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                                <XAxis 
+                                    dataKey="name" 
+                                    stroke="#64748b" 
+                                    tick={{fill: '#64748b', fontSize: 11}} 
+                                    axisLine={false}
+                                    tickLine={false}
+                                />
+                                <YAxis 
+                                    stroke="#64748b" 
+                                    tick={{fill: '#64748b', fontSize: 11}} 
+                                    tickFormatter={(value) => `${value}%`}
+                                    axisLine={false}
+                                    tickLine={false}
+                                />
+                                <Tooltip 
+                                    contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px' }}
+                                    formatter={(value: number) => [`${value >= 0 ? '+' : ''}${value}%`, 'Weekly ROI']}
+                                    labelStyle={{ fontWeight: 'bold', color: '#fff' }}
+                                />
+                                <Line 
+                                    type="monotone" 
+                                    dataKey="roi" 
+                                    stroke="#a855f7" 
+                                    strokeWidth={4}
+                                    activeDot={{ r: 8, strokeWidth: 0, fill: '#ec4899' }}
+                                    dot={{ stroke: '#a855f7', strokeWidth: 3, fill: '#0a0a0a', r: 5 }}
+                                />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    ) : (
+                        <div className="h-full flex flex-col items-center justify-center text-slate-600 border border-dashed border-slate-800 rounded-xl bg-slate-950/20">
+                            <TrendingUp size={32} className="mb-2 opacity-20" />
+                            <p className="text-xs font-mono uppercase">No ROI History Available for {activeLeague}</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+
             {/* Monthly Betting ROI Performance Heatmap */}
             <MonthlyHeatmap weeks={weeks} activeLeague={activeLeague} />
             
