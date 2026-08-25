@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Activity, Radio, Play, Pause, Power, Crosshair, BarChart3, Clock, AlertTriangle, ArrowUp, ArrowDown, Wifi, DollarSign, Bot, MousePointerClick, RefreshCw, Layers, Zap, TrendingUp, Search, Filter, Split, LineChart, Eye, EyeOff, List, ZoomIn, ZoomOut } from 'lucide-react';
+import { Activity, Radio, Play, Pause, Power, Crosshair, BarChart3, Clock, AlertTriangle, ArrowUp, ArrowDown, Wifi, DollarSign, Bot, MousePointerClick, RefreshCw, Layers, Zap, TrendingUp, Search, Filter, Split, LineChart, Eye, EyeOff, List, ZoomIn, ZoomOut, History, X, Download, CheckCircle2, Copy } from 'lucide-react';
 import { clsx } from 'clsx';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
 
@@ -34,6 +34,7 @@ interface Trade {
     amount: number;
     status: 'FILLED' | 'PENDING';
     pnl?: number;
+    exchange?: string;
 }
 
 interface TradingDeskProps {
@@ -221,6 +222,9 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
     // Floating Data View State
     const [deskDataView, setDeskDataView] = useState<'VOLUME' | 'ALPHA'>('VOLUME');
     const [activePreset, setActivePreset] = useState<string>('Standard Sharp Core');
+    const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
+    const [tradeToast, setTradeToast] = useState<{ id: string, message: string, impact: number, side: 'BUY' | 'SELL', symbol: string } | null>(null);
+    const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Derived State for Safety
     const selectedMarket = markets.find(m => m.id === selectedMarketId);
@@ -353,7 +357,8 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
             side,
             price,
             amount,
-            status: 'FILLED'
+            status: 'FILLED',
+            exchange: market.book || 'Internal'
         };
         
         setRecentTrades(prev => [newTrade, ...prev].slice(0, 100));
@@ -374,6 +379,18 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
             setEquityHistory(h => [...h, newPnl].slice(-50)); // Keep last 50 points
             return newPnl;
         });
+
+        if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+        setTradeToast({
+            id: newTrade.id,
+            message: `Executed ${amount} ${market.symbol}`,
+            impact,
+            side,
+            symbol: market.symbol
+        });
+        toastTimeoutRef.current = setTimeout(() => {
+            setTradeToast(null);
+        }, 4000);
     };
 
     const handleManualExec = (side: 'BUY' | 'SELL') => {
@@ -428,6 +445,57 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
         const matchesLeague = selectedLeague === 'ALL' || m.league === selectedLeague;
         return matchesSearch && matchesLeague;
     });
+
+    const copyTradeDataToJSON = () => {
+        if (recentTrades.length === 0) return;
+        navigator.clipboard.writeText(JSON.stringify(recentTrades, null, 2));
+        
+        if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+        setTradeToast({
+            id: `toast-${Date.now()}`,
+            message: 'Trade history copied to clipboard.',
+            impact: 0,
+            side: 'BUY',
+            symbol: 'SYSTEM'
+        });
+        toastTimeoutRef.current = setTimeout(() => {
+            setTradeToast(null);
+        }, 3000);
+    };
+
+    const exportTradeHistoryToCSV = () => {
+        if (recentTrades.length === 0) return;
+
+        const headers = ['ID', 'Time', 'Symbol', 'Side', 'Price (cents)', 'Amount (USD)', 'Exchange', 'Status', 'PNL'];
+        const csvRows = [headers.join(',')];
+
+        recentTrades.forEach(trade => {
+            const row = [
+                trade.id,
+                trade.time,
+                trade.symbol,
+                trade.side,
+                trade.price,
+                trade.amount,
+                trade.exchange || 'Internal',
+                trade.status,
+                trade.pnl || 0
+            ];
+            // Escape values containing commas just in case (though these specific fields likely don't have them)
+            csvRows.push(row.map(val => `"${val}"`).join(','));
+        });
+
+        const csvContent = csvRows.join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `trade_history_${new Date().toISOString().slice(0,10)}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
 
     const handleExit = () => {
         if (document.exitFullscreen) {
@@ -537,6 +605,15 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
                         <div className="text-slate-400 font-bold">{currentTime.toLocaleTimeString()}</div>
                         <div className="text-[10px] text-slate-600">UTC-5 EST</div>
                     </div>
+
+                    <button 
+                        onClick={() => setIsHistoryDrawerOpen(true)}
+                        className="group flex items-center gap-2 px-3 py-1.5 bg-slate-900/50 border border-slate-700/50 hover:bg-slate-800 hover:border-slate-500 rounded text-slate-400 hover:text-white transition-all"
+                        title="Trade History"
+                    >
+                        <History size={14} />
+                        <span className="text-[10px] font-bold uppercase tracking-widest hidden md:block">HISTORY</span>
+                    </button>
 
                     <div className="h-8 w-px bg-slate-800 mx-2"></div>
 
@@ -1192,6 +1269,135 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
                 </div>
 
             </div>
+
+            {/* HISTORY DRAWER OVERLAY */}
+            {isHistoryDrawerOpen && (
+                <div className="absolute inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setIsHistoryDrawerOpen(false)}>
+                    <div 
+                        className="w-[450px] md:w-[500px] h-full bg-[#080b11] border-l border-slate-800 flex flex-col shadow-2xl shadow-black animate-in slide-in-from-right duration-300"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="flex justify-between items-center p-6 border-b border-slate-800 shrink-0">
+                            <div>
+                                <h2 className="text-white font-black text-lg uppercase tracking-widest flex items-center gap-2">
+                                    <History className="text-cyan-400" />
+                                    Trade History
+                                </h2>
+                                <p className="text-slate-500 text-xs mt-1">Full transaction ledger for current session</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button 
+                                    onClick={copyTradeDataToJSON}
+                                    disabled={recentTrades.length === 0}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-950/30 text-indigo-400 border border-indigo-900/50 hover:bg-indigo-900/50 hover:text-white rounded text-[10px] font-bold uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title="Copy to JSON"
+                                >
+                                    <Copy size={14} />
+                                    <span>Copy JSON</span>
+                                </button>
+                                <button 
+                                    onClick={exportTradeHistoryToCSV}
+                                    disabled={recentTrades.length === 0}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-950/30 text-cyan-400 border border-cyan-900/50 hover:bg-cyan-900/50 hover:text-white rounded text-[10px] font-bold uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title="Export to CSV"
+                                >
+                                    <Download size={14} />
+                                    <span>Export CSV</span>
+                                </button>
+                                <button onClick={() => setIsHistoryDrawerOpen(false)} className="text-slate-500 hover:text-white p-2 transition-colors rounded hover:bg-slate-800">
+                                    <X size={20} />
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div className="flex-grow overflow-y-auto custom-scrollbar p-6 space-y-4">
+                            {recentTrades.map(trade => (
+                                <div key={trade.id} className="bg-slate-900/40 border border-slate-800 rounded-xl p-4 flex flex-col gap-3 hover:bg-slate-900/60 transition-colors">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className={clsx("text-[10px] font-black uppercase px-2 py-0.5 rounded border", trade.side === 'BUY' ? "bg-emerald-950/30 text-emerald-400 border-emerald-500/30" : "bg-rose-950/30 text-rose-400 border-rose-500/30")}>
+                                                    {trade.side}
+                                                </span>
+                                                <span className="text-white font-bold">{trade.symbol}</span>
+                                            </div>
+                                            <div className="text-[10px] text-slate-500 font-mono flex items-center gap-1.5">
+                                                <Clock size={10} />
+                                                {trade.time}
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="text-sm font-black font-mono text-white">
+                                                {trade.price}¢
+                                            </div>
+                                            <div className="text-[10px] text-slate-500 mt-1">
+                                                Size: ${trade.amount}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="border-t border-slate-800 pt-3 flex justify-between items-center text-[10px]">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-slate-500 uppercase tracking-widest font-bold">Exchange:</span>
+                                            <span className={clsx("font-bold px-1.5 py-0.5 rounded bg-black/40 border border-slate-800", trade.exchange === 'Kalshi' ? "text-pink-400" : trade.exchange === 'Polymarket' ? "text-indigo-400" : "text-cyan-400")}>
+                                                {trade.exchange}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 text-slate-500 font-mono">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                            {trade.status}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                            
+                            {recentTrades.length === 0 && (
+                                <div className="text-center py-16 text-slate-500 border border-dashed border-slate-800 rounded-xl">
+                                    <History size={32} className="mx-auto mb-3 opacity-50" />
+                                    <p className="text-sm font-bold">No trades executed</p>
+                                    <p className="text-xs mt-1">Your transaction ledger is empty.</p>
+                                </div>
+                            )}
+                        </div>
+                        
+                        <div className="p-6 border-t border-slate-800 bg-black/20 shrink-0">
+                            <div className="flex justify-between items-center text-xs font-mono">
+                                <span className="text-slate-500">Total Executions</span>
+                                <span className="text-white font-bold">{recentTrades.length}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* NON-INTRUSIVE TRADE TOAST NOTIFICATION */}
+            {tradeToast && (
+                <div className="absolute bottom-6 right-6 z-50 animate-in slide-in-from-right-8 fade-in duration-300">
+                    <div className="bg-slate-900 border border-slate-700 shadow-2xl shadow-black rounded-xl p-4 min-w-[280px] flex items-start gap-4">
+                        <div className="bg-emerald-500/10 p-2 rounded-full border border-emerald-500/20 shrink-0 mt-0.5">
+                            <CheckCircle2 size={20} className="text-emerald-400" />
+                        </div>
+                        <div className="flex-1">
+                            <h4 className="text-white text-sm font-bold flex items-center gap-2">
+                                <span className={clsx("text-[10px] px-1.5 py-0.5 rounded font-black", tradeToast.side === 'BUY' ? "bg-emerald-950/50 text-emerald-400" : "bg-rose-950/50 text-rose-400")}>{tradeToast.side}</span>
+                                {tradeToast.symbol}
+                            </h4>
+                            <div className="text-xs text-slate-400 mt-1">
+                                {tradeToast.message}
+                            </div>
+                            <div className="mt-2 text-[11px] font-mono font-bold flex items-center gap-1.5 border-t border-slate-800 pt-2">
+                                <span className="text-slate-500">PnL Impact:</span>
+                                <span className={clsx(tradeToast.impact >= 0 ? "text-emerald-400" : "text-rose-400")}>
+                                    {tradeToast.impact >= 0 ? '+' : ''}${tradeToast.impact.toFixed(2)}
+                                </span>
+                            </div>
+                        </div>
+                        <button onClick={() => setTradeToast(null)} className="text-slate-500 hover:text-white transition-colors">
+                            <X size={16} />
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

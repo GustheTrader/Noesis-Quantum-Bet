@@ -23,7 +23,7 @@ interface AdminProps {
   onFactoryReset: () => void;
 }
 
-type IngestType = 'POSITIONS' | 'PROPS' | 'RESULTS' | 'SYSTEM' | 'CSV_IMPORT';
+type IngestType = 'POSITIONS' | 'PROPS' | 'RESULTS' | 'SYSTEM' | 'CSV_IMPORT' | 'SLIP_OCR';
 type PositionSubTab = 'TEAM' | 'PARLAY';
 
 export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteReport, onUpdatePicks, onUploadSummary, onFactoryReset }) => {
@@ -67,6 +67,17 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
       finally { setAuthLoading(false); }
   };
 
+  const convertFileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        resolve((reader.result as string).split(',')[1]);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
   const runOCRAndIngest = async (files: File[] | FileList | null) => {
     if (!files || (files instanceof FileList && files.length === 0)) return;
     const fileArray = files instanceof FileList ? Array.from(files) : files;
@@ -79,6 +90,28 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
     for (const file of fileArray) {
       try {
         addLog(`Analyzing: ${file.name} (Buffer: ${(file.size / 1024).toFixed(1)} KB)`);
+        
+        if (activeTab === 'SLIP_OCR') {
+           const base64data = await convertFileToBase64(file);
+           const prompt = `Extract all trading or betting positions from this image slip. Format as a JSON array of Trade objects matching this exact schema: [{ "symbol": string, "side": "BUY" | "SELL", "price": number, "amount": number, "exchange": string }]. Infer the exchange if possible, otherwise use "Unknown". Infer side as BUY or SELL. Price is in cents (e.g. 50 = $0.50) or dollar value depending on context, amount is the total wagered/risked.`;
+           
+           const result = await ai.models.generateContent({
+             model: 'gemini-3.5-flash',
+             contents: [
+                prompt,
+                { inlineData: { data: base64data, mimeType: file.type } }
+             ],
+             config: { responseMimeType: "application/json" }
+           });
+           
+           if (result.text) {
+              const parsed = JSON.parse(result.text);
+              addLog(`SUCCESS: Extracted ${parsed.length} trades from slip.`);
+              setManualContent(JSON.stringify(parsed, null, 2));
+           }
+           continue;
+        }
+
         const text = await file.text();
         
         let prompt = "";
@@ -267,6 +300,7 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
                         { id: 'PROPS', label: 'Prop Alpha', icon: Zap },
                         { id: 'RESULTS', label: 'Ledger Sync', icon: BarChart3 },
                         { id: 'CSV_IMPORT', label: 'CSV Import', icon: Database },
+                        { id: 'SLIP_OCR', label: 'Slip OCR', icon: FileSearch },
                         { id: 'SYSTEM', label: 'System', icon: Settings }
                     ] as const).map(tab => (
                         <button
@@ -346,7 +380,7 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
                             
                             <h2 className="text-3xl font-black text-white uppercase tracking-tighter mb-4">Channel Ingestion</h2>
                             <p className="text-slate-500 text-sm mb-10 max-w-sm font-medium leading-relaxed">
-                                Drop <span className="text-indigo-400">{activeTab === 'CSV_IMPORT' ? 'CSV' : 'MD, TXT, or PDF'}</span> files here for Neural Parsing. Our RL core will reconcile entries for <span className="text-white">{targetLeague} {activeTab === 'POSITIONS' ? positionSubTab : (activeTab === 'CSV_IMPORT' ? 'stats table' : activeTab)}</span>.
+                                Drop <span className="text-indigo-400">{activeTab === 'CSV_IMPORT' ? 'CSV' : activeTab === 'SLIP_OCR' ? 'Images' : 'MD, TXT, or PDF'}</span> files here for Neural Parsing. Our RL core will reconcile entries for <span className="text-white">{targetLeague} {activeTab === 'POSITIONS' ? positionSubTab : (activeTab === 'CSV_IMPORT' ? 'stats table' : activeTab)}</span>.
                             </p>
 
                             <div className="flex flex-col gap-4 w-full max-w-xs">
@@ -360,7 +394,7 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
                                     ref={fileInputRef}
                                     type="file" 
                                     multiple 
-                                    accept={activeTab === 'CSV_IMPORT' ? ".csv" : undefined}
+                                    accept={activeTab === 'CSV_IMPORT' ? ".csv" : activeTab === 'SLIP_OCR' ? "image/*" : undefined}
                                     onChange={(e) => {
                                       if (e.target.files) {
                                         if (activeTab === 'CSV_IMPORT') {

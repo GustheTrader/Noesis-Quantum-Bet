@@ -5,6 +5,7 @@ import { PerformanceChart } from '../components/PerformanceChart';
 import { WeekView } from '../components/WeekView';
 import { HighlightReel } from '../components/HighlightReel';
 import { MonthlyHeatmap } from '../components/MonthlyHeatmap';
+import { MarketROIHeatmap } from '../components/MarketROIHeatmap';
 import { WeekData, DashboardStats, ChartDataPoint, UserBet, SummaryStats, League } from '../types';
 import { calculateStats, generateChartData } from '../utils';
 import { clsx } from 'clsx';
@@ -308,6 +309,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ weeks, stats, chartData, a
 
             {/* Monthly Betting ROI Performance Heatmap */}
             <MonthlyHeatmap weeks={weeks} activeLeague={activeLeague} />
+            
+            {/* Market ROI Heatmap (Recharts) */}
+            <MarketROIHeatmap weeks={weeks} />
             
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                 <div className="lg:col-span-1 space-y-8">
