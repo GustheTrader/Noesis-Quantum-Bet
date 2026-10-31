@@ -10,6 +10,7 @@ import { WeekData, DashboardStats, ChartDataPoint, UserBet, SummaryStats, League
 import { calculateStats, generateChartData } from '../utils';
 import { clsx } from 'clsx';
 import { ModelThemeToggle } from '../components/ModelThemeToggle';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { 
   Layers, Zap, Combine, Cpu, Activity, User, Briefcase, RefreshCcw, 
   TrendingUp, DollarSign, Wallet, PieChart as PieChartIcon, 
@@ -310,11 +311,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ weeks, stats, chartData, a
                     <button onClick={() => setStatsView('parlays')} className={clsx("flex items-center gap-2 px-6 py-2 rounded-lg text-xs font-bold uppercase transition-all", statsView === 'parlays' ? "bg-violet-900/50 text-violet-400 border border-violet-500/30" : "text-slate-400 hover:text-white")}> <Combine size={14} /> Parlays </button>
                 </div>
             </div>
-            <SummaryCards stats={stats[statsView]} allStats={stats} />
-            <PerformanceChart data={chartData} />
+            <ErrorBoundary compact fallbackTitle="Summary Cards Anomaly">
+              <SummaryCards stats={stats[statsView]} allStats={stats} />
+            </ErrorBoundary>
+
+            <ErrorBoundary compact fallbackTitle="Performance Chart Anomaly">
+              <PerformanceChart data={chartData} />
+            </ErrorBoundary>
             
             {/* Historical Weekly ROI Trends */}
-            <div id="historical-roi-trends-container" className="glass-panel p-8 rounded-2xl mb-10 border border-slate-800 relative overflow-hidden">
+            <ErrorBoundary compact fallbackTitle="Weekly ROI Trajectory Chart Anomaly">
+              <div id="historical-roi-trends-container" className="glass-panel p-8 rounded-2xl mb-10 border border-slate-800 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-64 h-64 blur-3xl rounded-full pointer-events-none opacity-20 bg-purple-500"></div>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 relative z-10">
                     <div>
@@ -387,13 +394,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ weeks, stats, chartData, a
                         </div>
                     )}
                 </div>
-            </div>
+              </div>
+            </ErrorBoundary>
 
             {/* Monthly Betting ROI Performance Heatmap */}
-            <MonthlyHeatmap weeks={weeks} activeLeague={activeLeague} />
+            <ErrorBoundary compact fallbackTitle="Monthly Heatmap Anomaly">
+              <MonthlyHeatmap weeks={weeks} activeLeague={activeLeague} />
+            </ErrorBoundary>
             
             {/* Market ROI Heatmap (Recharts) */}
-            <MarketROIHeatmap weeks={weeks} />
+            <ErrorBoundary compact fallbackTitle="Market ROI Heatmap Anomaly">
+              <MarketROIHeatmap weeks={weeks} />
+            </ErrorBoundary>
             
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                 <div className="lg:col-span-1 space-y-8">
@@ -408,11 +420,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ weeks, stats, chartData, a
                     </div>
                 </div>
                 <div className="lg:col-span-3">
-                    <WeekView weeks={weeks} />
+                    <ErrorBoundary compact fallbackTitle="Week View Anomaly">
+                      <WeekView weeks={weeks} />
+                    </ErrorBoundary>
                 </div>
             </div>
             <div className="mt-12">
-                <HighlightReel activeLeague={activeLeague} />
+                <ErrorBoundary compact fallbackTitle="Highlight Reel Anomaly">
+                  <HighlightReel activeLeague={activeLeague} />
+                </ErrorBoundary>
             </div>
           </>
       ) : (

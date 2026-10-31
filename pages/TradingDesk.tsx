@@ -1221,12 +1221,11 @@ export const TradingDesk: React.FC<TradingDeskProps> = ({ onClose }) => {
                                             }}
                                         />
                                         <ReferenceLine x={0} stroke="#475569" strokeDasharray="3 3" />
-                                        <Bar dataKey="delta">
+                                        <Bar dataKey="delta" radius={2}>
                                             {depthData.map((entry, index) => (
                                                 <Cell 
                                                     key={`cell-${index}`} 
                                                     fill={entry.delta >= 0 ? '#10b981' : '#f43f5e'} 
-                                                    radius={entry.delta >= 0 ? [0, 2, 2, 0] : [2, 0, 0, 2]}
                                                 />
                                             ))}
                                         </Bar>

@@ -33,8 +33,10 @@ export const EmailGate: React.FC<EmailGateProps> = ({ onUnlock }) => {
         setErrorMessage('');
 
         try {
-            // Log to Supabase
-            await supabase.from('visitor_emails').insert({ email });
+            // Log to Supabase with race timeout so unresponsive server never stalls access
+            const insertPromise = supabase.from('visitor_emails').insert({ email });
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1200));
+            await Promise.race([insertPromise, timeoutPromise]).catch(() => {});
             
             // If it's a first time user, skip selection and go straight to tour
             if (!isReturningUser) {
@@ -231,6 +233,17 @@ export const EmailGate: React.FC<EmailGateProps> = ({ onUnlock }) => {
                                     </>
                                 )}
                             </button>
+
+                            <div className="pt-2 text-center">
+                                <button
+                                    type="button"
+                                    onClick={() => onUnlock('direct')}
+                                    className="text-xs text-slate-400 hover:text-cyan-400 transition-colors font-mono tracking-wider flex items-center justify-center gap-1.5 mx-auto"
+                                >
+                                    <span>Instant Access / Sandbox Preview</span>
+                                    <ArrowRight size={12} />
+                                </button>
+                            </div>
                         </form>
 
                         <div className="mt-12 flex items-center justify-center gap-3 opacity-30">

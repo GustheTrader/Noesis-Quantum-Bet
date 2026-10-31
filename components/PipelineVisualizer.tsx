@@ -235,7 +235,7 @@ export const PipelineVisualizer: React.FC = () => {
     
     // Queue particle movements across steps
     let currentParticleStage = 0;
-    const nextStatus = freshSignal.gated ? (freshSignal.filtered ? 'ok' : 'fail') : 'fail';
+    const nextStatus: 'ok' | 'fail' = freshSignal.gated ? (freshSignal.filtered ? 'ok' : 'fail') : 'fail';
     
     const newParticle = {
       id: particleId,

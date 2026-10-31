@@ -74,14 +74,14 @@ export const calculateStats = (weeks: WeekData[]): DashboardStats => {
   };
 
   weeks.forEach(week => {
-    week.pools.forEach(pool => {
-      pool.bets.forEach(bet => {
+    (week.pools || []).forEach(pool => {
+      (pool.bets || []).forEach(bet => {
         let isParlay = false;
         if (bet.betType) {
             isParlay = bet.betType === 'PARLAY';
         } else {
-            const desc = bet.description.toLowerCase();
-            const poolName = pool.name.toLowerCase();
+            const desc = (bet.description || '').toLowerCase();
+            const poolName = (pool.name || '').toLowerCase();
             isParlay = desc.includes('parlay') || desc.includes('leg') || poolName.includes('parlay');
         }
 
@@ -135,10 +135,10 @@ export const generateChartData = (weeks: WeekData[]): ChartDataPoint[] => {
     let weekProfit = 0;
     let weekUnits = 0;
     
-    week.pools.forEach(pool => {
+    (week.pools || []).forEach(pool => {
       weekProfit += Number(pool.netProfit) || 0;
-      pool.bets.forEach(b => {
-          const stake = typeof b.stake === 'number' ? b.stake : parseFloat(String(b.stake).replace(/[^\d.-]/g, '')) || 0;
+      (pool.bets || []).forEach(b => {
+          const stake = typeof b.stake === 'number' ? b.stake : parseFloat(String(b.stake || 0).replace(/[^\d.-]/g, '')) || 0;
           weekUnits += (stake / 100);
       });
     });
