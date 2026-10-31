@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { LayoutDashboard, Target, MonitorPlay, ExternalLink, Mic, ShieldAlert, Trophy, Radio, BarChart3, Infinity, Calculator, Globe, Bot } from 'lucide-react';
+import { LayoutDashboard, Target, MonitorPlay, ExternalLink, Mic, ShieldAlert, Trophy, Radio, BarChart3, Infinity, Calculator, Globe, Bot, Settings, Palette } from 'lucide-react';
 import { clsx } from 'clsx';
 import { League } from '../types';
 import quantumBetsLogoImg from '../src/assets/images/quantum_bets_logo_1783566041207.jpg';
@@ -13,9 +13,10 @@ interface NavBarProps {
   activeLeague: League;
   setActiveLeague: (league: League) => void;
   isPremiumUnlocked?: boolean;
+  onOpenSettings?: () => void;
 }
 
-export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onLaunchArby, activeLeague, setActiveLeague, isPremiumUnlocked = false }) => {
+export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onLaunchArby, activeLeague, setActiveLeague, isPremiumUnlocked = false, onOpenSettings }) => {
   
   const getButtonClass = (isActive: boolean, colorClass: string, shadowClass: string) => {
       return clsx(
@@ -186,6 +187,17 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
             </button>
 
             <div className="w-px h-6 bg-white/10 mx-2"></div>
+
+              {onOpenSettings && (
+                <button
+                  id="nav-settings"
+                  onClick={onOpenSettings}
+                  className="w-9 h-9 rounded-full bg-slate-800/50 border border-slate-700 text-slate-400 hover:text-cyan-400 hover:border-cyan-400/50 flex items-center justify-center transition-all hover:bg-cyan-500/10"
+                  title="Model Theme & Settings"
+                >
+                  <Settings size={16} />
+                </button>
+              )}
 
               <button
                 id="nav-admin"

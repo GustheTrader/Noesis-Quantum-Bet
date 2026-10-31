@@ -13,6 +13,8 @@ import { supabase } from '../lib/supabase';
 import { formatError } from '../utils';
 import { clsx } from 'clsx';
 import Papa from 'papaparse';
+import { ModelThemeToggle } from '../components/ModelThemeToggle';
+import { Sparkles, Palette } from 'lucide-react';
 
 interface AdminProps {
   onDataUploaded: (data: WeekData) => void;
@@ -517,18 +519,43 @@ function syncToSupabase() {
                 )}
 
                 {activeTab === 'SYSTEM' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="bg-[#05070a] rounded-[48px] p-12 border border-white/5 text-center flex flex-col items-center">
-                            <Trash2 className="text-rose-500 mb-6" size={48} />
-                            <h4 className="text-xl font-black text-white uppercase mb-4">Hard Purge</h4>
-                            <p className="text-slate-500 text-xs mb-8">Delete all local cache and forcing a core re-sync.</p>
-                            <button onClick={onFactoryReset} className="w-full py-4 bg-rose-900/20 border border-rose-500 text-rose-500 rounded-xl font-black text-[10px] uppercase tracking-widest">PURGE CACHE</button>
+                    <div className="space-y-8">
+                        {/* Model Theme Engine Settings */}
+                        <div className="bg-[#05070a] rounded-[36px] p-8 sm:p-10 border border-white/5 space-y-6">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-white/5">
+                                <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <Palette className="text-cyan-400" size={20} />
+                                        <h4 className="text-lg font-black text-white uppercase tracking-wider">
+                                            Model Theme Configuration
+                                        </h4>
+                                        <span className="bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 text-[9px] font-mono font-bold px-2 py-0.5 rounded-full uppercase tracking-widest">
+                                            Live CSS Custom Properties
+                                        </span>
+                                    </div>
+                                    <p className="text-slate-400 text-xs max-w-2xl leading-relaxed">
+                                        Switch visual modes (e.g., 'Dark Matter' vs 'Cyber Light') to dynamically update CSS variables (<code className="text-indigo-400 font-mono">--glass-bg</code>, <code className="text-indigo-400 font-mono">--glass-border</code>, <code className="text-indigo-400 font-mono">--glass-shadow</code>) across all <code className="text-cyan-400 font-mono">.glass-panel</code> components.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <ModelThemeToggle compact={false} showPreview={true} showVariables={true} />
                         </div>
-                        <div className="bg-[#05070a] rounded-[48px] p-12 border border-white/5 text-center flex flex-col items-center">
-                            <Database className="text-emerald-500 mb-6" size={48} />
-                            <h4 className="text-xl font-black text-white uppercase mb-4">Integrity Check</h4>
-                            <p className="text-slate-500 text-xs mb-8">Verify all Supabase relational pointers.</p>
-                            <button className="w-full py-4 bg-emerald-900/20 border border-emerald-500 text-emerald-500 rounded-xl font-black text-[10px] uppercase tracking-widest">RUN DIAGNOSTICS</button>
+
+                        {/* System Maintenance Cards */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="bg-[#05070a] rounded-[36px] p-8 border border-white/5 text-center flex flex-col items-center">
+                                <Trash2 className="text-rose-500 mb-4" size={40} />
+                                <h4 className="text-lg font-black text-white uppercase mb-2">Hard Purge</h4>
+                                <p className="text-slate-500 text-xs mb-6">Delete all local cache and forcing a core re-sync.</p>
+                                <button onClick={onFactoryReset} className="w-full py-3.5 bg-rose-900/20 border border-rose-500 text-rose-500 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-rose-900/40 transition-colors">PURGE CACHE</button>
+                            </div>
+                            <div className="bg-[#05070a] rounded-[36px] p-8 border border-white/5 text-center flex flex-col items-center">
+                                <Database className="text-emerald-500 mb-4" size={40} />
+                                <h4 className="text-lg font-black text-white uppercase mb-2">Integrity Check</h4>
+                                <p className="text-slate-500 text-xs mb-6">Verify all Supabase relational pointers.</p>
+                                <button className="w-full py-3.5 bg-emerald-900/20 border border-emerald-500 text-emerald-500 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-900/40 transition-colors">RUN DIAGNOSTICS</button>
+                            </div>
                         </div>
                     </div>
                 )}

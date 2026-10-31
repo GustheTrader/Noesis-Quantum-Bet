@@ -9,11 +9,13 @@ import { MarketROIHeatmap } from '../components/MarketROIHeatmap';
 import { WeekData, DashboardStats, ChartDataPoint, UserBet, SummaryStats, League } from '../types';
 import { calculateStats, generateChartData } from '../utils';
 import { clsx } from 'clsx';
+import { ModelThemeToggle } from '../components/ModelThemeToggle';
 import { 
   Layers, Zap, Combine, Cpu, Activity, User, Briefcase, RefreshCcw, 
   TrendingUp, DollarSign, Wallet, PieChart as PieChartIcon, 
   ArrowUpRight, ArrowDownRight, History, BarChart3, Target, Calendar,
-  Filter, Search, ChevronUp, ChevronDown, ArrowUpDown
+  Filter, Search, ChevronUp, ChevronDown, ArrowUpDown, AlertTriangle, BellRing,
+  Palette
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
@@ -57,6 +59,51 @@ export const Dashboard: React.FC<DashboardProps> = ({ weeks, stats, chartData, a
       }
       setLoadingUserBets(false);
   };
+
+  // --- BACKGROUND MONITOR ---
+  const performanceAlert = useMemo(() => {
+    if (!weeks || weeks.length < 3) return null;
+
+    const getWeekNum = (title: string) => {
+        const match = title.match(/week[\s_-]*(\d+)/i);
+        return match ? parseInt(match[1]) : 0;
+    };
+    
+    // Sort weeks by title strictly to ensure correct chronological flow
+    const sortedWeeks = [...weeks].sort((a, b) => getWeekNum(a.title) - getWeekNum(b.title));
+    
+    // Exclude the most recent week for historical baseline
+    const recentWeek = sortedWeeks[sortedWeeks.length - 1];
+    const history = sortedWeeks.slice(0, sortedWeeks.length - 1);
+    
+    const historicalMeanROI = history.reduce((sum, w) => sum + (w.overallRoi || 0), 0) / history.length;
+    
+    const variance = history.reduce((sum, w) => sum + Math.pow((w.overallRoi || 0) - historicalMeanROI, 2), 0) / history.length;
+    const stdDev = Math.sqrt(variance) || 1; // Prevent division by zero
+
+    const recentROI = recentWeek.overallRoi || 0;
+    const deviation = recentROI - historicalMeanROI;
+    const zScore = deviation / stdDev;
+
+    // Trigger alerts based on significant standard deviations + absolute percentage drops
+    if (zScore < -1.5 && deviation < -5) {
+      return {
+        type: 'WARNING',
+        title: 'Performance Anomaly Detected',
+        message: `${recentWeek.title} ROI (${recentROI.toFixed(1)}%) has dropped significantly below the historical average (${historicalMeanROI.toFixed(1)}%). Proceed with caution and review underlying model features.`,
+        deviation
+      };
+    } else if (zScore > 2.0 && deviation > 10) {
+        return {
+          type: 'INSIGHT',
+          title: 'High Alpha Generation',
+          message: `${recentWeek.title} ROI (${recentROI.toFixed(1)}%) significantly outperforms the historical average (${historicalMeanROI.toFixed(1)}%). Models are strongly aligned with current market conditions.`,
+          deviation
+        };
+    }
+    
+    return null;
+  }, [weeks]);
 
   const filteredUserBets = useMemo(() => {
       return userBets.filter(b => b.market_type === activeLeague);
@@ -191,36 +238,71 @@ export const Dashboard: React.FC<DashboardProps> = ({ weeks, stats, chartData, a
               </div>
           </div>
 
-          <div className="bg-slate-900/80 p-1 rounded-xl border border-slate-700 flex gap-1 shadow-2xl">
-              <button
-                  onClick={() => setScope('MODEL')}
-                  className={clsx(
-                      "flex items-center gap-2 px-6 py-3 rounded-lg text-xs font-bold uppercase tracking-wider transition-all",
-                      scope === 'MODEL' 
-                          ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20" 
-                          : "text-slate-400 hover:text-white hover:bg-white/5"
-                  )}
-              >
-                  <Activity size={14} />
-                  Model Performance
-              </button>
-              <button
-                  onClick={() => setScope('CLIENT')}
-                  className={clsx(
-                      "flex items-center gap-2 px-6 py-3 rounded-lg text-xs font-bold uppercase tracking-wider transition-all",
-                      scope === 'CLIENT' 
-                          ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/20" 
-                          : "text-slate-400 hover:text-white hover:bg-white/5"
-                  )}
-              >
-                  <Briefcase size={14} />
-                  Client Portfolio
-              </button>
+          <div className="flex flex-wrap items-center gap-3">
+              {/* Model Theme Substrate Switcher */}
+              <div className="flex items-center gap-2">
+                  <ModelThemeToggle compact={true} showPreview={false} showVariables={false} />
+              </div>
+
+              <div className="bg-slate-900/80 p-1 rounded-xl border border-slate-700 flex gap-1 shadow-2xl">
+                  <button
+                      onClick={() => setScope('MODEL')}
+                      className={clsx(
+                          "flex items-center gap-2 px-6 py-3 rounded-lg text-xs font-bold uppercase tracking-wider transition-all",
+                          scope === 'MODEL' 
+                              ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20" 
+                              : "text-slate-400 hover:text-white hover:bg-white/5"
+                      )}
+                  >
+                      <Activity size={14} />
+                      Model Performance
+                  </button>
+                  <button
+                      onClick={() => setScope('CLIENT')}
+                      className={clsx(
+                          "flex items-center gap-2 px-6 py-3 rounded-lg text-xs font-bold uppercase tracking-wider transition-all",
+                          scope === 'CLIENT' 
+                              ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/20" 
+                              : "text-slate-400 hover:text-white hover:bg-white/5"
+                      )}
+                  >
+                      <Briefcase size={14} />
+                      Client Portfolio
+                  </button>
+              </div>
           </div>
       </div>
 
       {scope === 'MODEL' ? (
           <>
+            {/* PERFORMANCE MONITOR ALERT */}
+            {performanceAlert && (
+                <div className={clsx(
+                    "mb-8 p-4 rounded-xl border flex items-start gap-4 shadow-2xl animate-in slide-in-from-top-4 fade-in duration-500",
+                    performanceAlert.type === 'WARNING' 
+                        ? "bg-rose-950/30 border-rose-900/50" 
+                        : "bg-emerald-950/30 border-emerald-900/50"
+                )}>
+                    <div className={clsx(
+                        "p-3 rounded-full shrink-0",
+                        performanceAlert.type === 'WARNING' ? "bg-rose-500/20 text-rose-400" : "bg-emerald-500/20 text-emerald-400"
+                    )}>
+                        {performanceAlert.type === 'WARNING' ? <AlertTriangle size={24} /> : <BellRing size={24} />}
+                    </div>
+                    <div>
+                        <h4 className={clsx(
+                            "text-sm font-black uppercase tracking-wider mb-1",
+                            performanceAlert.type === 'WARNING' ? "text-rose-400" : "text-emerald-400"
+                        )}>
+                            {performanceAlert.title}
+                        </h4>
+                        <p className="text-slate-300 text-sm leading-relaxed">
+                            {performanceAlert.message}
+                        </p>
+                    </div>
+                </div>
+            )}
+
             <div className="flex justify-center mb-8">
                 <div className="bg-slate-900/50 p-1 rounded-xl border border-slate-800 flex gap-1">
                     <button onClick={() => setStatsView('overall')} className={clsx("flex items-center gap-2 px-6 py-2 rounded-lg text-xs font-bold uppercase transition-all", statsView === 'overall' ? "bg-indigo-900/50 text-indigo-400 border border-indigo-500/30" : "text-slate-400 hover:text-white")}> <Layers size={14} /> Overall </button>

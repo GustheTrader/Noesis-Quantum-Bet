@@ -146,16 +146,30 @@
       }
     </script>
     <style>
+      :root {
+        --glass-bg: rgba(15, 23, 42, 0.72);
+        --glass-blur: 14px;
+        --glass-border: 1px solid rgba(139, 92, 246, 0.3);
+        --glass-border-color: rgba(139, 92, 246, 0.3);
+        --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6), inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+        --glass-glow: 0 0 25px rgba(139, 92, 246, 0.2);
+        --glass-highlight: rgba(139, 92, 246, 0.15);
+        --glass-text-color: #ffffff;
+      }
       body {
         background-color: #000000;
         color: #ffffff;
         zoom: 0.75;
       }
       .glass-panel {
-        background: rgba(15, 23, 42, 0.6);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(139, 92, 246, 0.2);
+        background: var(--glass-bg) !important;
+        backdrop-filter: blur(var(--glass-blur));
+        -webkit-backdrop-filter: blur(var(--glass-blur));
+        border-color: var(--glass-border-color) !important;
+        box-shadow: var(--glass-shadow) !important;
+        transition: background 0.35s cubic-bezier(0.4, 0, 0.2, 1), 
+                    border-color 0.35s cubic-bezier(0.4, 0, 0.2, 1), 
+                    box-shadow 0.35s cubic-bezier(0.4, 0, 0.2, 1);
       }
       .neon-text {
         text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
@@ -175,6 +189,31 @@
           background: rgba(139, 92, 246, 0.5);
       }
     </style>
+    <script>
+      (function() {
+        try {
+          var t = localStorage.getItem('quantum_model_theme') || 'dark-matter';
+          document.documentElement.setAttribute('data-model-theme', t);
+          if (t === 'cyber-light') {
+            document.documentElement.style.setProperty('--glass-bg', 'rgba(215, 235, 255, 0.18)');
+            document.documentElement.style.setProperty('--glass-blur', '18px');
+            document.documentElement.style.setProperty('--glass-border', '1px solid rgba(6, 182, 212, 0.55)');
+            document.documentElement.style.setProperty('--glass-border-color', 'rgba(6, 182, 212, 0.55)');
+            document.documentElement.style.setProperty('--glass-shadow', '0 8px 32px 0 rgba(6, 182, 212, 0.25), inset 0 1px 2px 0 rgba(255, 255, 255, 0.45)');
+            document.documentElement.style.setProperty('--glass-glow', '0 0 35px rgba(6, 182, 212, 0.4)');
+            document.documentElement.style.setProperty('--glass-highlight', 'rgba(6, 182, 212, 0.3)');
+          } else if (t === 'neon-matrix') {
+            document.documentElement.style.setProperty('--glass-bg', 'rgba(6, 28, 20, 0.7)');
+            document.documentElement.style.setProperty('--glass-blur', '14px');
+            document.documentElement.style.setProperty('--glass-border', '1px solid rgba(16, 185, 129, 0.45)');
+            document.documentElement.style.setProperty('--glass-border-color', 'rgba(16, 185, 129, 0.45)');
+            document.documentElement.style.setProperty('--glass-shadow', '0 8px 32px 0 rgba(16, 185, 129, 0.2), inset 0 1px 0 0 rgba(52, 211, 153, 0.25)');
+            document.documentElement.style.setProperty('--glass-glow', '0 0 30px rgba(16, 185, 129, 0.3)');
+            document.documentElement.style.setProperty('--glass-highlight', 'rgba(16, 185, 129, 0.22)');
+          }
+        } catch(e){}
+      })();
+    </script>
   <script type="importmap">
 {
   "imports": {

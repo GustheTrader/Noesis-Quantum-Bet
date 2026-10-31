@@ -21,6 +21,8 @@ import { OnboardingTour } from './components/OnboardingTour';
 import { VoiceAgent } from './components/VoiceAgent';
 import { EmailGate } from './components/EmailGate';
 import { PremiumGate } from './components/PremiumGate';
+import { SettingsModal } from './components/SettingsModal';
+import './lib/theme';
 import { INITIAL_PICKS_CONTENT, INITIAL_WEEK_DATA, INITIAL_ARCHIVE, INITIAL_GAME_SUMMARIES } from './constants';
 import { calculateStats, generateChartData, formatError } from './utils';
 import { WeekData, PickArchiveItem, GameSummary, League } from './types';
@@ -37,6 +39,7 @@ function App() {
   const [checkingAccess, setCheckingAccess] = useState(true);
   const [showVoiceAgent, setShowVoiceAgent] = useState(false);
   const [isPremiumUnlocked, setIsPremiumUnlocked] = useState<boolean>(() => localStorage.getItem('asym_premium_unlocked') === 'true');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const [weeks, setWeeks] = useState<WeekData[]>([]);
   const [archives, setArchives] = useState<PickArchiveItem[]>([]);
@@ -205,6 +208,7 @@ function App() {
             activeLeague={activeLeague}
             setActiveLeague={setActiveLeague}
             isPremiumUnlocked={isPremiumUnlocked}
+            onOpenSettings={() => setIsSettingsOpen(true)}
           />
       )}
 
@@ -218,6 +222,11 @@ function App() {
       {showVoiceAgent && <VoiceAgent onClose={() => setShowVoiceAgent(false)} />}
       
       <ChatBot />
+
+      <SettingsModal 
+        isOpen={isSettingsOpen} 
+        onClose={() => setIsSettingsOpen(false)} 
+      />
 
       {sessionMode === 'tour' && (
           <OnboardingTour 
