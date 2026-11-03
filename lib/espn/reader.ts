@@ -1,5 +1,5 @@
 /**
- * ESPN read layer (slice 2): reads the self-hosted Supabase `espn` schema through PostgREST.
+ * ESPN read layer: reads the `espn` schema through PostgREST (directly, or via the read-only Zo proxy).
  * Browser-safe: plain fetch, anon key only, no Node imports. Do not import `./index` from UI code
  * (it re-exports the Node-only pg writer); import this file directly.
  */
@@ -15,6 +15,7 @@ export type ReaderFetch = (input: string, init?: { headers?: Record<string, stri
 export interface ReaderConfig {
   /** Supabase API base, e.g. http://127.0.0.1:8000 (no trailing /rest/v1). */
   url: string;
+  /** Anon key; empty string = send no apikey/Authorization (keyless read-only proxy). */
   anonKey: string;
   fetchImpl?: ReaderFetch;
   /** Rows per page (PostgREST max-rows on Zo is 1000). */
@@ -88,12 +89,24 @@ function viteEnv(): EnvLike {
   return ((import.meta as unknown as { env?: EnvLike }).env ?? {}) as EnvLike;
 }
 
-/** Reads VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY. Throws EspnReadError('config') if missing. */
+/**
+ * Odds data source config.
+ * - VITE_ESPN_API_URL set: read espn tables from that PostgREST-compatible endpoint (e.g. the public
+ *   read-only Zo proxy, which needs no key). VITE_ESPN_ANON_KEY is sent if set, otherwise no key.
+ * - otherwise: VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY (both required).
+ * Throws EspnReadError('config') if nothing usable is configured.
+ */
 export function readerConfigFromEnv(env: EnvLike = viteEnv()): ReaderConfig {
-  const url = typeof env.VITE_SUPABASE_URL === 'string' ? env.VITE_SUPABASE_URL.trim() : '';
-  const anonKey = typeof env.VITE_SUPABASE_ANON_KEY === 'string' ? env.VITE_SUPABASE_ANON_KEY.trim() : '';
+  const str = (k: string) => (typeof env[k] === 'string' ? (env[k] as string).trim() : '');
+  const espnUrl = str('VITE_ESPN_API_URL');
+  if (espnUrl) return { url: espnUrl, anonKey: str('VITE_ESPN_ANON_KEY') };
+  const url = str('VITE_SUPABASE_URL');
+  const anonKey = str('VITE_SUPABASE_ANON_KEY');
   if (!url || !anonKey) {
-    throw new EspnReadError('config', 'Odds data source not configured (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).');
+    throw new EspnReadError(
+      'config',
+      'Odds data source not configured (VITE_ESPN_API_URL, or VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).',
+    );
   }
   return { url, anonKey };
 }
@@ -163,12 +176,11 @@ async function getRows<T>(cfg: ReaderConfig, table: string, params: [string, str
   const f: ReaderFetch = cfg.fetchImpl ?? ((input, init) => fetch(input, init));
   const base = cfg.url.replace(/\/+$/, '');
   const pageSize = cfg.pageSize ?? 1000;
-  const headers = {
-    apikey: cfg.anonKey,
-    Authorization: `Bearer ${cfg.anonKey}`,
-    'Accept-Profile': 'espn',
-    Accept: 'application/json',
-  };
+  const headers: Record<string, string> = { 'Accept-Profile': 'espn', Accept: 'application/json' };
+  if (cfg.anonKey) {
+    headers.apikey = cfg.anonKey;
+    headers.Authorization = `Bearer ${cfg.anonKey}`;
+  }
   const out: T[] = [];
   for (let offset = 0; ; offset += pageSize) {
     const qs = new URLSearchParams([...params, ['limit', String(pageSize)], ['offset', String(offset)]]);

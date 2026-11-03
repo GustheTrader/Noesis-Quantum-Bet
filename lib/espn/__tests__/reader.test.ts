@@ -44,6 +44,31 @@ describe('readerConfigFromEnv', () => {
       expect((e as EspnReadError).kind).toBe('config');
     }
   });
+  it('prefers VITE_ESPN_API_URL and needs no key for it', () => {
+    expect(
+      readerConfigFromEnv({ VITE_ESPN_API_URL: ' https://espn.example ', VITE_SUPABASE_URL: 'http://cloud', VITE_SUPABASE_ANON_KEY: 'k' }),
+    ).toEqual({ url: 'https://espn.example', anonKey: '' });
+    expect(readerConfigFromEnv({ VITE_ESPN_API_URL: 'https://espn.example', VITE_ESPN_ANON_KEY: 'ek' })).toEqual({
+      url: 'https://espn.example',
+      anonKey: 'ek',
+    });
+  });
+  it('falls back to VITE_SUPABASE_URL when VITE_ESPN_API_URL is blank', () => {
+    expect(readerConfigFromEnv({ VITE_ESPN_API_URL: '  ', VITE_SUPABASE_URL: 'http://x', VITE_SUPABASE_ANON_KEY: 'k' })).toEqual({
+      url: 'http://x',
+      anonKey: 'k',
+    });
+  });
+});
+
+describe('keyless reads (read-only proxy)', () => {
+  it('sends no apikey/Authorization when anonKey is empty', async () => {
+    const fetchImpl = vi.fn(async (_url: string, _init?: { headers?: Record<string, string> }) => ok([]));
+    await getEvents(cfgWith(fetchImpl, { url: 'https://espn.example', anonKey: '' }), { league: 'nfl', date: '2026-11-04' });
+    const [url, init] = fetchImpl.mock.calls[0];
+    expect(url.startsWith('https://espn.example/rest/v1/events?')).toBe(true);
+    expect(init?.headers).toEqual({ 'Accept-Profile': 'espn', Accept: 'application/json' });
+  });
 });
 
 describe('dayRangeUtc / todayIn', () => {
