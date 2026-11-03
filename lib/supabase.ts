@@ -1,10 +1,23 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-export const SUPABASE_URL = 'https://rrwvhjcdgkwixxnqcfom.supabase.co';
-export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJyd3ZoamNkZ2t3aXh4bnFjZm9tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ0MzQ1NDMsImV4cCI6MjA4MDAxMDU0M30.f1aGXUrNdQeVhrL-OoPKTJ7XOqb0N8PVo6dSEdhnHG4';
+// Config comes from the build env (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY); no hardcoded fallback.
+// NOTE: the previously hardcoded cloud URL/anon key still exist in git history (and in a code sample in pages/Admin.tsx).
+const env = ((import.meta as unknown as { env?: Record<string, unknown> }).env ?? {}) as Record<string, unknown>;
+const read = (k: string) => (typeof env[k] === 'string' ? (env[k] as string).trim() : '');
+const USE_MOCKS = env.VITE_USE_MOCKS === 'true';
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+export const SUPABASE_URL = read('VITE_SUPABASE_URL');
+export const SUPABASE_ANON_KEY = read('VITE_SUPABASE_ANON_KEY');
+
+if ((!SUPABASE_URL || !SUPABASE_ANON_KEY) && !USE_MOCKS) {
+  throw new Error(
+    'Supabase is not configured: set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (see .env.example), or VITE_USE_MOCKS=true for local mock mode.',
+  );
+}
+
+// In mock mode without config, point at an unroutable placeholder so imports still work; real calls will fail loudly.
+export const supabase = createClient(SUPABASE_URL || 'http://supabase.invalid', SUPABASE_ANON_KEY || 'mock-anon-key');
 
 /* 
 ================================================================
