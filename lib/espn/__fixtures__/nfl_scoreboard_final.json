@@ -1,0 +1,168 @@
+{
+ "leagues": [
+  {
+   "abbreviation": "NFL"
+  }
+ ],
+ "week": {
+  "number": 8
+ },
+ "events": [
+  {
+   "id": "401873023",
+   "date": "2026-10-30T00:15Z",
+   "name": "Carolina Panthers at Green Bay Packers",
+   "shortName": "CAR @ GB",
+   "season": {
+    "year": 2026,
+    "type": 2,
+    "slug": "regular-season"
+   },
+   "week": {
+    "number": 8
+   },
+   "status": {
+    "clock": 0.0,
+    "displayClock": "0:00",
+    "period": 4,
+    "type": {
+     "id": "3",
+     "name": "STATUS_FINAL",
+     "state": "post",
+     "completed": true,
+     "description": "Final",
+     "detail": "Final",
+     "shortDetail": "Final"
+    }
+   },
+   "competitions": [
+    {
+     "id": "401873023",
+     "date": "2026-10-30T00:15Z",
+     "venue": {
+      "fullName": "Lambeau Field"
+     },
+     "competitors": [
+      {
+       "id": "9",
+       "homeAway": "home",
+       "score": "27",
+       "winner": true,
+       "team": {
+        "id": "9",
+        "abbreviation": "GB",
+        "displayName": "Green Bay Packers",
+        "logo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/gb.png"
+       }
+      },
+      {
+       "id": "29",
+       "homeAway": "away",
+       "score": "19",
+       "winner": false,
+       "team": {
+        "id": "29",
+        "abbreviation": "CAR",
+        "displayName": "Carolina Panthers",
+        "logo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/car.png"
+       }
+      }
+     ],
+     "status": {
+      "clock": 0.0,
+      "displayClock": "0:00",
+      "period": 4,
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Final",
+       "shortDetail": "Final"
+      },
+      "isTBDFlex": false
+     }
+    }
+   ]
+  },
+  {
+   "id": "401873026",
+   "date": "2026-11-01T18:00Z",
+   "name": "Baltimore Ravens at Buffalo Bills",
+   "shortName": "BAL @ BUF",
+   "season": {
+    "year": 2026,
+    "type": 2,
+    "slug": "regular-season"
+   },
+   "week": {
+    "number": 8
+   },
+   "status": {
+    "clock": 0.0,
+    "displayClock": "0:00",
+    "period": 4,
+    "type": {
+     "id": "3",
+     "name": "STATUS_FINAL",
+     "state": "post",
+     "completed": true,
+     "description": "Final",
+     "detail": "Final",
+     "shortDetail": "Final"
+    }
+   },
+   "competitions": [
+    {
+     "id": "401873026",
+     "date": "2026-11-01T18:00Z",
+     "venue": {
+      "fullName": "Highmark Stadium"
+     },
+     "competitors": [
+      {
+       "id": "2",
+       "homeAway": "home",
+       "score": "36",
+       "winner": true,
+       "team": {
+        "id": "2",
+        "abbreviation": "BUF",
+        "displayName": "Buffalo Bills",
+        "logo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/buf.png"
+       }
+      },
+      {
+       "id": "33",
+       "homeAway": "away",
+       "score": "10",
+       "winner": false,
+       "team": {
+        "id": "33",
+        "abbreviation": "BAL",
+        "displayName": "Baltimore Ravens",
+        "logo": "https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/bal.png"
+       }
+      }
+     ],
+     "status": {
+      "clock": 0.0,
+      "displayClock": "0:00",
+      "period": 4,
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Final",
+       "shortDetail": "Final"
+      },
+      "isTBDFlex": false
+     }
+    }
+   ]
+  }
+ ]
+}
