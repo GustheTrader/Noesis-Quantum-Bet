@@ -2,7 +2,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 // Config comes from the build env (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY); no hardcoded fallback.
-// NOTE: the previously hardcoded cloud URL/anon key still exist in git history (and in a code sample in pages/Admin.tsx).
+// NOTE: the previously hardcoded cloud URL/anon key were removed from source (incl. the pages/Admin.tsx code sample) but remain in git history.
 const env = ((import.meta as unknown as { env?: Record<string, unknown> }).env ?? {}) as Record<string, unknown>;
 const read = (k: string) => (typeof env[k] === 'string' ? (env[k] as string).trim() : '');
 const USE_MOCKS = env.VITE_USE_MOCKS === 'true';

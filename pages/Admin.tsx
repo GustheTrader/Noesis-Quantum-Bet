@@ -443,8 +443,8 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
                                     <button 
                                         onClick={() => {
                                             navigator.clipboard.writeText(`// Quantum Bets - Automated Google Sheets Sync
-const SUPABASE_URL = "https://rrwvhjcdgkwixxnqcfom.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJyd3ZoamNkZ2t3aXh4bnFjZm9tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ0MzQ1NDMsImV4cCI6MjA4MDAxMDU0M30.f1aGXUrNdQeVhrL-OoPKTJ7XOqb0N8PVo6dSEdhnHG4";
+const SUPABASE_URL = "YOUR_SUPABASE_URL"; // e.g. https://<project-ref>.supabase.co
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY"; // Project Settings > API > anon/publishable key
 const TARGET_TABLE = "stats_${targetLeague.toLowerCase()}";
 
 function syncToSupabase() {
@@ -489,8 +489,8 @@ function syncToSupabase() {
                                         <Database size={14} /> Copy Script
                                     </button>
                                     <pre className="text-[11px] font-mono text-indigo-300 whitespace-pre-wrap">{`// Quantum Bets - Automated Google Sheets Sync
-const SUPABASE_URL = "https://rrwvhjcdgkwixxnqcfom.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR...";
+const SUPABASE_URL = "YOUR_SUPABASE_URL"; // e.g. https://<project-ref>.supabase.co
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY"; // Project Settings > API > anon/publishable key
 const TARGET_TABLE = "stats_${targetLeague.toLowerCase()}";
 
 function syncToSupabase() {
