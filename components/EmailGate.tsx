@@ -34,7 +34,8 @@ export const EmailGate: React.FC<EmailGateProps> = ({ onUnlock }) => {
 
         try {
             // Log to Supabase with race timeout so unresponsive server never stalls access
-            const insertPromise = supabase.from('visitor_emails').insert({ email });
+            // Server-side capture (Edge Function, service role stays on the server); the table is not client-writable.
+            const insertPromise = supabase.functions.invoke('capture-visitor-email', { body: { email: email.trim() } });
             const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1200));
             await Promise.race([insertPromise, timeoutPromise]).catch(() => {});
             
