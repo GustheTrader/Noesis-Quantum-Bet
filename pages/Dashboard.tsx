@@ -50,6 +50,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ weeks, stats, chartData, a
 
   const fetchUserBets = async () => {
       setLoadingUserBets(true);
+      // user_bets is readable only by signed-in users, and RLS returns only their own rows (user_id = auth.uid()).
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+          setUserBets([]);
+          setLoadingUserBets(false);
+          return;
+      }
       const { data, error } = await supabase
           .from('user_bets')
           .select('*')
