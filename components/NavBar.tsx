@@ -49,9 +49,9 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
         .quantum-nav button:hover { transform: translateY(-2px); }
         .quantum-nav button:focus-visible { outline: 2px solid #aaffeb; outline-offset: 3px; }
         .quantum-nav [data-testid="nav-actions"] > div { background: rgba(10, 13, 33, .72); border: 1px solid #a46cff44; border-radius: 14px; box-shadow: 0 8px 32px #0005, inset 0 1px #ffffff12; }
-        .quantum-nav [data-testid="nav-actions"] > div:first-child button { font-size: 14px; letter-spacing: .09em; }
+        .quantum-nav [data-testid="nav-actions"] > div:first-child button { font-size: 11px; letter-spacing: .04em; padding: 9px 6px; }
         .quantum-nav [data-testid="nav-actions"] > div:first-child button.bg-cyan-500, .quantum-nav [data-testid="league-strip"] button.bg-cyan-500 { background: linear-gradient(120deg, #adffdc, #28dbea); color: #071821; box-shadow: 0 0 24px #24f3ce66; }
-        .quantum-nav [data-testid="nav-actions"] > div:nth-child(2) button { font-size: 14px; letter-spacing: .08em; border-radius: 10px; }
+        .quantum-nav [data-testid="nav-actions"] > div:nth-child(2) button { font-size: 11px; letter-spacing: .03em; border-radius: 10px; padding: 9px 6px; white-space: nowrap; }
         @keyframes quantum-glow { from { opacity: .55; } to { opacity: 1; } }
         @media (prefers-reduced-motion: reduce) { .quantum-nav::before { animation: none; } .quantum-nav button { transition: none; } .quantum-nav button:hover { transform: none; } .quantum-nav .animate-pulse, .quantum-nav .animate-pulse-slow { animation: none; } }
       `}</style>
@@ -150,9 +150,9 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
               </button>
           </div>
         </div>
-          <div className="hidden lg:flex w-full flex-wrap items-center justify-center gap-x-3 gap-y-1 pb-2" data-testid="nav-actions">
+          <div className="hidden lg:flex w-full overflow-x-auto pb-2" data-testid="nav-actions">
           {/* League Selector */}
-          <div className="hidden lg:flex flex-wrap items-center justify-center gap-1 bg-slate-900/80 p-1 rounded-lg border border-slate-800 shadow-inner">
+          <div className="hidden lg:flex shrink-0 items-center justify-center gap-1 bg-slate-900/80 p-1 rounded-lg border border-slate-800 shadow-inner ml-auto">
             {(['NFL', 'CFB', 'NBA', 'NHL', 'MLB', 'CFL', 'MLS', 'SOCCER', 'MMA', 'HORSE', 'GOLF', 'VELOCITY'] as League[]).map(league => {
               const isVelocity = league === 'VELOCITY';
               return (
@@ -176,7 +176,7 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
             })}
           </div>
           
-          <div className="flex flex-wrap items-center justify-center gap-1 bg-black/20 p-1 rounded-t-lg border-b border-white/5">
+          <div className="flex shrink-0 items-center justify-center gap-1 bg-black/20 p-1 rounded-t-lg border-b border-white/5 mr-auto">
             <button 
               id="nav-picks"
               onClick={() => setCurrentView('picks')}
