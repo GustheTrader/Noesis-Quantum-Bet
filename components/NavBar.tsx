@@ -49,15 +49,15 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
         .quantum-nav button:hover { transform: translateY(-2px); }
         .quantum-nav button:focus-visible { outline: 2px solid #aaffeb; outline-offset: 3px; }
         .quantum-nav [data-testid="nav-actions"] > div { background: rgba(10, 13, 33, .72); border: 1px solid #a46cff44; border-radius: 14px; box-shadow: 0 8px 32px #0005, inset 0 1px #ffffff12; }
-        .quantum-nav [data-testid="nav-actions"] > div:first-child button { font-size: 11px; letter-spacing: .04em; padding: 9px 6px; }
+        .quantum-nav [data-testid="nav-actions"] > div:first-child button { font-size: clamp(9px, .67vw, 14px); letter-spacing: 0; padding: 9px clamp(3px, .3vw, 7px); }
         .quantum-nav [data-testid="nav-actions"] > div:first-child button.bg-cyan-500, .quantum-nav [data-testid="league-strip"] button.bg-cyan-500 { background: linear-gradient(120deg, #adffdc, #28dbea); color: #071821; box-shadow: 0 0 24px #24f3ce66; }
-        .quantum-nav [data-testid="nav-actions"] > div:nth-child(2) button { font-size: 11px; letter-spacing: .03em; border-radius: 10px; padding: 9px 6px; white-space: nowrap; }
+        .quantum-nav [data-testid="nav-actions"] > div:nth-child(2) button { font-size: clamp(9px, .67vw, 14px); letter-spacing: 0; border-radius: 10px; padding: 9px clamp(3px, .3vw, 7px); white-space: nowrap; }
         @keyframes quantum-glow { from { opacity: .55; } to { opacity: 1; } }
         @media (prefers-reduced-motion: reduce) { .quantum-nav::before { animation: none; } .quantum-nav button { transition: none; } .quantum-nav button:hover { transform: none; } .quantum-nav .animate-pulse, .quantum-nav .animate-pulse-slow { animation: none; } }
       `}</style>
       <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent"></div>
       
-      <div className="w-full px-3">
+      <div className="w-full px-2">
         <div className="flex items-center justify-between h-24">
           
           {/* Logo Section */}
@@ -94,63 +94,7 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
              </div>
           </div>
 
-          <div className="flex-1"></div>
-
-          <div className="ml-2 flex items-center gap-2 shrink-0">
-              {onOpenSettings && (
-                <button
-                  id="nav-settings"
-                  onClick={onOpenSettings}
-                  className="w-9 h-9 rounded-full bg-slate-800/50 border border-slate-700 text-slate-400 hover:text-cyan-400 hover:border-cyan-400/50 flex items-center justify-center transition-all hover:bg-cyan-500/10"
-                  title="Model Theme & Settings"
-                >
-                  <Settings size={16} />
-                </button>
-              )}
-
-              <button
-                id="nav-admin"
-                onClick={() => setCurrentView('admin')}
-                className={clsx(
-                    "w-9 h-9 rounded-full flex items-center justify-center transition-all border",
-                    currentView === 'admin' 
-                      ? "bg-rose-500/20 border-rose-500 text-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.3)]" 
-                      : "bg-slate-800/50 border-slate-700 text-slate-400 hover:text-rose-400 hover:border-rose-400/50"
-                )}
-                title="Admin Control"
-              >
-                  <ShieldAlert size={16} />
-              </button>
-
-              <button
-                id="nav-arby"
-                onClick={onLaunchArby}
-                className="w-9 h-9 rounded-full bg-indigo-500/10 border border-indigo-500/50 flex items-center justify-center text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all shadow-[0_0_15px_rgba(99,102,241,0.3)] animate-pulse-slow"
-                title="Talk to COACH"
-              >
-                  <Mic size={16} />
-              </button>
-
-              <button 
-                  id="nav-terminal"
-                  onClick={launchTradingDesk}
-                  className={clsx(
-                    "group flex items-center gap-2 px-4 py-2 rounded hover:from-red-900/60 hover:to-red-800/40 transition-all",
-                    !isPremiumUnlocked 
-                      ? "bg-gradient-to-r from-amber-950/40 to-amber-900/20 border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.2)]"
-                      : "bg-gradient-to-r from-red-950/40 to-red-900/20 border border-red-500/50 rounded hover:from-red-900/60 hover:to-red-800/40 shadow-[0_0_15px_rgba(239,68,68,0.2)]"
-                  )}
-                  title="Launch Trading Terminal"
-              >
-                  <MonitorPlay size={16} className={clsx(!isPremiumUnlocked ? "text-amber-500" : "text-red-500 group-hover:animate-pulse")} />
-                  <span className={clsx("text-[10px] font-black uppercase tracking-wider hidden 2xl:block", !isPremiumUnlocked ? "text-amber-400" : "text-red-400")}>
-                      Terminal {!isPremiumUnlocked && "★"}
-                  </span>
-                  <ExternalLink size={10} className={!isPremiumUnlocked ? "text-amber-500/50" : "text-red-500/50"} />
-              </button>
-          </div>
-        </div>
-          <div className="hidden lg:flex w-full overflow-x-auto pb-2" data-testid="nav-actions">
+          <div className="hidden lg:flex min-w-0 flex-1 overflow-x-auto mx-2" data-testid="nav-actions">
           {/* League Selector */}
           <div className="hidden lg:flex shrink-0 items-center justify-center gap-1 bg-slate-900/80 p-1 rounded-lg border border-slate-800 shadow-inner ml-auto">
             {(['NFL', 'CFB', 'NBA', 'NHL', 'MLB', 'CFL', 'MLS', 'SOCCER', 'MMA', 'HORSE', 'GOLF', 'VELOCITY'] as League[]).map(league => {
@@ -239,6 +183,62 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
           </div>
           
           </div>
+
+
+          <div className="ml-2 flex items-center gap-2 shrink-0">
+              {onOpenSettings && (
+                <button
+                  id="nav-settings"
+                  onClick={onOpenSettings}
+                  className="w-9 h-9 rounded-full bg-slate-800/50 border border-slate-700 text-slate-400 hover:text-cyan-400 hover:border-cyan-400/50 flex items-center justify-center transition-all hover:bg-cyan-500/10"
+                  title="Model Theme & Settings"
+                >
+                  <Settings size={16} />
+                </button>
+              )}
+
+              <button
+                id="nav-admin"
+                onClick={() => setCurrentView('admin')}
+                className={clsx(
+                    "w-9 h-9 rounded-full flex items-center justify-center transition-all border",
+                    currentView === 'admin' 
+                      ? "bg-rose-500/20 border-rose-500 text-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.3)]" 
+                      : "bg-slate-800/50 border-slate-700 text-slate-400 hover:text-rose-400 hover:border-rose-400/50"
+                )}
+                title="Admin Control"
+              >
+                  <ShieldAlert size={16} />
+              </button>
+
+              <button
+                id="nav-arby"
+                onClick={onLaunchArby}
+                className="w-9 h-9 rounded-full bg-indigo-500/10 border border-indigo-500/50 flex items-center justify-center text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all shadow-[0_0_15px_rgba(99,102,241,0.3)] animate-pulse-slow"
+                title="Talk to COACH"
+              >
+                  <Mic size={16} />
+              </button>
+
+              <button 
+                  id="nav-terminal"
+                  onClick={launchTradingDesk}
+                  className={clsx(
+                    "group flex items-center gap-2 px-4 py-2 rounded hover:from-red-900/60 hover:to-red-800/40 transition-all",
+                    !isPremiumUnlocked 
+                      ? "bg-gradient-to-r from-amber-950/40 to-amber-900/20 border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.2)]"
+                      : "bg-gradient-to-r from-red-950/40 to-red-900/20 border border-red-500/50 rounded hover:from-red-900/60 hover:to-red-800/40 shadow-[0_0_15px_rgba(239,68,68,0.2)]"
+                  )}
+                  title="Launch Trading Terminal"
+              >
+                  <MonitorPlay size={16} className={clsx(!isPremiumUnlocked ? "text-amber-500" : "text-red-500 group-hover:animate-pulse")} />
+                  <span className={clsx("text-[10px] font-black uppercase tracking-wider hidden 2xl:block", !isPremiumUnlocked ? "text-amber-400" : "text-red-400")}>
+                      Terminal {!isPremiumUnlocked && "★"}
+                  </span>
+                  <ExternalLink size={10} className={!isPremiumUnlocked ? "text-amber-500/50" : "text-red-500/50"} />
+              </button>
+          </div>
+        </div>
 
         <div className="lg:hidden flex items-center gap-1 overflow-x-auto pb-2 -mt-1 scrollbar-none" data-testid="league-strip">
           {(['NFL', 'CFB', 'NBA', 'NHL', 'MLB', 'CFL', 'MLS', 'SOCCER', 'MMA', 'HORSE', 'GOLF', 'VELOCITY'] as League[]).map(league => (
