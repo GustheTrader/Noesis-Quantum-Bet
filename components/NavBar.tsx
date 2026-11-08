@@ -41,7 +41,7 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
   };
 
   return (
-    <nav className="quantum-nav fixed top-0 left-0 right-0 z-50 backdrop-blur-xl shadow-2xl">
+    <nav className="quantum-nav sticky top-0 z-50 backdrop-blur-xl shadow-2xl">
       <style>{`
         .quantum-nav { background: linear-gradient(115deg, #080b1b 0%, #151034 48%, #061c27 100%); border-bottom: 1px solid #55f5d055; isolation: isolate; }
         .quantum-nav::before { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: radial-gradient(ellipse at 22% 0%, #f53eff26, transparent 38%), radial-gradient(ellipse at 80% 10%, #00ffc833, transparent 42%); animation: quantum-glow 9s ease-in-out infinite alternate; }
@@ -49,9 +49,9 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
         .quantum-nav button:hover { transform: translateY(-2px); }
         .quantum-nav button:focus-visible { outline: 2px solid #aaffeb; outline-offset: 3px; }
         .quantum-nav [data-testid="nav-actions"] > div { background: rgba(10, 13, 33, .72); border: 1px solid #a46cff44; border-radius: 14px; box-shadow: 0 8px 32px #0005, inset 0 1px #ffffff12; }
-        .quantum-nav [data-testid="nav-actions"] > div:first-child button { font-size: clamp(9px, .67vw, 14px); letter-spacing: 0; padding: 9px clamp(3px, .3vw, 7px); }
+        .quantum-nav [data-testid="nav-actions"] > div:first-child button { font-size: clamp(10.8px, .804vw, 16.8px); letter-spacing: 0; padding: 9px clamp(3px, .3vw, 7px); }
         .quantum-nav [data-testid="nav-actions"] > div:first-child button.bg-cyan-500, .quantum-nav [data-testid="league-strip"] button.bg-cyan-500 { background: linear-gradient(120deg, #adffdc, #28dbea); color: #071821; box-shadow: 0 0 24px #24f3ce66; }
-        .quantum-nav [data-testid="nav-actions"] > div:nth-child(2) button { font-size: clamp(9px, .67vw, 14px); letter-spacing: 0; border-radius: 10px; padding: 9px clamp(3px, .3vw, 7px); white-space: nowrap; }
+        .quantum-nav [data-testid="nav-actions"] > div:nth-child(2) button { font-size: clamp(10.8px, .804vw, 16.8px); letter-spacing: 0; border-radius: 10px; padding: 9px clamp(3px, .3vw, 7px); white-space: nowrap; }
         @keyframes quantum-glow { from { opacity: .55; } to { opacity: 1; } }
         @media (prefers-reduced-motion: reduce) { .quantum-nav::before { animation: none; } .quantum-nav button { transition: none; } .quantum-nav button:hover { transform: none; } .quantum-nav .animate-pulse, .quantum-nav .animate-pulse-slow { animation: none; } }
       `}</style>
