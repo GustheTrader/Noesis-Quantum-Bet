@@ -4,6 +4,7 @@ import { Activity, RefreshCw, Clock, TrendingUp, Wifi, WifiOff, AlertCircle, Dol
 import { clsx } from 'clsx';
 import { League } from '../types';
 import { getLiveWeek, type CfbGame } from '../lib/cfb';
+import { fetchNflScoreboard, type NflGame } from '../lib/nfl';
 
 interface GameOdd {
   id: string;
@@ -21,6 +22,8 @@ interface GameOdd {
   isHot?: boolean;
   edge?: string;
   lineUnavailable?: boolean;
+  awayResult?: string;
+  homeResult?: string;
 }
 
 // Helper to generate deterministic edges for edge ingestion
@@ -91,7 +94,7 @@ const LEAGUE_MOCK_DATA: Partial<Record<League, GameOdd[]>> = {
 
 const getMockOddsForLeague = (league: League): GameOdd[] => {
   // CFB has no simulated slate: an invented 2006 line would price a game that was never offered.
-  if (league === 'CFB') return [];
+  if (league === 'CFB' || league === 'NFL') return [];
   const baseMock = LEAGUE_MOCK_DATA[league] || LEAGUE_MOCK_DATA.NFL || [];
   return baseMock.map(game => ({
     ...game,
@@ -149,6 +152,43 @@ const cfbOddsFromGames = (games: CfbGame[]): GameOdd[] =>
       lineUnavailable: true
     }));
 
+const nflStatus = (g: NflGame): string => {
+  const day = g.kickoff ? new Date(g.kickoff).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' }).toUpperCase().replace(',', '') : '';
+  if (g.state === 'post') return `FINAL${day ? ` · ${day.split(' ')[0]}` : ''}`;
+  if (g.state === 'in') return `LIVE ${g.detail}`;
+  return day || g.detail;
+};
+
+const nflOddsFromGames = (games: NflGame[]): GameOdd[] =>
+  [...games]
+    .sort((a, b) => ((a.kickoff ?? '') < (b.kickoff ?? '') ? -1 : (a.kickoff ?? '') > (b.kickoff ?? '') ? 1 : 0))
+    .map(g => {
+      const done = g.state === 'post';
+      const started = g.state !== 'pre';
+      const homeWon = g.home.score > g.away.score;
+      return {
+        id: g.event_id,
+        homeTeam: g.home.abbr,
+        awayTeam: g.away.abbr,
+        homeLogo: g.home.logo ?? undefined,
+        awayLogo: g.away.logo ?? undefined,
+        homeScore: started ? g.home.score : undefined,
+        awayScore: started ? g.away.score : undefined,
+        status: nflStatus(g),
+        spread: 'NL',
+        total: 'NL',
+        homeMl: done ? (homeWon ? 'W' : 'L') : '—',
+        awayMl: done ? (homeWon ? 'L' : 'W') : '—',
+        homeResult: done ? (homeWon ? 'WIN' : 'LOSS') : undefined,
+        awayResult: done ? (homeWon ? 'LOSS' : 'WIN') : undefined,
+        isHot: g.state === 'in',
+        edge: undefined,
+        lineUnavailable: true,
+      };
+    });
+
+const loadNflOdds = async (): Promise<GameOdd[]> => nflOddsFromGames((await fetchNflScoreboard()).games);
+
 const loadCfbOdds = async (): Promise<GameOdd[]> => {
   const live = await getLiveWeek();
   return cfbOddsFromGames(live.games);
@@ -168,8 +208,8 @@ export const LiveOdds: React.FC<LiveOddsProps> = ({ league }) => {
   const fetchOdds = async () => {
     setLoading(true);
     try {
-        if (league === 'CFB') {
-            const cfbRows = await loadCfbOdds();
+        if (league === 'CFB' || league === 'NFL') {
+            const cfbRows = league === 'NFL' ? await loadNflOdds() : await loadCfbOdds();
             setOdds(cfbRows);
             setUsingLiveData(cfbRows.length > 0);
             setLoading(false);
@@ -310,11 +350,11 @@ export const LiveOdds: React.FC<LiveOddsProps> = ({ league }) => {
 
   // CFB has no market feed — show the current week's slate and its live state, not a price.
   useEffect(() => {
-    if (league !== 'CFB') return;
+    if (league !== 'CFB' && league !== 'NFL') return;
     let cancelled = false;
     const load = () => {
       setLoading(true);
-      loadCfbOdds()
+      (league === 'NFL' ? loadNflOdds() : loadCfbOdds())
         .then((rows) => {
           if (cancelled) return;
           setOdds(rows);
@@ -332,7 +372,7 @@ export const LiveOdds: React.FC<LiveOddsProps> = ({ league }) => {
   }, [league]);
 
   useEffect(() => {
-    if (league === 'CFB') return;
+    if (league === 'CFB' || league === 'NFL') return;
     fetchOdds();
     const interval = setInterval(fetchOdds, 1800000);
     return () => clearInterval(interval);
@@ -345,14 +385,14 @@ export const LiveOdds: React.FC<LiveOddsProps> = ({ league }) => {
         <div>
             <h3 className="text-cyan-400 font-bold uppercase tracking-widest flex items-center gap-2 text-sm">
             <Activity size={18} className={usingLiveData ? "animate-pulse" : ""} />
-            {league === 'CFB' ? 'CFB Live Board' : 'Vegas Board'}
+            {league === 'CFB' ? 'CFB Live Board' : league === 'NFL' ? 'NFL Week Board' : 'Vegas Board'}
             </h3>
-            <span className="text-[10px] text-slate-500 font-mono">{league === 'CFB' ? 'CURRENT WEEK · NO LINE IN FEED' : 'LIVE CONSENSUS'}</span>
+            <span className="text-[10px] text-slate-500 font-mono">{league === 'CFB' ? 'CURRENT WEEK · NO LINE IN FEED' : league === 'NFL' ? 'THIS WEEK · SCORES & RESULTS · NO LINE IN FEED' : 'LIVE CONSENSUS'}</span>
         </div>
         <div className="flex items-center gap-2">
             <span className={`text-[10px] uppercase font-mono flex items-center gap-1 ${usingLiveData ? 'text-emerald-500' : 'text-amber-500'}`}>
                 {usingLiveData ? <Wifi size={12}/> : <WifiOff size={12}/>}
-                {league === 'CFB' ? 'ESPN' : usingLiveData ? 'LIVE' : 'SIM'}
+                {league === 'CFB' || league === 'NFL' ? 'ESPN' : usingLiveData ? 'LIVE' : 'SIM'}
             </span>
             <button 
                 onClick={fetchOdds} 
@@ -414,7 +454,7 @@ export const LiveOdds: React.FC<LiveOddsProps> = ({ league }) => {
                     </div>
                     {/* Data Point */}
                     <div className="text-[10px] font-mono text-cyan-300 bg-black/40 px-2 py-1 rounded text-center border border-slate-800">
-                        {viewMode === 'SPREAD' && (league === 'CFB' ? (game.spread || 'NL') : (game.spread?.includes(game.awayTeam || '') ? game.spread.replace(game.awayTeam || '', '') : (game.spread?.includes(game.homeTeam || '') ? 'OPP' : 'OFF')))}
+                        {viewMode === 'SPREAD' && ((league === 'CFB' || league === 'NFL') ? (game.awayResult || game.spread || 'NL') : (game.spread?.includes(game.awayTeam || '') ? game.spread.replace(game.awayTeam || '', '') : (game.spread?.includes(game.homeTeam || '') ? 'OPP' : 'OFF')))}
                         {viewMode === 'TOTAL' && (game.total === 'NL' ? 'NL' : `O ${game.total}`)}
                         {viewMode === 'ML' && (game.awayMl || 'OFF')}
                     </div>
@@ -440,7 +480,7 @@ export const LiveOdds: React.FC<LiveOddsProps> = ({ league }) => {
                     </div>
                     {/* Data Point */}
                     <div className="text-[10px] font-mono text-cyan-300 bg-black/40 px-2 py-1 rounded text-center border border-slate-800">
-                        {viewMode === 'SPREAD' && (league === 'CFB' ? 'FINAL' : (game.spread?.includes(game.homeTeam || '') ? game.spread.replace(game.homeTeam || '', '') : (game.spread?.includes(game.awayTeam || '') ? 'OPP' : 'OFF')))}
+                        {viewMode === 'SPREAD' && ((league === 'CFB' || league === 'NFL') ? (game.homeResult || (league === 'CFB' ? 'FINAL' : game.spread || 'NL')) : (game.spread?.includes(game.homeTeam || '') ? game.spread.replace(game.homeTeam || '', '') : (game.spread?.includes(game.awayTeam || '') ? 'OPP' : 'OFF')))}
                         {viewMode === 'TOTAL' && (game.total === 'NL' ? 'NL' : `U ${game.total}`)}
                         {viewMode === 'ML' && (game.homeMl || 'OFF')}
                     </div>
@@ -458,17 +498,17 @@ export const LiveOdds: React.FC<LiveOddsProps> = ({ league }) => {
         {odds.length === 0 && !loading && (
             <div className="text-center text-slate-500 text-xs py-10 border border-dashed border-slate-800 rounded-lg">
                 <AlertCircle className="w-6 h-6 mx-auto mb-2 opacity-50" />
-                {league === 'CFB' ? 'No games on the current slate.' : 'No active markets.'}
+                {league === 'CFB' || league === 'NFL' ? 'No games on the current slate.' : 'No active markets.'}
             </div>
         )}
       </div>
       
       {/* Footer Metadata */}
       <div className="mt-3 pt-3 border-t border-slate-800 flex justify-between items-center text-[9px] text-slate-600 font-mono shrink-0">
-         <span>Source: {league === 'CFB' ? 'ESPN college football scoreboard' : 'VegasInsider (Consensus)'}</span>
+         <span>Source: {league === 'NFL' ? 'ESPN NFL scoreboard (this week)' : league === 'CFB' ? 'ESPN college football scoreboard' : 'VegasInsider (Consensus)'}</span>
          <span className="flex items-center gap-1">
             <Clock size={10} />
-            {league === 'CFB'
+            {league === 'CFB' || league === 'NFL'
               ? `Loaded ${lastUpdated.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`
               : `Next Update: ${new Date(lastUpdated.getTime() + 1800000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`}
          </span>
