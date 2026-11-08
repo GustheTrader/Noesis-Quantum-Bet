@@ -290,8 +290,8 @@ export const LiveOdds: React.FC<LiveOddsProps> = ({ league }) => {
                     homeMl: homeMl,
                     awayMl: awayMl,
                     isHot: false,
-                    edge: league === 'CFB' ? undefined : getDeterministicEdge(event.id, homeComp?.team?.abbreviation || 'TBD'),
-                    lineUnavailable: league === 'CFB' && spreadStr === 'OFF'
+                    edge: (league as string) === 'CFB' ? undefined : getDeterministicEdge(event.id, homeComp?.team?.abbreviation || 'TBD'),
+                    lineUnavailable: (league as string) === 'CFB' && spreadStr === 'OFF'
                 };
             });
             

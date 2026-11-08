@@ -233,3 +233,35 @@ describe('malformed or empty ESPN payloads are never healthy', () => {
     expect(() => parseNflScoreboard({ events: [] }, NOW)).toThrow('empty_payload');
   });
 });
+
+describe('as_of freshness provenance', () => {
+  const known = new Set(['401873037']);
+  const now = new Date('2026-11-08T00:30:00Z');
+  const opts = { now, maxAgeSeconds: 3600, knownEventIds: known };
+
+  test('an old as_of with a fresh generated_at is rejected stale_as_of', () => {
+    const out: any = validateModelPredictions({
+      model: 'm', version: '1', as_of: '2026-11-07T20:00:00Z', generated_at: '2026-11-08T00:29:00Z',
+      predictions: [{ event_id: '401873037', home_win_prob: 0.5 }],
+    }, opts);
+    expect(out.status).toBe('unavailable');
+    expect(out.rejected[0].reason).toBe('stale_as_of');
+  });
+
+  test('valid output retains canonical as_of, generated_at, model, version, event_id and age fields', () => {
+    const out: any = validateModelPredictions({
+      model: 'm', version: '1', as_of: '2026-11-08T00:25:00Z', generated_at: '2026-11-08T00:26:00Z',
+      predictions: [{ event_id: '401873037', home_win_prob: 0.5 }],
+    }, opts);
+    expect(out.status).toBe('ok');
+    const p = out.predictions[0];
+    expect(p.event_id).toBe('401873037');
+    expect(p.as_of).toBe('2026-11-08T00:25:00.000Z');
+    expect(p.generated_at).toBe('2026-11-08T00:26:00.000Z');
+    expect(p.model).toBe('m');
+    expect(p.version).toBe('1');
+    expect(p.age_seconds).toBe(240);
+    expect(p.max_age_seconds).toBe(3600);
+    expect(out.max_age_seconds).toBe(3600);
+  });
+});

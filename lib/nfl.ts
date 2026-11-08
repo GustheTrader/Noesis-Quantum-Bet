@@ -24,11 +24,14 @@ export type NflModelPrediction = {
   home_win_prob: number;
   model: string;
   version: string;
+  as_of: string;
   generated_at: string;
+  age_seconds: number;
+  max_age_seconds: number;
 };
 export type NflModelStatus =
   | { status: 'unavailable'; reason: 'no_running_nfl_model' | 'no_valid_predictions' | 'no_espn_event_ids'; predictions: []; rejected?: { event_id: string; reason: string }[] }
-  | { status: 'ok'; predictions: NflModelPrediction[]; rejected: { event_id: string; reason: string }[] };
+  | { status: 'ok'; predictions: NflModelPrediction[]; rejected: { event_id: string; reason: string }[]; max_age_seconds: number };
 
 export const NO_MODEL_UNAVAILABLE = { status: 'unavailable', reason: 'no_running_nfl_model', predictions: [] } as const;
 
@@ -97,6 +100,7 @@ export function validateModelPredictions(
     if (!version) { rejected.push({ event_id: eid, reason: 'missing_version' }); continue; }
     if (!Number.isFinite(asOf)) { rejected.push({ event_id: eid, reason: 'missing_as_of' }); continue; }
     if (asOf > now + NFL_FUTURE_SKEW_MS) { rejected.push({ event_id: eid, reason: 'future_as_of' }); continue; }
+    if (now - asOf > opts.maxAgeSeconds * 1000) { rejected.push({ event_id: eid, reason: 'stale_as_of' }); continue; }
     if (typeof p !== 'number' || !Number.isFinite(p) || p < 0 || p > 1) { rejected.push({ event_id: eid, reason: 'probability_out_of_range' }); continue; }
     if (!Number.isFinite(ts)) { rejected.push({ event_id: eid, reason: 'missing_timestamp' }); continue; }
     if (ts > now + NFL_FUTURE_SKEW_MS) { rejected.push({ event_id: eid, reason: 'future_timestamp' }); continue; }
@@ -106,11 +110,14 @@ export function validateModelPredictions(
       home_win_prob: p,
       model,
       version,
+      as_of: new Date(asOf).toISOString(),
       generated_at: new Date(ts).toISOString(),
+      age_seconds: Math.max(0, Math.floor((now - ts) / 1000)),
+      max_age_seconds: opts.maxAgeSeconds,
     });
   }
   if (kept.length === 0) return { status: 'unavailable', reason: 'no_valid_predictions', predictions: [], rejected };
-  return { status: 'ok', predictions: kept, rejected };
+  return { status: 'ok', predictions: kept, rejected, max_age_seconds: opts.maxAgeSeconds };
 }
 
 export async function fetchJsonWithTimeout(url: string, timeoutMs = 8000): Promise<any> {
