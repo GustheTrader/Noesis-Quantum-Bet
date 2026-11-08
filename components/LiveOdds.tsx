@@ -5,6 +5,7 @@ import { clsx } from 'clsx';
 import { League } from '../types';
 import { getLiveWeek, type CfbGame } from '../lib/cfb';
 import { fetchNflScoreboard, type NflGame } from '../lib/nfl';
+import { getNovigLeague, matchNovigEvent, probToAmerican, fairPrice, type NovigBook } from '../lib/novig';
 
 interface GameOdd {
   id: string;
@@ -191,7 +192,33 @@ const loadNflOdds = async (): Promise<GameOdd[]> => nflOddsFromGames((await fetc
 
 const loadCfbOdds = async (): Promise<GameOdd[]> => {
   const live = await getLiveWeek();
-  return cfbOddsFromGames(live.games);
+  // Novig's exchange book prices the same games ESPN scores. If the catalog is
+  // unreachable the strip still shows the game state with NL prices.
+  let book: NovigBook | undefined;
+  try {
+    book = await getNovigLeague('NCAAF');
+  } catch {
+    book = undefined;
+  }
+  const rows = cfbOddsFromGames(live.games);
+  if (!book) return rows;
+  return rows.map((row) => {
+    const game = live.games.find((g) => g.id === row.id);
+    const ev = game ? matchNovigEvent(game, book!) : undefined;
+    if (!ev) return row;
+    const spread = ev.markets.find((m) => m.marketType === 'SPREAD');
+    const total = ev.markets.find((m) => m.marketType === 'TOTAL');
+    const money = ev.markets.find((m) => m.marketType === 'MONEY');
+    const fair = spread ? fairPrice(spread) : undefined;
+    return {
+      ...row,
+      spread: fair != null ? probToAmerican(fair) : row.spread,
+      total: total?.strike != null ? `${total.strike}` : row.total,
+      homeMl: money?.outcomes[0] ? probToAmerican(money.outcomes[0].price) : row.homeMl,
+      awayMl: money?.outcomes[1] ? probToAmerican(money.outcomes[1].price) : row.awayMl,
+      lineUnavailable: false,
+    };
+  });
 };
 
 interface LiveOddsProps {
@@ -387,7 +414,7 @@ export const LiveOdds: React.FC<LiveOddsProps> = ({ league }) => {
             <Activity size={18} className={usingLiveData ? "animate-pulse" : ""} />
             {league === 'CFB' ? 'CFB Live Board' : league === 'NFL' ? 'NFL Week Board' : 'Vegas Board'}
             </h3>
-            <span className="text-[10px] text-slate-500 font-mono">{league === 'CFB' ? 'CURRENT WEEK · NO LINE IN FEED' : league === 'NFL' ? 'THIS WEEK · SCORES & RESULTS · NO LINE IN FEED' : 'LIVE CONSENSUS'}</span>
+            <span className="text-[10px] text-slate-500 font-mono">{league === 'CFB' ? 'CURRENT WEEK · NOVIG EXCHANGE PRICES' : league === 'NFL' ? 'THIS WEEK · SCORES & RESULTS · NO LINE IN FEED' : 'LIVE CONSENSUS'}</span>
         </div>
         <div className="flex items-center gap-2">
             <span className={`text-[10px] uppercase font-mono flex items-center gap-1 ${usingLiveData ? 'text-emerald-500' : 'text-amber-500'}`}>

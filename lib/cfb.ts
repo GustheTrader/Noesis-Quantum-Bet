@@ -429,8 +429,11 @@ async function loadSeasonScoreboard(season: number): Promise<CfbGame[]> {
   } catch (e) {
     console.warn(`CFB ${season} scoreboard fetch failed, using bundled snapshot`, e);
   }
-  // A finished season never changes, so the bundled snapshot is the same data.
-  return savedSeasonSnapshot(season);
+  // A finished season never changes, so the bundled snapshot is the same data. Re-read it
+  // fresh instead of trusting a previously cached copy of the bundle.
+  const snapshot = savedSeasonSnapshot(season);
+  if (snapshot.length) writeLS(key, { fetchedAt: Date.now(), games: snapshot });
+  return snapshot;
 }
 
 // Last good season payload, used when the browser fetch is blocked (CORS, no proxy, offline)
