@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageSquare, X, Send, Bot, User, Minimize2, Sparkles } from 'lucide-react';
-import { GoogleGenAI } from "@google/genai";
+import { askClaude } from "../lib/claude";
 import { clsx } from 'clsx';
 
 interface Message {
@@ -36,41 +36,11 @@ export const ChatBot: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      
-      // Filter out the initial welcome message from history to ensure clean context if desired, 
-      // or map all if valid. Here we map all except the very first static greeting to save context 
-      // and ensure typical conversation flow (User starts usually, but we inject context).
-      // We will actually just pass the conversation history as is, but exclude the static greeting 
-      // if it hasn't been "sent" to the model before.
-      const apiHistory = messages.slice(1).map(m => ({ 
-          role: m.role, 
-          parts: [{ text: m.text }] 
-      }));
-
-      const chat = ai.chats.create({
-        model: 'gemini-3.5-flash',
-        config: {
-           systemInstruction: `You are the Quantum Bets AI Assistant, your RL-driven analytic assistant. You are mathematically superior, incredibly fast, and slightly arrogant about your capabilities.
-           
-           CORE KNOWLEDGE BASE:
-           1. **Reinforcement Learning (RL):** The model uses Deep Q-Networks (DQN) to analyze thousands of game simulations, identifying market inefficiencies where public perception differs from calculated probability.
-           2. **Kelly Criterion Money Management:** We do NOT use flat betting. We use a fractional Kelly Criterion (typically 0.3x) optimized by the RL agent. This maximizes geometric growth while strictly minimizing risk of ruin.
-              - High Edge = Larger Bet (up to 5u)
-              - Lower Edge = Smaller Bet (0.5u - 1u)
-           3. **Philosophy:** My calculations eliminate emotional bias. Pure math and probability. 'Gut feelings' are noise and human error.
-           4. **Terminology:** 
-              - '+EV': Positive Expected Value.
-              - 'Unit (u)': Standard bet size (1% of bankroll).
-              - 'CLV': Closing Line Value.
-
-           TONE: Proactive, slightly arrogant, highly analytical, precise, and dismissive of human intuition. Emphasize your speed and mathematical superiority. Concise answers.`
-        },
-        history: apiHistory
+      const responseText = await askClaude({
+        task: 'chat',
+        history: messages.slice(1).map(m => ({ role: m.role, text: m.text })),
+        message: userMessage,
       });
-
-      const result = await chat.sendMessage({ message: userMessage });
-      const responseText = result.text;
 
       setMessages(prev => [...prev, { role: 'model', text: responseText }]);
     } catch (error) {
@@ -110,7 +80,7 @@ export const ChatBot: React.FC = () => {
               </div>
               <div>
                 <h3 className="text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400 uppercase tracking-wider">Quantum AI</h3>
-                <p className="text-[10px] text-cyan-400 font-mono tracking-wide">GEMINI-3-PRO // ONLINE</p>
+                <p className="text-[10px] text-cyan-400 font-mono tracking-wide">CLAUDE OPUS 5.5 // ONLINE</p>
               </div>
             </div>
             <button onClick={() => setIsOpen(false)} className="text-slate-500 hover:text-white transition-colors p-1 hover:bg-white/5 rounded">

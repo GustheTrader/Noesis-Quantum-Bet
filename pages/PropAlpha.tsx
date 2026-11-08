@@ -7,6 +7,7 @@ import {
   Flame, BookOpen, ExternalLink, Activity, Shield, Anchor
 } from 'lucide-react';
 import { clsx } from 'clsx';
+import { simulationAllowed } from '../lib/nfl';
 
 // --- TYPES ---
 type League = 'NFL' | 'NBA' | 'NHL';
@@ -134,6 +135,11 @@ export const PropAlpha: React.FC = () => {
   const [minEv, setMinEv] = useState(3.0);
 
   const fetchAlpha = async () => {
+    if (!simulationAllowed(activeLeague).allowed) {
+      setData([]);
+      setIsScanning(false);
+      return;
+    }
     setIsScanning(true);
     await new Promise(r => setTimeout(r, 1000));
     const props = generateProps(activeLeague);
@@ -245,6 +251,11 @@ export const PropAlpha: React.FC = () => {
           </div>
         )}
 
+        {!simulationAllowed(activeLeague).allowed && (
+          <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm text-amber-300">
+            Sharp prop feed unavailable for {activeLeague}: no prop-odds source or running model is connected, so no props are shown. Nothing is simulated for this league.
+          </div>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>

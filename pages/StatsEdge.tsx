@@ -4,6 +4,7 @@ import { Radar, TrendingUp, AlertTriangle, RefreshCw, Trophy, Layers, ArrowRight
 import { clsx } from 'clsx';
 import { supabase } from '../lib/supabase';
 import { League } from '../types';
+import { simulationAllowed } from '../lib/nfl';
 
 // --- CONFIGURATION: DFS PAYOUT MULTIPLIERS & IMPLIED ODDS ---
 const PAYOUT_MATRIX = [
@@ -58,11 +59,17 @@ export const StatsEdge: React.FC<StatsEdgeProps> = ({ activeLeague }) => {
   const [scannerRows, setScannerRows] = useState<ScannerRow[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [lastScanTime, setLastScanTime] = useState<Date | null>(null);
-  const [dataSource, setDataSource] = useState<'LIVE_DB' | 'QUANTUM_SIM'>('QUANTUM_SIM');
+  const [dataSource, setDataSource] = useState<'LIVE_DB' | 'QUANTUM_SIM' | 'UNAVAILABLE'>('QUANTUM_SIM');
   const [activeTab, setActiveTab] = useState<'arbitrage' | 'calculator'>('arbitrage');
 
   // --- ARBITRAGE SIMULATION ENGINE ---
   const runSimulation = () => {
+        if (!simulationAllowed(activeLeague).allowed) {
+            setScannerRows([]);
+            setDataSource('UNAVAILABLE');
+            setLastScanTime(new Date());
+            return;
+        }
         const rows: ScannerRow[] = [];
         
         // Generate opportunities
@@ -141,7 +148,7 @@ export const StatsEdge: React.FC<StatsEdgeProps> = ({ activeLeague }) => {
   // Initial Load
   useEffect(() => {
       runSimulation();
-  }, []);
+  }, [activeLeague]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 animate-in fade-in duration-700">
