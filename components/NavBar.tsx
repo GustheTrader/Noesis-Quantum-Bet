@@ -42,7 +42,7 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
     <nav className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-[#090a15] via-[#111322] to-[#090a15] backdrop-blur-xl border-b border-indigo-500/20 shadow-2xl">
       <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent"></div>
       
-      <div className="max-w-[1800px] mx-auto px-6">
+      <div className="w-full px-3">
         <div className="flex items-center justify-between h-24">
           
           {/* Logo Section */}
@@ -81,6 +81,7 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
              </div>
           </div>
 
+          <div className="flex-1 min-w-0 flex items-center justify-center">
           {/* League Selector */}
           <div className="hidden lg:flex items-center gap-1 mx-4 bg-slate-900/80 p-1 rounded-lg border border-slate-800 shadow-inner">
             {(['NFL', 'CFB', 'NBA', 'NHL', 'MLB', 'CFL', 'MLS', 'SOCCER', 'MMA', 'HORSE', 'GOLF', 'VELOCITY'] as League[]).map(league => {
@@ -167,7 +168,9 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
             </button>
           </div>
           
-          <div className="ml-4 pl-4 border-l border-white/10 flex items-center gap-2 shrink-0">
+          </div>
+
+          <div className="ml-2 flex items-center gap-2 shrink-0">
             <button 
               id="nav-superposition"
               onClick={() => setCurrentView('superposition')}
