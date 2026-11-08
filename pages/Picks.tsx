@@ -5,6 +5,7 @@ import { PickArchiveItem, GameSummary, League } from '../types';
 import { HighlightReel } from '../components/HighlightReel';
 import { LiveOdds } from '../components/LiveOdds';
 import { CfbSlate } from '../components/CfbSlate';
+import { NovigBoard } from '../components/NovigBoard';
 import { clsx } from 'clsx';
 import { supabase } from '../lib/supabase';
 
@@ -71,8 +72,8 @@ interface PicksProps {
   archives: PickArchiveItem[];
   gameSummaries: GameSummary[];
   propsData: any[];
-}
   lockNonce?: number;
+}
 
 // --- REALISTIC DEFAULT WHALE PICKS FOR EACH SPORT ---
 const DEFAULT_WHALE_PICKS: Record<string, ExtractedPick[]> = {
@@ -1187,7 +1188,10 @@ export const Picks: React.FC<PicksProps> = ({ league, currentContent, archives, 
                 )}
 
                 {viewMode === 'daily' && league === 'CFB' ? (
-                    <CfbSlate />
+                    <div>
+                        <NovigBoard />
+                        <CfbSlate />
+                    </div>
                 ) : viewMode === 'daily' ? (
                     <div>
                         {/* Title of Top Edge Picks */}

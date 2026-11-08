@@ -14,6 +14,8 @@ import { NflLiveBoard } from '../components/NflLiveBoard';
 import { footerProviderLabel } from '../lib/nfl';
 import { getSeasonGames, getLiveWeek, availableWeeks, settleSpread, settleTotal, LIVE_SEASON, ARCHIVE_SEASON, type CfbGame, type CfbWeek } from '../lib/cfb';
 import { CfbArchiveDrawer } from '../components/CfbArchiveDrawer';
+import { NovigBoard } from '../components/NovigBoard';
+import { getNovigLeague, matchNovigEvent, fairPrice, probToAmerican, probToPercent, teamKey, type NovigBook, type NovigEvent, type NovigPrice } from '../lib/novig';
 
 // --- CONFIGURATION ---
 const SPORTSDATA_KEY = 'fecb349a85264f47b853aa08e87cc860';
@@ -55,8 +57,9 @@ type ParsedBoard =
     | { kind: 'live'; games: Matchup[] }
     | { kind: 'archive'; games: Matchup[] };
 
-// CFB has no price feed on ESPN, so a row shows the game state and says NL rather than
-// inventing a spread the grader would then score as real.
+// ESPN carries no prices, so a CFB row shows the game state and says NL rather than
+// inventing a spread the grader would then score as real. Live weeks get their prices
+// from the Novig exchange book instead (see novigRow).
 const cfbRow = (g: CfbGame): Matchup => {
     const awayScore = String(g.away.score ?? '0');
     const homeScore = String(g.home.score ?? '0');
@@ -93,6 +96,48 @@ const cfbRow = (g: CfbGame): Matchup => {
     };
 };
 
+/**
+ * A CFB row priced by the Novig exchange. Novig quotes probabilities (0-1), not point
+ * spreads, so the "spread" cell carries the market's fair line in American odds and the
+ * total carries the implied probability. An unpriced market says NL — never a guess.
+ */
+const novigRow = (g: CfbGame, ev: NovigEvent | undefined): Matchup => {
+    const row = cfbRow(g);
+    if (!ev) return row;
+
+    const spreadMkt = ev.markets.find(m => m.marketType === 'SPREAD');
+    const moneyMkt = ev.markets.find(m => m.marketType === 'MONEY');
+    const totalMkt = ev.markets.find(m => m.marketType === 'TOTAL');
+    const sideFor = (market: NovigPrice | undefined) =>
+        market?.outcomes.find(o => teamKey(o.name.split(/\s/)[0]) === teamKey(g.home.name));
+    const homeSpread = sideFor(spreadMkt);
+    const homeMoney = sideFor(moneyMkt === undefined ? spreadMkt : moneyMkt) ?? sideFor(spreadMkt);
+    const fair = spreadMkt ? fairPrice(spreadMkt) : undefined;
+    const totalFair = totalMkt ? fairPrice(totalMkt) : undefined;
+    const bookId = 'novig';
+
+    return {
+        ...row,
+        openSpread: homeSpread ? probToAmerican(homeSpread.price) : 'NL',
+        openTotal: totalFair != null ? probToPercent(totalFair) : 'NL',
+        consensusSpread: fair != null && spreadMkt
+            ? `${spreadMkt.outcomes[0].price >= spreadMkt.outcomes[1].price ? g.home.abr : g.away.abr} ${probToAmerican(fair)}`
+            : 'NL',
+        consensusTotal: totalMkt?.strike != null ? `${totalMkt.strike}` : 'NL',
+        consensusMlHome: probToAmerican(homeMoney?.price),
+        consensusMlAway: probToAmerican(sideFor(moneyMkt) ? sideFor(moneyMkt)!.price : spreadMkt?.outcomes.find(o => teamKey(o.name.split(/\s/)[0]) !== teamKey(g.home.name))?.price),
+        bookOdds: {
+            ...row.bookOdds,
+            [bookId]: {
+                spread: homeSpread ? probToAmerican(homeSpread.price) : 'NL',
+                total: totalFair != null ? probToPercent(totalFair) : 'NL',
+                mlHome: probToAmerican(homeMoney?.price),
+                mlAway: probToAmerican(sideFor(moneyMkt)?.price),
+            },
+        },
+    };
+};
+
 export interface CfbBoard {
     games: Matchup[];
     weeks: CfbWeek[];
@@ -126,8 +171,17 @@ const parseCfbLive = async (): Promise<CfbBoard> => {
     // ESPN only serves the current week for a season still being played, so there is no
     // season-wide pull to build week chips from. The live board is the current week.
     const weeks: CfbWeek[] = [];
+    // The exchange book is the price source. If it is unreachable the board still shows
+    // ESPN's game state with NL prices, which is the honest fallback.
+    let book: NovigBook | undefined;
+    try {
+        book = await getNovigLeague('NCAAF');
+    } catch {
+        book = undefined;
+    }
+    const priced = live.games.map(g => novigRow(g, book ? matchNovigEvent(g, book) : undefined));
     return {
-        games: live.games.map(cfbRow).sort((a, b) => a.date.getTime() - b.date.getTime()),
+        games: priced.sort((a, b) => a.date.getTime() - b.date.getTime()),
         weeks,
         week: live.weekLabel,
         season,
@@ -693,6 +747,7 @@ export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
     const [cfbSeason, setCfbSeason] = useState<number>(LIVE_SEASON);
     const [cfbLive, setCfbLive] = useState<boolean>(true);
     const isArchive = activeLeague === 'CFB' && !cfbLive;
+    const bookLevel: 'paper' | 'production' = (import.meta as any)?.env?.VITE_NOVIG_HOST?.includes('api.novig.com') ? 'production' : 'paper';
     // The board's own view of where it is. The 60s poll reads this instead of re-deriving
     // it from state, so a season/week switch cannot be undone by an in-flight refresh.
     const cfbRef = useRef({ live: true, season: LIVE_SEASON, week: '' });
@@ -1031,6 +1086,10 @@ export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
                 </div>
             )}
 
+            {/* One row per event in an exchange has no single spread to print, so the priced
+                market for the current week gets its own card above the game rows. */}
+            {activeLeague === 'CFB' && cfbLive && <NovigBoard />}
+
             {/* Main Odds Table */}
             {activeLeague === 'NFL' ? <NflLiveBoard onHealth={setUpstreamState} /> : (
             <div className="bg-[#05070a] rounded-[56px] overflow-hidden border border-white/5 relative shadow-[0_40px_120px_rgba(0,0,0,0.6)]">
@@ -1041,10 +1100,18 @@ export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
                     <div className="col-span-1 p-10 flex items-center justify-center text-[10px] font-black text-slate-600 uppercase border-l border-white/5">
                         {activeLeague === 'CFB' ? 'Score' : 'Market'}
                     </div>
-                    <div className={clsx("col-span-6 h-full", activeLeague === 'CFB' ? "grid grid-cols-1" : "grid grid-cols-5")}>
+                    <div className={clsx("col-span-6 h-full", activeLeague === 'CFB' ? "grid grid-cols-3" : "grid grid-cols-5")}>
                         {activeLeague === 'CFB' ? (
-                            <div className="border-l border-white/5 flex items-center justify-center p-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">
-                                {cfbLive ? `Live Score · ${cfbSeason} ${cfbWeek}` : `Final Score · ${cfbSeason} ${cfbWeek}`}
+                            <div className="grid grid-cols-3">
+                                <div className="border-l border-white/5 flex items-center justify-center p-2 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400 bg-emerald-950/20">
+                                    Novig Exchange
+                                </div>
+                                <div className="border-l border-white/5 flex items-center justify-center p-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">
+                                    {cfbLive ? 'Live Score' : 'Final'}
+                                </div>
+                                <div className="border-l border-white/5 flex items-center justify-center p-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">
+                                    {bookLevel === 'production' ? 'Real' : 'Paper'}
+                                </div>
                             </div>
                         ) : BOOKS.map(book => (
                             <div key={book.id} className="border-l border-white/5 flex flex-col items-center justify-center p-2">

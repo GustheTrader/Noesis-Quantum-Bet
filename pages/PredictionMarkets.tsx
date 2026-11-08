@@ -653,7 +653,7 @@ export const PredictionMarkets: React.FC<PredictionMarketsProps> = ({ activeLeag
             <div className="w-10 h-10 rounded-xl bg-pink-500/20 flex items-center justify-center border border-pink-500/30 shadow-[0_0_20px_rgba(236,72,153,0.2)]">
                <Globe className="text-pink-400" size={24} />
             </div>
-            <h1 className="text-4xl font-black text-white uppercase tracking-tighter">{activeLeague} Binary Edge Alpha</h1>
+            <h1 className="text-4xl font-black text-white uppercase tracking-tighter">{activeLeague} Edge Alpha</h1>
           </div>
           <p className="text-slate-400 text-lg leading-relaxed mb-4">
             Direct feed of Event Contracts from <span className="text-pink-400 font-bold underline">Kalshi</span> and <span className="text-indigo-400 font-bold underline">Polymarket</span>. 

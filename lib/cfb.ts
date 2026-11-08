@@ -97,7 +97,29 @@ export interface CfbGame {
   neutralSite: boolean;
   away: CfbTeam;
   home: CfbTeam;
-  line?: { spread?: number; total?: number; provider?: string };
+  line?: CfbLine;
+}
+
+// Novig is a peer-to-peer exchange, so a "line" is an order book, not a bookmaker quote.
+// Prices are probabilities in [0,1]; `quote` is the implied American price after the fee.
+export interface CfbQuote {
+  price: number;
+  best?: { price: number; qty: number };
+  last?: number;
+}
+
+export interface CfbLine {
+  provider: string;
+  /** Spread as the home team's handicap, e.g. -24.5 */
+  spread?: number;
+  total?: number;
+  marketIds?: { spread?: string; total?: string; money?: string };
+  home?: { spread?: CfbQuote; money?: CfbQuote; teamTotal?: CfbQuote };
+  away?: { spread?: CfbQuote; money?: CfbQuote; teamTotal?: CfbQuote };
+  over?: CfbQuote;
+  under?: CfbQuote;
+  /** fee coefficient Novig charges on a taker fill */
+  feeCoef?: number;
 }
 
 export interface CfbPlay {
@@ -177,6 +199,204 @@ export function gameFromEvent(event: any): CfbGame {
         }
       : undefined,
   };
+}
+
+// --- Novig (sports prediction market) -------------------------------------------------
+//
+// Novig publishes its catalog unsigned at /v3/public/catalog/*, but sends no CORS headers,
+// so `/api/novig` proxies it (Vercel function in prod, Vite middleware in dev).
+// The catalog is prices only: probabilities and resting size, no scores. Scores stay ESPN.
+
+export const NOVIG_PAPER = 'https://api.paper.novig.com';
+const NOVIG_PUBLIC = (path: string) => `/api/novig?path=${encodeURIComponent(path)}`;
+
+export interface NovigMarket {
+  marketId: string;
+  description: string;
+  eventId: string;
+  marketType: string;
+  strike: string;
+  status: string;
+  startsTs: number;
+  outcomes: {
+    outcomeId: string;
+    name: string;
+    status: string;
+    last?: string;
+    bid?: { price: string; qty: number };
+    ask?: { price: string; qty: number };
+  }[];
+  volume?: number;
+  openInterest?: number;
+  fee?: { coefficient?: string };
+}
+
+async function novigFetch(path: string): Promise<any> {
+  const res = await fetch(NOVIG_PUBLIC(path), { headers: { Accept: 'application/json' } });
+  if (!res.ok) throw new Error(`Novig ${res.status} on ${path}`);
+  return res.json();
+}
+
+const PAGES = 6;
+
+/** All NCAAF markets Novig lists, paged through the cursor. */
+export async function fetchNovigCfbMarkets(): Promise<{ markets: NovigMarket[]; events: any[] }> {
+  const [events, first] = await Promise.all([
+    novigFetch('v3/public/catalog/events?league=NCAAF'),
+    novigFetch('v3/public/catalog/markets?league=NCAAF&limit=2000'),
+  ]);
+  const markets: NovigMarket[] = [...(first?.items || [])];
+  let cursor = first?.next;
+  for (let page = 1; page < PAGES && cursor; page++) {
+    const next = await novigFetch(`v3/public/catalog/markets?league=NCAAF&limit=2000&cursor=${cursor}`);
+    const items: NovigMarket[] = next?.items || [];
+    if (!items.length) break;
+    markets.push(...items);
+    cursor = next?.next;
+  }
+  // Pages can repeat a market at a boundary; keep the first copy.
+  const seen = new Set<string>();
+  const dedup = markets.filter((m) => (seen.has(m.marketId) ? false : (seen.add(m.marketId), true)));
+  return { markets: dedup, events: events?.items || [] };
+}
+
+const num = (v: any): number | undefined => (v == null || v === '' ? undefined : Number(v));
+
+function quoteOf(o: any): CfbQuote | undefined {
+  if (!o) return undefined;
+  const best = o.bid ? { price: Number(o.bid.price), qty: Number(o.bid.qty) } : o.ask ? { price: Number(o.ask.price), qty: Number(o.ask.qty) } : undefined;
+  const price = best?.price ?? num(o.last);
+  if (price == null || Number.isNaN(price)) return undefined;
+  return { price, best, last: num(o.last) };
+}
+
+const normTeam = (s: string) =>
+  (s || '').toUpperCase().replace(/[^A-Z ]/g, '').replace(/\s+/g, ' ').trim();
+
+/** Match a Novig team label ("ILL", "PENN ST") against an ESPN team ("Illinois", "Penn State"). */
+export function teamMatches(label: string, team: CfbTeam): boolean {
+  const L = normTeam(label);
+  if (!L) return false;
+  const abr = normTeam(team.abr);
+  const short = normTeam(team.shortName);
+  const name = normTeam(team.name);
+  if (L === abr || L === short) return true;
+  if (L.length >= 3 && (name.startsWith(L) || short.startsWith(L))) return true;
+  if (name.split(' ').some((w) => w.startsWith(L) && L.length >= 3)) return true;
+  if (abr.length >= 3 && (L.startsWith(abr) || abr.startsWith(L))) return true;
+  return false;
+}
+
+/**
+ * Merge Novig prices onto ESPN games. Novig's event descriptions are "Away @ Home", and
+ * its spread/money descriptions name a side, which is how each market gets an orientation.
+ */
+export function attachNovigLines(games: CfbGame[], markets: NovigMarket[]): CfbGame[] {
+  const byEvent = new Map<string, NovigMarket[]>();
+  for (const m of markets) {
+    if (!byEvent.has(m.eventId)) byEvent.set(m.eventId, []);
+    byEvent.get(m.eventId)!.push(m);
+  }
+  // Novig events are matched to ESPN games by team pair, not by id: the two systems share
+  // no identifiers.
+  const out = games.map((g) => ({ ...g }));
+  const used = new Set<string>();
+
+  for (const g of out) {
+    let hit: { id: string; list: NovigMarket[] } | null = null;
+    for (const [eventId, list] of byEvent) {
+      if (used.has(eventId)) continue;
+      const desc = list.find((m) => m.marketType === 'SPREAD')?.description || '';
+      const across = /^(.+?)\s+(-?\+?\d+(?:\.\d+)?)$/.exec(desc.trim());
+      if (!across) continue;
+      const label = across[1];
+      if (teamMatches(label, g.away) || teamMatches(label, g.home)) {
+        hit = { id: eventId, list };
+        break;
+      }
+    }
+    if (!hit) continue;
+    used.add(hit.id);
+    const line = novigLineFor(g, hit.list);
+    if (line) g.line = line;
+  }
+  return out;
+}
+
+function novigLineFor(g: CfbGame, list: NovigMarket[]): CfbLine | undefined {
+  const spreadM = list.find((m) => m.marketType === 'SPREAD');
+  const totalM = list.find((m) => m.marketType === 'TOTAL');
+  const moneyM = list.find((m) => m.marketType === 'MONEY');
+  const line: CfbLine = { provider: 'Novig', marketIds: {} };
+  if (!spreadM && !totalM && !moneyM) return undefined;
+
+  const sidesOf = (m: NovigMarket) =>
+    m.outcomes.map((o) => {
+      const label = o.name.replace(/\s*[+-]?\d+(\.\d+)?$/, '').trim();
+      return { o, label };
+    });
+
+  if (spreadM) {
+    line.marketIds!.spread = spreadM.marketId;
+    line.feeCoef = num(spreadM.fee?.coefficient);
+    const legs = sidesOf(spreadM).map(({ o, label }) => ({ o, label, q: quoteOf(o) }));
+    const homeLeg = legs.find((l) => teamMatches(l.label, g.home)) || (legs.length === 2 && teamMatches(legs[1].label, g.home) ? legs[1] : undefined);
+    const awayLeg = legs.find((l) => teamMatches(l.label, g.away)) || (legs.length === 2 && legs[0] !== homeLeg ? legs[0] : undefined);
+    if (homeLeg?.q) line.home = { ...line.home, spread: homeLeg.q };
+    if (awayLeg?.q) line.away = { ...line.away, spread: awayLeg.q };
+    line.spread = num(spreadM.strike);
+    if (line.spread == null && homeLeg) {
+      const m = /([+-]\d+(?:\.\d+)?)/.exec(homeLeg.o.name);
+      if (m) line.spread = Number(m[1]);
+    }
+  }
+
+  if (totalM) {
+    line.marketIds!.total = totalM.marketId;
+    line.total = num(totalM.strike);
+    for (const o of totalM.outcomes) {
+      const over = /^over/i.test(o.name.trim());
+      const q = quoteOf(o);
+      if (!q) continue;
+      if (over) line.over = q;
+      else line.under = q;
+    }
+  }
+
+  if (moneyM) {
+    line.marketIds!.money = moneyM.marketId;
+    line.feeCoef = line.feeCoef ?? num(moneyM.fee?.coefficient);
+    for (const o of moneyM.outcomes) {
+      const q = quoteOf(o);
+      if (!q) continue;
+      if (teamMatches(o.name, g.home)) line.home = { ...line.home, money: q };
+      else if (teamMatches(o.name, g.away)) line.away = { ...line.away, money: q };
+    }
+  }
+  return line;
+}
+
+/** Probability (0-1) to American odds, the format the board renders. */
+export function probToAmerican(p?: number): number | undefined {
+  if (p == null || !(p > 0) || !(p < 1)) return undefined;
+  return p >= 0.5 ? Math.round(-100 * (p / (1 - p))) : Math.round(100 * ((1 - p) / p));
+}
+
+// Novig prices are the point of the live CFB board, so get them with the scores.
+export async function getLiveBoard(force = false): Promise<CfbLiveWeek & { liveMarkets: number }> {
+  const week = await getLiveWeek(force);
+  if (week.liveMarkets != null) return week as any;
+  try {
+    const { markets } = await fetchNovigCfbMarkets();
+    const games = attachNovigLines(week.games, markets);
+    const priced = games.filter((g) => g.line?.home?.money || g.line?.spread != null).length;
+    const payload = { ...week, games, liveMarkets: priced };
+    writeLS(LIVE_KEY, payload);
+    return payload;
+  } catch (e) {
+    console.warn('[cfb] Novig catalog unavailable, showing scores only', e);
+    return { ...week, liveMarkets: 0 };
+  }
 }
 
 // A full FBS season is ~900 games. Anything much smaller is a partial write from an
@@ -270,6 +490,8 @@ export interface CfbLiveWeek {
   weekLabel: string;
   games: CfbGame[];
   fetchedAt: number;
+  /** how many games the live catalog put a price on */
+  liveMarkets?: number;
 }
 
 /**
