@@ -3,8 +3,8 @@ import React from 'react';
 import { LayoutDashboard, Target, MonitorPlay, ExternalLink, Mic, ShieldAlert, Trophy, Radio, BarChart3, Infinity, Calculator, Bot, Settings, Palette } from 'lucide-react';
 import { clsx } from 'clsx';
 import { League } from '../types';
-import quantumBetsLogoImg from '../src/assets/images/quantum_bets_logo_1783566041207.jpg';
-import gnoesisLabsLogoImg from '../src/assets/images/gnoesis_labs_logo_1783566057128.jpg';
+const quantumBetsLogoImg = '/img/quantum-bets-logo-96.webp';
+const gnoesisLabsLogoImg = '/img/gnoesis-labs-72.webp';
 
 interface NavBarProps {
   currentView: string;
@@ -41,7 +41,20 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
   };
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-[#090a15] via-[#111322] to-[#090a15] backdrop-blur-xl border-b border-indigo-500/20 shadow-2xl">
+    <nav className="quantum-nav fixed top-0 left-0 right-0 z-50 backdrop-blur-xl shadow-2xl">
+      <style>{`
+        .quantum-nav { background: linear-gradient(115deg, #080b1b 0%, #151034 48%, #061c27 100%); border-bottom: 1px solid #55f5d055; isolation: isolate; }
+        .quantum-nav::before { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: radial-gradient(ellipse at 22% 0%, #f53eff26, transparent 38%), radial-gradient(ellipse at 80% 10%, #00ffc833, transparent 42%); animation: quantum-glow 9s ease-in-out infinite alternate; }
+        .quantum-nav button { transition: transform .2s ease, color .2s ease, background .2s ease, box-shadow .2s ease, border-color .2s ease; }
+        .quantum-nav button:hover { transform: translateY(-2px); }
+        .quantum-nav button:focus-visible { outline: 2px solid #aaffeb; outline-offset: 3px; }
+        .quantum-nav [data-testid="nav-actions"] > div { background: rgba(10, 13, 33, .72); border: 1px solid #a46cff44; border-radius: 14px; box-shadow: 0 8px 32px #0005, inset 0 1px #ffffff12; }
+        .quantum-nav [data-testid="nav-actions"] > div:first-child button { font-size: 14px; letter-spacing: .09em; }
+        .quantum-nav [data-testid="nav-actions"] > div:first-child button.bg-cyan-500, .quantum-nav [data-testid="league-strip"] button.bg-cyan-500 { background: linear-gradient(120deg, #adffdc, #28dbea); color: #071821; box-shadow: 0 0 24px #24f3ce66; }
+        .quantum-nav [data-testid="nav-actions"] > div:nth-child(2) button { font-size: 14px; letter-spacing: .08em; border-radius: 10px; }
+        @keyframes quantum-glow { from { opacity: .55; } to { opacity: 1; } }
+        @media (prefers-reduced-motion: reduce) { .quantum-nav::before { animation: none; } .quantum-nav button { transition: none; } .quantum-nav button:hover { transform: none; } .quantum-nav .animate-pulse, .quantum-nav .animate-pulse-slow { animation: none; } }
+      `}</style>
       <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent"></div>
       
       <div className="w-full px-3">
