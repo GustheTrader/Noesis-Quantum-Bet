@@ -55,12 +55,25 @@ const TEAMS: Record<League, string[]> = {
   ],
   CFL: [
     'MTL', 'WPG', 'TOR', 'HAM', 'BC', 'CGY', 'EDM', 'SSK', 'OTT'
+  ],
+  CFB: [
+    '194', '130', '251', '201', '30', '333', '57', '2', '99', '87',
+    '213', '275', '2294', '61', '2633', '25', '2483', '96', '97', '8'
   ]
+};
+
+// ESPN publishes FBS logos under numeric team ids; keep a readable label for the hover tag.
+const TEAM_LABELS: Record<string, string> = {
+  '194': 'OSU', '130': 'MICH', '251': 'TEX', '201': 'OU', '30': 'USC', '333': 'LSU',
+  '57': 'FLA', '2': 'AUB', '99': 'ALA', '87': 'ND', '213': 'PSU', '275': 'WIS',
+  '2294': 'IOWA', '61': 'UGA', '2633': 'TENN', '25': 'CAL', '2483': 'ORE', '96': 'WVU',
+  '97': 'LOU', '8': 'ARK'
 };
 
 export const TeamTicker: React.FC<TeamTickerProps> = ({ activeLeague }) => {
   const currentTeams = TEAMS[activeLeague] || TEAMS.NFL;
-  const leaguePath = activeLeague === 'SOCCER' ? 'soccer' : 
+  const leaguePath = activeLeague === 'CFB' ? 'ncaa' :
+                    activeLeague === 'SOCCER' ? 'soccer' : 
                     activeLeague === 'MMA' ? 'mma' :
                     activeLeague === 'HORSE' ? 'horse' :
                     activeLeague === 'GOLF' ? 'golf' :
@@ -81,7 +94,7 @@ export const TeamTicker: React.FC<TeamTickerProps> = ({ activeLeague }) => {
                <div className="w-12 h-12 relative flex items-center justify-center filter drop-shadow-[0_0_5px_rgba(255,255,255,0.1)] group-hover:drop-shadow-[0_0_15px_rgba(0,255,255,0.6)] transition-all">
                   <img 
                     src={`https://a.espncdn.com/i/teamlogos/${leaguePath}/500/${team}.png`} 
-                    alt={team} 
+                    alt={TEAM_LABELS[team] || team} 
                     className="w-full h-full object-contain grayscale group-hover:grayscale-0 transition-all duration-300"
                     loading="lazy"
                     onError={(e) => {
@@ -90,7 +103,7 @@ export const TeamTicker: React.FC<TeamTickerProps> = ({ activeLeague }) => {
                     }}
                   />
                </div>
-               <span className="text-[9px] font-mono text-slate-500 mt-1 opacity-0 group-hover:opacity-100 transition-opacity absolute -bottom-4 tracking-widest">{team}</span>
+               <span className="text-[9px] font-mono text-slate-500 mt-1 opacity-0 group-hover:opacity-100 transition-opacity absolute -bottom-4 tracking-widest">{TEAM_LABELS[team] || team}</span>
             </div>
           ))}
         </div>
@@ -102,12 +115,12 @@ export const TeamTicker: React.FC<TeamTickerProps> = ({ activeLeague }) => {
                <div className="w-12 h-12 relative flex items-center justify-center filter drop-shadow-[0_0_5px_rgba(255,255,255,0.1)] group-hover:drop-shadow-[0_0_15px_rgba(0,255,255,0.6)] transition-all">
                   <img 
                     src={`https://a.espncdn.com/i/teamlogos/${leaguePath}/500/${team}.png`} 
-                    alt={team} 
+                    alt={TEAM_LABELS[team] || team} 
                     className="w-full h-full object-contain grayscale group-hover:grayscale-0 transition-all duration-300"
                     loading="lazy"
                   />
                </div>
-               <span className="text-[9px] font-mono text-slate-500 mt-1 opacity-0 group-hover:opacity-100 transition-opacity absolute -bottom-4 tracking-widest">{team}</span>
+               <span className="text-[9px] font-mono text-slate-500 mt-1 opacity-0 group-hover:opacity-100 transition-opacity absolute -bottom-4 tracking-widest">{TEAM_LABELS[team] || team}</span>
             </div>
           ))}
         </div>

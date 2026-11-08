@@ -95,6 +95,7 @@ function App() {
   
   const [leaguePicks, setLeaguePicks] = useState<Record<League, string>>({
       NFL: INITIAL_PICKS_CONTENT,
+      CFB: "# CFB ALPHA FEED\nLive college football slate from ESPN. The free feed carries no closing lines, so the board shows game state and grades on results, not invented prices.",
       NBA: "# NBA ALPHA FEED\nEstablishing daily hoops signal...",
       NHL: "# NHL ALPHA FEED\nEstablishing ice parity weights...",
       MLB: "# MLB ALPHA FEED\nSynchronizing pitching data...",

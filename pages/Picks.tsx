@@ -4,6 +4,7 @@ import { Target, Archive, BookOpen, Zap, Star, FileText, Plus, X, DollarSign, Lo
 import { PickArchiveItem, GameSummary, League } from '../types';
 import { HighlightReel } from '../components/HighlightReel';
 import { LiveOdds } from '../components/LiveOdds';
+import { CfbSlate } from '../components/CfbSlate';
 import { clsx } from 'clsx';
 import { supabase } from '../lib/supabase';
 
@@ -944,7 +945,7 @@ export const Picks: React.FC<PicksProps> = ({ league, currentContent, archives, 
   // Extract Top 3 Whale Picks, filling remaining slots from high-fidelity defaults
   const whalePicks = useMemo(() => {
     const picks = [...allPicks];
-    const defaults = DEFAULT_WHALE_PICKS[league] || DEFAULT_WHALE_PICKS['NFL'];
+    const defaults = DEFAULT_WHALE_PICKS[league] ?? (league === 'CFB' ? [] : DEFAULT_WHALE_PICKS['NFL']);
     let index = 0;
     while (picks.length < 3 && index < defaults.length) {
       if (!picks.some(p => p.entity.toLowerCase() === defaults[index].entity.toLowerCase())) {
@@ -1184,7 +1185,9 @@ export const Picks: React.FC<PicksProps> = ({ league, currentContent, archives, 
                     </div>
                 )}
 
-                {viewMode === 'daily' ? (
+                {viewMode === 'daily' && league === 'CFB' ? (
+                    <CfbSlate />
+                ) : viewMode === 'daily' ? (
                     <div>
                         {/* Title of Top Edge Picks */}
                         <div className="mb-10 relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">

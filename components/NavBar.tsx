@@ -83,7 +83,7 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
 
           {/* League Selector */}
           <div className="hidden lg:flex items-center gap-1 mx-4 bg-slate-900/80 p-1 rounded-lg border border-slate-800 shadow-inner">
-            {(['NFL', 'NBA', 'NHL', 'MLB', 'CFL', 'MLS', 'SOCCER', 'MMA', 'HORSE', 'GOLF', 'VELOCITY'] as League[]).map(league => {
+            {(['NFL', 'CFB', 'NBA', 'NHL', 'MLB', 'CFL', 'MLS', 'SOCCER', 'MMA', 'HORSE', 'GOLF', 'VELOCITY'] as League[]).map(league => {
               const isVelocity = league === 'VELOCITY';
               return (
                 <button
