@@ -22,7 +22,7 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
   
   const getButtonClass = (isActive: boolean, colorClass: string, shadowClass: string) => {
       return clsx(
-          "flex items-center gap-2 px-4 py-2.5 rounded-sm transition-all duration-300 font-black tracking-widest text-[10px] lg:text-xs uppercase border-b-2 relative overflow-hidden",
+          "flex items-center gap-2 px-4 py-3 rounded-sm transition-all duration-300 font-black tracking-widest text-[18px] lg:text-[19px] uppercase border-b-2 relative overflow-hidden",
           isActive 
             ? `${colorClass} ${shadowClass} border-current bg-white/5` 
             : "border-transparent text-slate-400 hover:text-white hover:bg-white/5"
@@ -137,9 +137,9 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
               </button>
           </div>
         </div>
-          <div className="hidden lg:flex flex-wrap items-center justify-center gap-x-3 gap-y-1 pb-2">
+          <div className="hidden lg:flex w-full flex-wrap items-center justify-center gap-x-3 gap-y-1 pb-2" data-testid="nav-actions">
           {/* League Selector */}
-          <div className="hidden lg:flex items-center gap-1 bg-slate-900/80 p-1 rounded-lg border border-slate-800 shadow-inner">
+          <div className="hidden lg:flex flex-wrap items-center justify-center gap-1 bg-slate-900/80 p-1 rounded-lg border border-slate-800 shadow-inner">
             {(['NFL', 'CFB', 'NBA', 'NHL', 'MLB', 'CFL', 'MLS', 'SOCCER', 'MMA', 'HORSE', 'GOLF', 'VELOCITY'] as League[]).map(league => {
               const isVelocity = league === 'VELOCITY';
               return (
@@ -147,7 +147,7 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
                   key={league}
                   onClick={() => selectLeague(league)}
                   className={clsx(
-                    "px-2.5 py-2 rounded-md text-[11px] font-black uppercase tracking-widest transition-all duration-300",
+                    "px-3.5 py-2.5 rounded-md text-[18px] font-black uppercase tracking-widest transition-all duration-300",
                     activeLeague === league 
                       ? isVelocity 
                         ? "bg-gradient-to-r from-fuchsia-600 to-cyan-500 text-white shadow-[0_0_20px_rgba(192,38,211,0.6)] scale-110 animate-pulse"
@@ -163,13 +163,13 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
             })}
           </div>
           
-          <div className="flex items-center gap-1 bg-black/20 p-1 rounded-t-lg border-b border-white/5">
+          <div className="flex flex-wrap items-center justify-center gap-1 bg-black/20 p-1 rounded-t-lg border-b border-white/5">
             <button 
               id="nav-picks"
               onClick={() => setCurrentView('picks')}
               className={getButtonClass(currentView === 'picks', 'text-cyan-400', 'shadow-[0_10px_20px_-10px_rgba(6,182,212,0.3)]')}
             >
-              <Target size={14} strokeWidth={3} />
+              <Target size={18} strokeWidth={3} />
               Top Edge
             </button>
 
@@ -178,7 +178,7 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
               onClick={() => setCurrentView('odds')}
               className={getButtonClass(currentView === 'odds', 'text-orange-400', 'shadow-[0_10px_20px_-10px_rgba(251,146,60,0.3)]')}
             >
-              <Trophy size={14} strokeWidth={3} />
+              <Trophy size={18} strokeWidth={3} />
               Odds Board
             </button>
 
@@ -187,7 +187,7 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
               onClick={() => setCurrentView('statsedge')}
               className={getButtonClass(currentView === 'statsedge', 'text-yellow-400', 'shadow-[0_10px_20px_-10px_rgba(250,204,21,0.3)]')}
             >
-              <BarChart3 size={14} strokeWidth={3} />
+              <BarChart3 size={18} strokeWidth={3} />
               Stats Edge
             </button>
 
@@ -196,7 +196,7 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
               onClick={() => setCurrentView('quantum-edge')}
               className={getButtonClass(currentView === 'quantum-edge', 'text-indigo-400', 'shadow-[0_10px_20px_-10px_rgba(99,102,241,0.3)]')}
             >
-              <Bot size={14} strokeWidth={3} />
+              <Bot size={18} strokeWidth={3} />
               <span className="flex items-center gap-1.5">
                 Quantum Edge
                 {!isPremiumUnlocked && (
@@ -211,7 +211,7 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
               onClick={() => setCurrentView('superposition')}
               className={getButtonClass(currentView === 'superposition', 'text-pink-400', 'shadow-[0_10px_20px_-10px_rgba(236,72,153,0.3)]')}
             >
-              <Infinity size={14} strokeWidth={3} />
+              <Infinity size={18} strokeWidth={3} />
               Model Analytics
             </button>
 
@@ -220,7 +220,7 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
               onClick={() => setCurrentView('dashboard')}
               className={getButtonClass(currentView === 'dashboard', 'text-slate-100', 'shadow-[0_10px_20px_-10px_rgba(255,255,255,0.1)]')}
             >
-              <LayoutDashboard size={14} strokeWidth={3} />
+              <LayoutDashboard size={18} strokeWidth={3} />
               Player Analytics
             </button>
           </div>

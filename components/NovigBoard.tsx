@@ -57,8 +57,8 @@ function SideRow({ market, type }: { market: NovigPrice; type: string }) {
   return (
     <div className="py-5 border-b border-white/5 last:border-0">
       <div className="flex items-center justify-between">
-        <span className="text-[15px] font-black uppercase tracking-[0.2em] text-slate-300">{SIDE_BY_TYPE[type] ?? type}</span>
-        <span className="text-[14px] font-mono text-violet-300/90">
+        <span className="text-[20px] font-black uppercase tracking-[0.2em] text-slate-200">{SIDE_BY_TYPE[type] ?? type}</span>
+        <span className="text-[18px] font-mono text-violet-300">
           mid {fair != null ? probToPercent(fair) : '—'} · {market.description}
         </span>
       </div>
@@ -69,7 +69,7 @@ function SideRow({ market, type }: { market: NovigPrice; type: string }) {
             title={`${probToPercent(o.price)} implied · ${o.qty.toLocaleString()} resting`}
             className="flex items-center justify-between gap-3 bg-white/5 border border-white/5 rounded-xl px-4 py-3 min-h-[52px]"
           >
-            <span className="text-[16px] font-mono text-slate-100 truncate">{cleanName(o.name, type)}</span>
+            <span className="text-[22px] font-mono text-white truncate">{cleanName(o.name, type)}</span>
             <span className="text-[20px] font-mono font-black text-emerald-300">{probToAmerican(o.price)}</span>
           </div>
         ))}
@@ -83,23 +83,23 @@ function PriceRow({ label, market }: { label: string; market?: NovigPrice }) {
   const legs = market?.outcomes || [];
   return (
     <div className="flex items-center justify-between gap-4 py-3 border-b border-white/5 last:border-0">
-      <span className="text-[12px] font-black uppercase tracking-[0.2em] text-slate-400 w-28 shrink-0">{label}</span>
+      <span className="text-[16px] font-black uppercase tracking-[0.2em] text-slate-300 w-32 shrink-0">{label}</span>
       {legs.length === 0 ? (
-        <span className="text-[16px] font-mono text-slate-600">—</span>
+        <span className="text-[22px] font-mono text-slate-600">—</span>
       ) : (
         <div className="flex items-center gap-2 flex-1 justify-end">
           {legs.map((o) => (
             <span
               key={o.name}
               title={`${probToPercent(o.price)} · ${o.qty.toLocaleString()} resting`}
-              className="flex items-center justify-between gap-3 text-[16px] font-mono text-slate-200 bg-white/5 border border-white/5 rounded-xl px-4 py-3.5 min-h-[56px]"
+              className="flex items-center justify-between gap-3 text-[22px] font-mono text-slate-100 bg-white/5 border border-white/10 rounded-xl px-5 py-4 min-h-[68px]"
             >
-              <span className="text-slate-400 text-[13px]">{o.name}</span>
-              <span className="text-emerald-400 font-black text-[18px]">{probToAmerican(o.price)}</span>
+              <span className="text-slate-400 text-[17px]">{o.name}</span>
+              <span className="text-emerald-400 font-black text-[24px]">{probToAmerican(o.price)}</span>
             </span>
           ))}
           {fair != null && (
-            <span className="text-[14px] font-mono text-violet-300/80 w-16 text-right" title="Fair mid (side-normalised)">
+            <span className="text-[18px] font-mono text-violet-300 w-24 text-right" title="Fair mid (side-normalised)">
               {probToPercent(fair)}
             </span>
           )}
@@ -150,8 +150,8 @@ export const NovigBoard: React.FC = () => {
         <div className="flex items-center gap-4">
           <Activity size={22} className="text-violet-400" />
           <div>
-            <div className="text-[18px] font-black uppercase tracking-[0.28em] text-violet-100">Novig Exchange · NCAAF</div>
-            <div className="text-[14px] font-mono text-slate-400 mt-1.5">
+            <div className="text-[24px] font-black uppercase tracking-[0.24em] text-violet-100">Novig Exchange · NCAAF</div>
+            <div className="text-[18px] font-mono text-slate-300 mt-1.5">
               {events.length} events · {events.reduce((a, e) => a + e.markets.length, 0)} contracts · {volume.toLocaleString()} volume · {book?.level ?? 'paper'}
             </div>
           </div>
@@ -162,11 +162,11 @@ export const NovigBoard: React.FC = () => {
       </div>
 
       {error && (
-        <div className="px-10 py-10 text-[15px] font-mono text-rose-400">Feed error: {error}</div>
+        <div className="px-10 py-10 text-[18px] font-mono text-rose-400">Feed error: {error}</div>
       )}
 
       {!error && events.length === 0 && !loading && (
-        <div className="px-10 py-10 text-[15px] font-mono text-slate-500">No NCAAF contracts listed right now.</div>
+        <div className="px-10 py-10 text-[18px] font-mono text-slate-400">No NCAAF contracts listed right now.</div>
       )}
 
       {events.length > 0 && (
@@ -180,8 +180,8 @@ export const NovigBoard: React.FC = () => {
                   selected?.eventId === ev.eventId ? 'bg-violet-500/10' : 'hover:bg-white/[0.02]'
                 }`}
               >
-                <div className="text-[15px] font-black text-white uppercase tracking-wide leading-tight">{ev.description || 'Unnamed event'}</div>
-                <div className="text-[13px] font-mono text-slate-500 mt-1.5">
+                <div className="text-[19px] font-black text-white uppercase tracking-wide leading-tight">{ev.description || 'Unnamed event'}</div>
+                <div className="text-[16px] font-mono text-slate-400 mt-1.5">
                   {ev.markets.length} markets · {new Date(ev.startsTs).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                 </div>
               </button>
@@ -191,7 +191,7 @@ export const NovigBoard: React.FC = () => {
           {selected && (
             <div className="p-10">
               <div className="text-[20px] font-black uppercase tracking-[0.2em] text-white mb-1">{selected.description}</div>
-              <div className="text-[13px] font-mono text-slate-500 mb-6">
+              <div className="text-[16px] font-mono text-slate-400 mb-6">
                 Kicks {new Date(selected.startsTs).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-14">
@@ -201,7 +201,7 @@ export const NovigBoard: React.FC = () => {
                   return <SideRow key={type} market={m} type={type} />;
                 })}
               </div>
-              <div className="mt-6 text-[13px] font-mono text-slate-500 leading-relaxed">
+              <div className="mt-6 text-[16px] font-mono text-slate-400 leading-relaxed">
                 Prices are resting bids in probability terms (0–1) converted to American odds. Fair mid is the
                 side-normalised probability; a 0.50 / 0.49 book means the exchange has no spread to give away.
                 Fees: taker {selected.markets[0]?.marketType ? '6% of winnings on live fills' : '—'}.
