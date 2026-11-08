@@ -83,9 +83,65 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
              </div>
           </div>
 
-          <div className="flex-1 min-w-0 flex items-center justify-center">
+          <div className="flex-1"></div>
+
+          <div className="ml-2 flex items-center gap-2 shrink-0">
+              {onOpenSettings && (
+                <button
+                  id="nav-settings"
+                  onClick={onOpenSettings}
+                  className="w-9 h-9 rounded-full bg-slate-800/50 border border-slate-700 text-slate-400 hover:text-cyan-400 hover:border-cyan-400/50 flex items-center justify-center transition-all hover:bg-cyan-500/10"
+                  title="Model Theme & Settings"
+                >
+                  <Settings size={16} />
+                </button>
+              )}
+
+              <button
+                id="nav-admin"
+                onClick={() => setCurrentView('admin')}
+                className={clsx(
+                    "w-9 h-9 rounded-full flex items-center justify-center transition-all border",
+                    currentView === 'admin' 
+                      ? "bg-rose-500/20 border-rose-500 text-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.3)]" 
+                      : "bg-slate-800/50 border-slate-700 text-slate-400 hover:text-rose-400 hover:border-rose-400/50"
+                )}
+                title="Admin Control"
+              >
+                  <ShieldAlert size={16} />
+              </button>
+
+              <button
+                id="nav-arby"
+                onClick={onLaunchArby}
+                className="w-9 h-9 rounded-full bg-indigo-500/10 border border-indigo-500/50 flex items-center justify-center text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all shadow-[0_0_15px_rgba(99,102,241,0.3)] animate-pulse-slow"
+                title="Talk to COACH"
+              >
+                  <Mic size={16} />
+              </button>
+
+              <button 
+                  id="nav-terminal"
+                  onClick={launchTradingDesk}
+                  className={clsx(
+                    "group flex items-center gap-2 px-4 py-2 rounded hover:from-red-900/60 hover:to-red-800/40 transition-all",
+                    !isPremiumUnlocked 
+                      ? "bg-gradient-to-r from-amber-950/40 to-amber-900/20 border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.2)]"
+                      : "bg-gradient-to-r from-red-950/40 to-red-900/20 border border-red-500/50 rounded hover:from-red-900/60 hover:to-red-800/40 shadow-[0_0_15px_rgba(239,68,68,0.2)]"
+                  )}
+                  title="Launch Trading Terminal"
+              >
+                  <MonitorPlay size={16} className={clsx(!isPremiumUnlocked ? "text-amber-500" : "text-red-500 group-hover:animate-pulse")} />
+                  <span className={clsx("text-[10px] font-black uppercase tracking-wider hidden 2xl:block", !isPremiumUnlocked ? "text-amber-400" : "text-red-400")}>
+                      Terminal {!isPremiumUnlocked && "★"}
+                  </span>
+                  <ExternalLink size={10} className={!isPremiumUnlocked ? "text-amber-500/50" : "text-red-500/50"} />
+              </button>
+          </div>
+        </div>
+          <div className="hidden lg:flex flex-wrap items-center justify-center gap-x-3 gap-y-1 pb-2">
           {/* League Selector */}
-          <div className="hidden lg:flex items-center gap-1 mx-4 bg-slate-900/80 p-1 rounded-lg border border-slate-800 shadow-inner">
+          <div className="hidden lg:flex items-center gap-1 bg-slate-900/80 p-1 rounded-lg border border-slate-800 shadow-inner">
             {(['NFL', 'CFB', 'NBA', 'NHL', 'MLB', 'CFL', 'MLS', 'SOCCER', 'MMA', 'HORSE', 'GOLF', 'VELOCITY'] as League[]).map(league => {
               const isVelocity = league === 'VELOCITY';
               return (
@@ -109,7 +165,7 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
             })}
           </div>
           
-          <div className="hidden xl:flex items-center gap-2 bg-black/20 p-1 rounded-t-lg border-b border-white/5">
+          <div className="flex items-center gap-1 bg-black/20 p-1 rounded-t-lg border-b border-white/5">
             <button 
               id="nav-picks"
               onClick={() => setCurrentView('picks')}
@@ -168,11 +224,6 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
                 )}
               </span>
             </button>
-          </div>
-          
-          </div>
-
-          <div className="ml-2 flex items-center gap-2 shrink-0">
             <button 
               id="nav-superposition"
               onClick={() => setCurrentView('superposition')}
@@ -190,62 +241,10 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
               <LayoutDashboard size={14} strokeWidth={3} />
               Player Analytics
             </button>
-
-            <div className="w-px h-6 bg-white/10 mx-2"></div>
-
-              {onOpenSettings && (
-                <button
-                  id="nav-settings"
-                  onClick={onOpenSettings}
-                  className="w-9 h-9 rounded-full bg-slate-800/50 border border-slate-700 text-slate-400 hover:text-cyan-400 hover:border-cyan-400/50 flex items-center justify-center transition-all hover:bg-cyan-500/10"
-                  title="Model Theme & Settings"
-                >
-                  <Settings size={16} />
-                </button>
-              )}
-
-              <button
-                id="nav-admin"
-                onClick={() => setCurrentView('admin')}
-                className={clsx(
-                    "w-9 h-9 rounded-full flex items-center justify-center transition-all border",
-                    currentView === 'admin' 
-                      ? "bg-rose-500/20 border-rose-500 text-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.3)]" 
-                      : "bg-slate-800/50 border-slate-700 text-slate-400 hover:text-rose-400 hover:border-rose-400/50"
-                )}
-                title="Admin Control"
-              >
-                  <ShieldAlert size={16} />
-              </button>
-
-              <button
-                id="nav-arby"
-                onClick={onLaunchArby}
-                className="w-9 h-9 rounded-full bg-indigo-500/10 border border-indigo-500/50 flex items-center justify-center text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all shadow-[0_0_15px_rgba(99,102,241,0.3)] animate-pulse-slow"
-                title="Talk to COACH"
-              >
-                  <Mic size={16} />
-              </button>
-
-              <button 
-                  id="nav-terminal"
-                  onClick={launchTradingDesk}
-                  className={clsx(
-                    "group flex items-center gap-2 px-4 py-2 rounded hover:from-red-900/60 hover:to-red-800/40 transition-all",
-                    !isPremiumUnlocked 
-                      ? "bg-gradient-to-r from-amber-950/40 to-amber-900/20 border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.2)]"
-                      : "bg-gradient-to-r from-red-950/40 to-red-900/20 border border-red-500/50 rounded hover:from-red-900/60 hover:to-red-800/40 shadow-[0_0_15px_rgba(239,68,68,0.2)]"
-                  )}
-                  title="Launch Trading Terminal"
-              >
-                  <MonitorPlay size={16} className={clsx(!isPremiumUnlocked ? "text-amber-500" : "text-red-500 group-hover:animate-pulse")} />
-                  <span className={clsx("text-[10px] font-black uppercase tracking-wider hidden 2xl:block", !isPremiumUnlocked ? "text-amber-400" : "text-red-400")}>
-                      Terminal {!isPremiumUnlocked && "★"}
-                  </span>
-                  <ExternalLink size={10} className={!isPremiumUnlocked ? "text-amber-500/50" : "text-red-500/50"} />
-              </button>
           </div>
-        </div>
+          
+          </div>
+
         <div className="lg:hidden flex items-center gap-1 overflow-x-auto pb-2 -mt-1 scrollbar-none" data-testid="league-strip">
           {(['NFL', 'CFB', 'NBA', 'NHL', 'MLB', 'CFL', 'MLS', 'SOCCER', 'MMA', 'HORSE', 'GOLF', 'VELOCITY'] as League[]).map(league => (
             <button

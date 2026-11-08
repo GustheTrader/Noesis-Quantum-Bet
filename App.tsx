@@ -325,7 +325,7 @@ function App() {
         </ErrorBoundary>
       )}
 
-      <main className={`relative z-10 flex-grow ${isTradingDesk ? '' : 'pt-24 max-lg:pt-36'}`}>
+      <main className={`relative z-10 flex-grow ${isTradingDesk ? '' : 'pt-40 max-lg:pt-36'}`}>
         {!isTradingDesk && (
           <ErrorBoundary compact fallbackTitle="Live Ticker Offline">
             <TeamTicker activeLeague={activeLeague} />
