@@ -1,35 +1,46 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
-import { QuantumEdge } from './pages/QuantumEdge';
+import React, { useState, useMemo, useEffect, lazy, Suspense } from 'react';
+import { lazyPage } from './lib/lazyPage';
+import { supabase } from './lib/supabase';
 import { NavBar } from './components/NavBar';
-import { Dashboard } from './pages/Dashboard';
-import { Admin } from './pages/Admin';
-import { Picks } from './pages/Picks';
-import { Results } from './pages/Results';
-import { KellyTool } from './pages/KellyTool';
-import { StatsEdge } from './pages/StatsEdge';
-import { Superposition } from './pages/Superposition';
-import { TradingDesk } from './pages/TradingDesk';
-import { Blog } from './pages/Blog'; 
-import { OddsBoard } from './pages/OddsBoard';
-import { PropAlpha } from './pages/PropAlpha';
-import { PredictionMarkets } from './pages/PredictionMarkets';
-import { WiseRaceTerminal } from './pages/WiseRaceTerminal';
-import { ChatBot } from './components/ChatBot';
 import { TeamTicker } from './components/TeamTicker';
-import { OnboardingTour } from './components/OnboardingTour';
-import { VoiceAgent } from './components/VoiceAgent';
 import { EmailGate } from './components/EmailGate';
-import { PremiumGate } from './components/PremiumGate';
-import { SettingsModal } from './components/SettingsModal';
-import './lib/theme';
 import { INITIAL_PICKS_CONTENT, INITIAL_WEEK_DATA, INITIAL_ARCHIVE, INITIAL_GAME_SUMMARIES } from './constants';
 import { calculateStats, generateChartData, formatError } from './utils';
 import { WeekData, PickArchiveItem, GameSummary, League } from './types';
-import { supabase } from './lib/supabase';
 import { Loader2, Wifi, WifiOff, AlertTriangle, RefreshCcw, Lock } from 'lucide-react';
 import { clsx } from 'clsx';
 import { ErrorBoundary } from './components/ErrorBoundary';
+
+const QuantumEdge = lazyPage(() => import('./pages/QuantumEdge').then(m => ({ default: m.QuantumEdge })));
+const Dashboard = lazyPage(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
+const Admin = lazyPage(() => import('./pages/Admin').then(m => ({ default: m.Admin })));
+const Picks = lazyPage(() => import('./pages/Picks').then(m => ({ default: m.Picks })));
+const Results = lazyPage(() => import('./pages/Results').then(m => ({ default: m.Results })));
+const KellyTool = lazyPage(() => import('./pages/KellyTool').then(m => ({ default: m.KellyTool })));
+const StatsEdge = lazyPage(() => import('./pages/StatsEdge').then(m => ({ default: m.StatsEdge })));
+const Superposition = lazyPage(() => import('./pages/Superposition').then(m => ({ default: m.Superposition })));
+const TradingDesk = lazyPage(() => import('./pages/TradingDesk').then(m => ({ default: m.TradingDesk })));
+const Blog = lazyPage(() => import('./pages/Blog').then(m => ({ default: m.Blog })));
+const OddsBoard = lazyPage(() => import('./pages/OddsBoard').then(m => ({ default: m.OddsBoard })));
+const PropAlpha = lazyPage(() => import('./pages/PropAlpha').then(m => ({ default: m.PropAlpha })));
+const PredictionMarkets = lazyPage(() => import('./pages/PredictionMarkets').then(m => ({ default: m.PredictionMarkets })));
+const WiseRaceTerminal = lazyPage(() => import('./pages/WiseRaceTerminal').then(m => ({ default: m.WiseRaceTerminal })));
+const ChatBot = lazyPage(() => import('./components/ChatBot').then(m => ({ default: m.ChatBot })));
+const OnboardingTour = lazyPage(() => import('./components/OnboardingTour').then(m => ({ default: m.OnboardingTour })));
+const VoiceAgent = lazyPage(() => import('./components/VoiceAgent').then(m => ({ default: m.VoiceAgent })));
+const SettingsModal = lazyPage(() => import('./components/SettingsModal').then(m => ({ default: m.SettingsModal })));
+const PremiumGate = lazyPage(() => import('./components/PremiumGate').then(m => ({ default: m.PremiumGate })));
+
+// Named-export alias for every lazy page, so JSX can use the same component names
+// the file used when these were static imports.
+const QuantumEdgePage = QuantumEdge; const DashboardPage = Dashboard; const AdminPage = Admin;
+const PicksPage = Picks; const ResultsPage = Results; const KellyToolPage = KellyTool;
+const StatsEdgePage = StatsEdge; const SuperpositionPage = Superposition; const TradingDeskPage = TradingDesk;
+const BlogPage = Blog; const OddsBoardPage = OddsBoard; const PropAlphaPage = PropAlpha;
+const PredictionMarketsPage = PredictionMarkets; const WiseRaceTerminalPage = WiseRaceTerminal;
+const ChatBotWidget = ChatBot; const OnboardingTourWidget = OnboardingTour; const VoiceAgentWidget = VoiceAgent;
+const SettingsModalWidget = SettingsModal; const PremiumGatePanel = PremiumGate;
 
 function App() {
   const [currentView, setCurrentView] = useState<string>('picks');
@@ -199,7 +210,7 @@ function App() {
     const isPremiumView = ['binary-alpha', 'quantum-edge', 'trading-desk'].includes(currentView);
     if (isPremiumView && !isPremiumUnlocked) {
         return (
-            <PremiumGate 
+            <PremiumGatePanel 
                 currentViewName={currentView}
                 onUnlockPremium={() => {
                     localStorage.setItem('asym_premium_unlocked', 'true');
@@ -227,13 +238,13 @@ function App() {
       case 'dashboard':
         return (
           <ErrorBoundary fallbackTitle="Dashboard Module Anomaly">
-            <Dashboard weeks={leagueWeeks} stats={leagueStats} chartData={leagueChartData} activeLeague={activeLeague} />
+            <DashboardPage weeks={leagueWeeks} stats={leagueStats} chartData={leagueChartData} activeLeague={activeLeague} />
           </ErrorBoundary>
         );
       case 'admin':
         return (
           <ErrorBoundary fallbackTitle="Admin Subsystem Anomaly">
-            <Admin 
+            <AdminPage 
               onDataUploaded={(d) => setWeeks(prev => [d, ...prev])} 
               weeks={weeks} 
               onDeleteReport={(id) => setWeeks(prev => prev.filter(w => w.id !== id))}
@@ -246,7 +257,7 @@ function App() {
       case 'picks':
         return (
           <ErrorBoundary fallbackTitle="Picks Signal Feed Anomaly">
-            <Picks 
+            <PicksPage 
               league={activeLeague}
               currentContent={leaguePicks[activeLeague]} 
               archives={archives} 
@@ -258,49 +269,49 @@ function App() {
       case 'odds':
         return (
           <ErrorBoundary fallbackTitle="Live Odds Board Anomaly">
-            <OddsBoard activeLeague={activeLeague} />
+            <OddsBoardPage activeLeague={activeLeague} />
           </ErrorBoundary>
         );
       case 'binary-alpha':
         return (
           <ErrorBoundary fallbackTitle="Prediction Markets Anomaly">
-            <PredictionMarkets activeLeague={activeLeague} />
+            <PredictionMarketsPage activeLeague={activeLeague} />
           </ErrorBoundary>
         );
       case 'horse-terminal':
         return (
           <ErrorBoundary fallbackTitle="Terminal Interface Anomaly">
-            <WiseRaceTerminal />
+            <WiseRaceTerminalPage />
           </ErrorBoundary>
         );
       case 'superposition':
         return (
           <ErrorBoundary fallbackTitle="Superposition Engine Anomaly">
-            <Superposition activeLeague={activeLeague} />
+            <SuperpositionPage activeLeague={activeLeague} />
           </ErrorBoundary>
         );
       case 'statsedge':
         return (
           <ErrorBoundary fallbackTitle="Stats Edge Engine Anomaly">
-            <StatsEdge activeLeague={activeLeague} />
+            <StatsEdgePage activeLeague={activeLeague} />
           </ErrorBoundary>
         );
       case 'quantum-edge':
         return (
           <ErrorBoundary fallbackTitle="Quantum Edge Model Anomaly">
-            <QuantumEdge />
+            <QuantumEdgePage />
           </ErrorBoundary>
         );
       case 'trading-desk':
         return (
           <ErrorBoundary fallbackTitle="Trading Desk Subsystem Anomaly">
-            <TradingDesk onClose={() => setCurrentView('picks')} />
+            <TradingDeskPage onClose={() => setCurrentView('picks')} />
           </ErrorBoundary>
         );
       default:
         return (
           <ErrorBoundary fallbackTitle="Signal Feed Anomaly">
-            <Picks lockNonce={lockNonce} league={activeLeague} currentContent={leaguePicks[activeLeague]} archives={archives} gameSummaries={gameSummaries} propsData={[]} />
+            <PicksPage lockNonce={lockNonce} league={activeLeague} currentContent={leaguePicks[activeLeague]} archives={archives} gameSummaries={gameSummaries} propsData={[]} />
           </ErrorBoundary>
         );
     }
@@ -333,23 +344,25 @@ function App() {
         )}
         <div className={isTradingDesk ? "" : "py-8"}>
           <ErrorBoundary fallbackTitle="Active Viewport Anomaly">
-            {renderContent()}
+            <React.Suspense fallback={<div className="flex items-center justify-center min-h-[60vh]"><Loader2 size={40} className="text-cyan-500 animate-spin" /></div>}>
+              {renderContent()}
+            </React.Suspense>
           </ErrorBoundary>
         </div>
       </main>
 
       {showVoiceAgent && (
         <ErrorBoundary compact fallbackTitle="Voice Interface Error" onReset={() => setShowVoiceAgent(false)}>
-          <VoiceAgent onClose={() => setShowVoiceAgent(false)} />
+          <VoiceAgentWidget onClose={() => setShowVoiceAgent(false)} />
         </ErrorBoundary>
       )}
       
       <ErrorBoundary compact fallbackTitle="Quantum Chat Assistant Error">
-        <ChatBot />
+        <ChatBotWidget />
       </ErrorBoundary>
 
       <ErrorBoundary compact fallbackTitle="Settings Subsystem Error" onReset={() => setIsSettingsOpen(false)}>
-        <SettingsModal 
+        <SettingsModalWidget 
           isOpen={isSettingsOpen} 
           onClose={() => setIsSettingsOpen(false)} 
         />
@@ -357,7 +370,7 @@ function App() {
 
       {sessionMode === 'tour' && (
         <ErrorBoundary compact fallbackTitle="Onboarding Tour Anomaly" onReset={handleTourComplete}>
-          <OnboardingTour 
+          <OnboardingTourWidget 
             currentView={currentView} 
             setCurrentView={setCurrentView} 
             onLaunchArby={() => setShowVoiceAgent(true)} 

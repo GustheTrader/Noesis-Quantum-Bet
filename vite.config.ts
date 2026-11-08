@@ -23,33 +23,24 @@ function claudeApiDev(): Plugin {
   };
 }
 
-function cfbApiDev(): Plugin {
+function proxyApiDev(): Plugin {
+  const routes = [
+    { prefix: '/api/novig', module: '/api/novig.ts' },
+    { prefix: '/api/cfb', module: '/api/cfb.ts' },
+  ];
   return {
-    name: 'cfb-api-dev',
+    name: 'quantumbets-api-dev',
     configureServer(server: ViteDevServer) {
-      server.middlewares.use('/api/cfb', async (req, res) => {
-        const { GET } = await server.ssrLoadModule('/api/cfb.ts');
-        const response: Response = await GET(new Request(`http://localhost${req.url}`));
-        res.statusCode = response.status;
-        res.setHeader('content-type', response.headers.get('content-type') || 'application/json');
-        res.end(await response.text());
-      });
-    },
-  };
-}
-
-function novigApiDev(): Plugin {
-  return {
-    name: 'novig-api-dev',
-    configureServer(server: ViteDevServer) {
-      server.middlewares.use('/api/novig', async (req, res) => {
-        const { GET } = await server.ssrLoadModule('/api/novig.ts');
-        const response: Response = await GET(new Request(`http://localhost${req.url}`));
-        res.statusCode = response.status;
-        res.setHeader('content-type', response.headers.get('content-type') || 'application/json');
-        res.setHeader('cache-control', 'no-store');
-        res.end(await response.text());
-      });
+      for (const route of routes) {
+        server.middlewares.use(route.prefix, async (req, res) => {
+          const { GET } = await server.ssrLoadModule(route.module);
+          const response: Response = await GET(new Request(`http://localhost${req.url}`));
+          res.statusCode = response.status;
+          res.setHeader('content-type', response.headers.get('content-type') || 'application/json');
+          res.setHeader('cache-control', 'no-store');
+          res.end(await response.text());
+        });
+      }
     },
   };
 }
@@ -62,7 +53,7 @@ export default defineConfig(({ mode }) => {
         port: 3000,
         host: '0.0.0.0',
       },
-      plugins: [react(), claudeApiDev(), cfbApiDev(), novigApiDev()],
+      plugins: [react(), claudeApiDev(), proxyApiDev()],
       define: {
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY || ''),
         'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || '')
@@ -71,6 +62,26 @@ export default defineConfig(({ mode }) => {
         alias: {
           '@': path.resolve(__dirname, '.'),
         }
-      }
+      },
+      build: {
+        target: 'es2020',
+        cssCodeSplit: true,
+        modulePreload: { polyfill: false },
+        reportCompressedSize: false,
+        assetsInlineLimit: 0,
+        chunkSizeWarningLimit: 700,
+        rollupOptions: {
+          output: {
+            manualChunks(id: string) {
+              if (!id.includes('node_modules')) return;
+              if (id.includes('recharts') || id.includes('/d3-') || id.includes('victory')) return 'charts';
+              if (id.includes('@supabase')) return 'supabase';
+              if (id.includes('@google/genai')) return 'genai';
+              if (id.includes('react-dom') || id.includes('/react/') || id.includes('scheduler')) return 'react';
+              return 'vendor';
+            },
+          },
+        },
+      },
     };
 });

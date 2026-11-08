@@ -8,7 +8,6 @@ import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, 
   PieChart, Pie, Cell, ErrorBar
 } from 'recharts';
-import { motion, AnimatePresence } from 'motion/react';
 
 // Interfaces for our live signal simulation
 export interface SimulatedSignal {
@@ -643,35 +642,29 @@ export const PipelineVisualizer: React.FC = () => {
               </svg>
 
               {/* Gated Signal drop indicators */}
-              <AnimatePresence>
+              <>
                 {activeSignals.slice(0, 3).map((sig) => {
                   if (sig.currentStage === 5) {
                     return (
-                      <motion.div
+                      <div
                         key={sig.id}
-                        initial={{ opacity: 0, scale: 0.5, y: 80 }}
-                        animate={{ opacity: 1, scale: 1, y: 150 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 1 }}
-                        className="absolute text-[10px] bg-red-950/20 border border-red-900/30 text-red-400 rounded px-2 py-1 flex items-center gap-1.5"
+                        className="animate-[drop-in_0.6s_ease-out] absolute text-[10px] bg-red-950/20 border border-red-900/30 text-red-400 rounded px-2 py-1 flex items-center gap-1.5"
                         style={{ left: sig.gatingError ? '25%' : '45%', top: '25%' }}
                       >
                         <XCircle size={10} /> 
                         Gated: {sig.gatingError ? sig.gatingError.toUpperCase() : 'SCORE'}
-                      </motion.div>
+                      </div>
                     );
                   }
                   return null;
                 })}
-              </AnimatePresence>
+              </>
             </div>
 
             {/* Custom Interactive Tooltip card for columns hover */}
             {hoveredStage !== null && (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95, y: 5 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                className="absolute z-20 left-[5%] right-[5%] bottom-4 bg-[#090d13] border border-slate-700/80 p-3 rounded-xl shadow-2xl flex gap-4 select-none"
+              <div 
+                className="animate-[fade-in_0.15s_ease-out] absolute z-20 left-[5%] right-[5%] bottom-4 bg-[#090d13] border border-slate-700/80 p-3 rounded-xl shadow-2xl flex gap-4 select-none"
               >
                 <div className="bg-slate-900 border border-slate-800 rounded-lg p-2.5 flex items-center justify-center text-center shrink-0 w-12 h-12">
                   {React.createElement(STAGES[hoveredStage].icon, { className: `${STAGES[hoveredStage].color} shrink-0`, size: 24 })}
@@ -685,7 +678,7 @@ export const PipelineVisualizer: React.FC = () => {
                     {STAGES[hoveredStage].description}
                   </p>
                 </div>
-              </motion.div>
+              </div>
             )}
 
           </div>

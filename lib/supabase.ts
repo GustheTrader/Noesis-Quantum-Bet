@@ -1,10 +1,42 @@
 
-import { createClient } from '@supabase/supabase-js';
+import type { createClient as SupabaseCreateClient } from '@supabase/supabase-js';
 
 export const SUPABASE_URL = 'https://rrwvhjcdgkwixxnqcfom.supabase.co';
 export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJyd3ZoamNkZ2t3aXh4bnFjZm9tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ0MzQ1NDMsImV4cCI6MjA4MDAxMDU0M30.f1aGXUrNdQeVhrL-OoPKTJ7XOqb0N8PVo6dSEdhnHG4';
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+type SupabaseClient = ReturnType<typeof SupabaseCreateClient>;
+
+// The SDK (~198 kB, most of it auth) is imported on first use, so it stays out
+// of the initial JS payload. Callers keep using `supabase` unchanged; it proxies
+// to the real client once that load resolves.
+let client: SupabaseClient | null = null;
+let loading: Promise<SupabaseClient> | null = null;
+
+export function loadSupabase(): Promise<SupabaseClient> {
+  if (client) return Promise.resolve(client);
+  if (!loading) {
+    loading = import('@supabase/supabase-js').then(({ createClient }) => {
+      client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      return client;
+    });
+  }
+  return loading;
+}
+
+// Tables stay a plain promise (`await supabase.from(...)`) so request builders
+// keep resolving as before; everything else is a namespaced sub-client whose
+// members resolve through the loaded client.
+export const supabase: any = new Proxy({} as any, {
+  get(_target, prop) {
+    if (prop === 'from') {
+      return (...args: any[]) => loadSupabase().then((c: any) => c.from(...args));
+    }
+    return new Proxy({}, {
+      get: (_t, member) => (...args: any[]) =>
+        loadSupabase().then((c: any) => c[prop][member](...args)),
+    });
+  },
+});
 
 /* 
 ================================================================
