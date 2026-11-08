@@ -90,7 +90,7 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
                   key={league}
                   onClick={() => setActiveLeague(league)}
                   className={clsx(
-                    "px-2 py-1.5 rounded-md text-[8px] font-black uppercase tracking-widest transition-all duration-300",
+                    "px-2 py-1.5 rounded-md text-[9px] font-black uppercase tracking-widest transition-all duration-300",
                     activeLeague === league 
                       ? isVelocity 
                         ? "bg-gradient-to-r from-fuchsia-600 to-cyan-500 text-white shadow-[0_0_20px_rgba(192,38,211,0.6)] scale-110 animate-pulse"
@@ -240,6 +240,20 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
                   <ExternalLink size={10} className={!isPremiumUnlocked ? "text-amber-500/50" : "text-red-500/50"} />
               </button>
           </div>
+        </div>
+        <div className="lg:hidden flex items-center gap-1 overflow-x-auto pb-2 -mt-1 scrollbar-none" data-testid="league-strip">
+          {(['NFL', 'CFB', 'NBA', 'NHL', 'MLB', 'CFL', 'MLS', 'SOCCER', 'MMA', 'HORSE', 'GOLF', 'VELOCITY'] as League[]).map(league => (
+            <button
+              key={league}
+              onClick={() => setActiveLeague(league)}
+              className={clsx(
+                "shrink-0 px-3 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest",
+                activeLeague === league ? "bg-cyan-500 text-black" : "text-slate-400 bg-slate-900/80 border border-slate-800"
+              )}
+            >
+              {league}
+            </button>
+          ))}
         </div>
       </div>
     </nav>
