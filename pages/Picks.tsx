@@ -75,15 +75,15 @@ interface PicksProps {
   lockNonce?: number;
 }
 
-// --- REALISTIC DEFAULT WHALE PICKS FOR EACH SPORT ---
-const DEFAULT_WHALE_PICKS: Record<string, ExtractedPick[]> = {
+// --- REALISTIC DEFAULT EDGE ALPHA PICKS FOR EACH SPORT ---
+const DEFAULT_EDGE_ALPHA_PICKS: Record<string, ExtractedPick[]> = {
   NFL: [
     {
       id: 'df-nfl-1',
       entity: 'Lions -3.0',
       market: 'NFL',
       odds: '-110',
-      analysis: 'Whale money has heavily saturated the Lions -3.0 line. Dallas defense ranks bottom-3 in run defense DVOA, creating a massive tactical mismatch for the Lions elite rushing attack and play-action efficiency.',
+      analysis: 'Edge Alpha flow has heavily saturated the Lions -3.0 line. Dallas defense ranks bottom-3 in run defense DVOA, creating a massive tactical mismatch for the Lions elite rushing attack and play-action efficiency.',
       confidence: 5,
       units: 5.0,
       risks: 'Late injury volatility in the offensive line; monitor active reports before kickoff.',
@@ -165,7 +165,7 @@ const DEFAULT_WHALE_PICKS: Record<string, ExtractedPick[]> = {
       entity: 'Rangers ML',
       market: 'NHL',
       odds: '-125',
-      analysis: 'Whale syndicate action on New York. Elite goaltending advantage and power-play efficiency metrics indicate a severe price dislocation at home.',
+      analysis: 'Edge Alpha flow into New York. Elite goaltending advantage and power-play efficiency metrics indicate a severe price dislocation at home.',
       confidence: 5,
       units: 4.0,
       risks: 'Penalty kill regression against physical offensive lines.',
@@ -206,7 +206,7 @@ const DEFAULT_WHALE_PICKS: Record<string, ExtractedPick[]> = {
       entity: 'Dodgers ML',
       market: 'MLB',
       odds: '-140',
-      analysis: 'Whale tracking signal: $850k limit order detected at offshore books. Significant starting pitching velocity and spin rate advantage.',
+      analysis: 'Edge Alpha signal: $850k limit order detected at the exchange books. Significant starting pitching velocity and spin rate advantage.',
       confidence: 5,
       units: 5.0,
       risks: 'Bullpen fatigue after high-leverage series; watch bullpen availability.',
@@ -329,7 +329,7 @@ const DEFAULT_WHALE_PICKS: Record<string, ExtractedPick[]> = {
       entity: 'Real Madrid ML',
       market: 'SOCCER',
       odds: '-135',
-      analysis: 'Whale position detected on European Champions. Backed by extensive match performance models highlighting severe midfield transition mismatch.',
+      analysis: 'Edge Alpha flow detected on the European Champions. Backed by extensive match performance models highlighting severe midfield transition mismatch.',
       confidence: 5,
       units: 5.0,
       risks: 'Early physical defense causing key tactical blocks.',
@@ -530,8 +530,8 @@ const DEFAULT_WHALE_PICKS: Record<string, ExtractedPick[]> = {
   ]
 };
 
-// --- PRESTIGIOUS WHALE PICK CARD COMPONENT ---
-const WhalePickCard: React.FC<{
+// --- PRESTIGIOUS EDGE ALPHA PICK CARD COMPONENT ---
+const EdgeAlphaPickCard: React.FC<{
     rank: number;
     pick: ExtractedPick;
     unitValue: number;
@@ -543,7 +543,7 @@ const WhalePickCard: React.FC<{
 
     const rankTheme = {
         1: {
-            title: 'Gold Whale Tier',
+            title: 'Gold Edge Alpha',
             badge: 'bg-amber-500/10 text-amber-400 border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.15)]',
             icon: <Crown className="text-amber-400 animate-pulse" size={16} strokeWidth={2.5} />,
             accentBorder: 'border-amber-500/30 hover:border-amber-400/50 shadow-[0_15px_45px_rgba(245,158,11,0.06)]',
@@ -551,7 +551,7 @@ const WhalePickCard: React.FC<{
             glowDot: 'bg-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.8)]'
         },
         2: {
-            title: 'Silver Whale Tier',
+            title: 'Silver Edge Alpha',
             badge: 'bg-slate-400/10 text-slate-300 border-slate-400/20 shadow-[0_0_15px_rgba(148,163,184,0.15)]',
             icon: <Award className="text-slate-300" size={16} strokeWidth={2.5} />,
             accentBorder: 'border-slate-700/60 hover:border-slate-500 shadow-[0_15px_45px_rgba(148,163,184,0.04)]',
@@ -559,7 +559,7 @@ const WhalePickCard: React.FC<{
             glowDot: 'bg-slate-300 shadow-[0_0_15px_rgba(148,163,184,0.8)]'
         },
         3: {
-            title: 'Bronze Whale Tier',
+            title: 'Bronze Edge Alpha',
             badge: 'bg-orange-500/10 text-orange-400 border-orange-500/20 shadow-[0_0_15px_rgba(249,115,22,0.15)]',
             icon: <Gem className="text-orange-400" size={16} strokeWidth={2.5} />,
             accentBorder: 'border-orange-900/40 hover:border-orange-700/50 shadow-[0_15px_45px_rgba(249,115,22,0.03)]',
@@ -567,7 +567,7 @@ const WhalePickCard: React.FC<{
             glowDot: 'bg-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.8)]'
         }
     }[rank as 1 | 2 | 3] || {
-        title: 'Whale Position',
+        title: 'Edge Alpha Position',
         badge: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
         icon: <Target className="text-indigo-400" size={16} />,
         accentBorder: 'border-slate-800 hover:border-slate-600',
@@ -640,7 +640,7 @@ const WhalePickCard: React.FC<{
                 <div className="space-y-4">
                     <div className="bg-white/[0.015] rounded-2xl p-5 border border-white/[0.03] relative overflow-hidden group-hover:bg-white/[0.03] transition-colors">
                         <div className="text-[10px] text-slate-500 font-black uppercase mb-2 tracking-[0.2em] flex items-center gap-2">
-                             <FileText size={13} className="text-amber-500" /> WHALE ANALYTICAL THESIS
+                             <FileText size={13} className="text-amber-500" /> EDGE ALPHA THESIS
                         </div>
                         <p className="text-[13px] text-slate-300 leading-relaxed font-medium italic">
                             "{pick.analysis}"
@@ -661,7 +661,7 @@ const WhalePickCard: React.FC<{
             <div className="bg-black/50 border-t border-white/[0.04] p-6 flex flex-col sm:flex-row items-center justify-between gap-5 mt-auto">
                 <div className="flex items-center gap-8 self-start sm:self-center">
                     <div>
-                        <div className="text-[9px] text-slate-500 uppercase font-black tracking-[0.25em] mb-1">WHALE WEIGHT</div>
+                        <div className="text-[9px] text-slate-500 uppercase font-black tracking-[0.25em] mb-1">EDGE ALPHA WEIGHT</div>
                         <div className="flex items-baseline gap-1">
                             <span className="text-3xl font-black text-amber-500 font-mono leading-none">{pick.units}</span>
                             <span className="text-[10px] font-bold text-slate-600 uppercase">u</span>
@@ -944,10 +944,10 @@ export const Picks: React.FC<PicksProps> = ({ league, currentContent, archives, 
     return [...singlePicks, ...parlayPicks];
   }, [singlePicks, parlayPicks]);
 
-  // Extract Top 3 Whale Picks, filling remaining slots from high-fidelity defaults
-  const whalePicks = useMemo(() => {
+  // Extract Top 3 Edge Alpha signals, filling remaining slots from high-fidelity defaults
+  const edgeAlphaPicks = useMemo(() => {
     const picks = [...allPicks];
-    const defaults = DEFAULT_WHALE_PICKS[league] ?? (league === 'CFB' ? [] : DEFAULT_WHALE_PICKS['NFL']);
+    const defaults = DEFAULT_EDGE_ALPHA_PICKS[league] ?? (league === 'CFB' ? [] : DEFAULT_EDGE_ALPHA_PICKS['NFL']);
     let index = 0;
     while (picks.length < 3 && index < defaults.length) {
       if (!picks.some(p => p.entity.toLowerCase() === defaults[index].entity.toLowerCase())) {
@@ -1008,7 +1008,7 @@ export const Picks: React.FC<PicksProps> = ({ league, currentContent, archives, 
                   </div>
                   <h2 className="text-5xl font-black text-white uppercase tracking-tighter mb-6 leading-none">{league === 'VELOCITY' ? 'Velocity Crypto' : `${league} Edge Alpha`}</h2>
                   <p className="text-slate-400 mb-12 text-sm leading-relaxed max-w-sm mx-auto font-medium">
-                      Establishing neural handshake with the secure <span className={accentClass}>{league === 'VELOCITY' ? 'Velocity Crypto Core' : `${league} Syndicates`}</span>. 
+                      Establishing neural handshake with the <span className={accentClass}>{league === 'VELOCITY' ? 'Velocity Crypto Core' : `${league} Edge Alpha`}</span> desk. 
                       Synchronizing institutional limits and high-conviction positions.
                   </p>
                   <button 
@@ -1198,20 +1198,20 @@ export const Picks: React.FC<PicksProps> = ({ league, currentContent, archives, 
                         <div className="mb-10 relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
                             <div>
                                 <h2 className="text-3xl font-black text-white uppercase tracking-tight flex items-center gap-3">
-                                    <span className="text-amber-500 font-serif italic">Whale</span> Bets of the Day
+                                    <span className="text-amber-500 font-serif italic">Edge Alpha</span> Signals of the Day
                                 </h2>
                                 <p className="text-slate-400 text-xs mt-1">The top three maximum-conviction institutional positions tracking smart money flows.</p>
                             </div>
                             <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border border-amber-500/20 rounded-full">
                                 <div className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></div>
-                                <span className="text-[10px] font-black uppercase text-amber-400 tracking-wider">Whale Volume High</span>
+                                <span className="text-[10px] font-black uppercase text-amber-400 tracking-wider">Edge Alpha Conviction High</span>
                             </div>
                         </div>
 
-                        {/* Top 3 Whale Stack */}
+                        {/* Top 3 Edge Alpha Stack */}
                         <div className="grid grid-cols-1 gap-12 mb-16">
-                            {whalePicks.map((pick, index) => (
-                                <WhalePickCard 
+                            {edgeAlphaPicks.map((pick, index) => (
+                                <EdgeAlphaPickCard 
                                     key={pick.id} 
                                     rank={index + 1} 
                                     pick={pick} 

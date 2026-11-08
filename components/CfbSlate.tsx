@@ -4,7 +4,7 @@ import { clsx } from 'clsx';
 import { getLiveWeek, type CfbGame } from '../lib/cfb';
 
 /**
- * The CFB equivalent of the NFL "Whale Bets" stack: the slate that is actually on the
+ * The CFB equivalent of the NFL "Edge Alpha" stack: the slate that is actually on the
  * board right now. ESPN's free college feed publishes game state but no closing lines,
  * so each card shows the matchup, kickoff, live score and status, and says NL for price
  * instead of inventing a spread the grader would then score as real.
