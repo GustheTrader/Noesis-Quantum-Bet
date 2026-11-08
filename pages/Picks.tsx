@@ -72,6 +72,7 @@ interface PicksProps {
   gameSummaries: GameSummary[];
   propsData: any[];
 }
+  lockNonce?: number;
 
 // --- REALISTIC DEFAULT WHALE PICKS FOR EACH SPORT ---
 const DEFAULT_WHALE_PICKS: Record<string, ExtractedPick[]> = {
@@ -889,7 +890,7 @@ const MlbNewsFeed: React.FC = () => {
 };
 
 
-export const Picks: React.FC<PicksProps> = ({ league, currentContent, archives, gameSummaries }) => {
+export const Picks: React.FC<PicksProps> = ({ league, currentContent, archives, gameSummaries, lockNonce = 0 }) => {
   const [isLocked, setIsLocked] = useState(true);
   const [viewMode, setViewMode] = useState<'daily' | 'sunday'>('daily');
   const [displayedContent, setDisplayedContent] = useState('');
@@ -900,7 +901,7 @@ export const Picks: React.FC<PicksProps> = ({ league, currentContent, archives, 
 
   useEffect(() => {
       setIsLocked(true);
-  }, [league]);
+  }, [league, lockNonce]);
 
   const { singlePicks, parlayPicks } = useMemo(() => {
     const singles: ExtractedPick[] = [];
@@ -1004,7 +1005,7 @@ export const Picks: React.FC<PicksProps> = ({ league, currentContent, archives, 
                   <div className={clsx("w-24 h-24 rounded-[32px] mx-auto mb-10 flex items-center justify-center border border-white/10 shadow-inner group-hover:scale-110 transition-transform duration-500", `bg-${accentColor}-500/10`)}>
                       <Lock size={48} className={accentClass} />
                   </div>
-                  <h2 className="text-5xl font-black text-white uppercase tracking-tighter mb-6 leading-none">{league === 'VELOCITY' ? 'Velocity Crypto' : `${league} Whale Tracker`}</h2>
+                  <h2 className="text-5xl font-black text-white uppercase tracking-tighter mb-6 leading-none">{league === 'VELOCITY' ? 'Velocity Crypto' : `${league} Edge Alpha`}</h2>
                   <p className="text-slate-400 mb-12 text-sm leading-relaxed max-w-sm mx-auto font-medium">
                       Establishing neural handshake with the secure <span className={accentClass}>{league === 'VELOCITY' ? 'Velocity Crypto Core' : `${league} Syndicates`}</span>. 
                       Synchronizing institutional limits and high-conviction positions.

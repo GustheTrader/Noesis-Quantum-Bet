@@ -14,9 +14,11 @@ interface NavBarProps {
   setActiveLeague: (league: League) => void;
   isPremiumUnlocked?: boolean;
   onOpenSettings?: () => void;
+  onLeagueClick?: (league: League) => void;
 }
 
-export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onLaunchArby, activeLeague, setActiveLeague, isPremiumUnlocked = false, onOpenSettings }) => {
+export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onLaunchArby, activeLeague, setActiveLeague, isPremiumUnlocked = false, onOpenSettings, onLeagueClick }) => {
+  const selectLeague = (league: League) => { setActiveLeague(league); onLeagueClick?.(league); };
   
   const getButtonClass = (isActive: boolean, colorClass: string, shadowClass: string) => {
       return clsx(
@@ -89,9 +91,9 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
               return (
                 <button
                   key={league}
-                  onClick={() => setActiveLeague(league)}
+                  onClick={() => selectLeague(league)}
                   className={clsx(
-                    "px-2 py-1.5 rounded-md text-[9px] font-black uppercase tracking-widest transition-all duration-300",
+                    "px-2.5 py-2 rounded-md text-[11px] font-black uppercase tracking-widest transition-all duration-300",
                     activeLeague === league 
                       ? isVelocity 
                         ? "bg-gradient-to-r from-fuchsia-600 to-cyan-500 text-white shadow-[0_0_20px_rgba(192,38,211,0.6)] scale-110 animate-pulse"
@@ -248,9 +250,9 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, setCurrentView, onL
           {(['NFL', 'CFB', 'NBA', 'NHL', 'MLB', 'CFL', 'MLS', 'SOCCER', 'MMA', 'HORSE', 'GOLF', 'VELOCITY'] as League[]).map(league => (
             <button
               key={league}
-              onClick={() => setActiveLeague(league)}
+              onClick={() => selectLeague(league)}
               className={clsx(
-                "shrink-0 px-3 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest",
+                "shrink-0 px-3.5 py-2 rounded-md text-xs font-black uppercase tracking-widest",
                 activeLeague === league ? "bg-cyan-500 text-black" : "text-slate-400 bg-slate-900/80 border border-slate-800"
               )}
             >

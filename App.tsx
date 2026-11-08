@@ -34,6 +34,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 function App() {
   const [currentView, setCurrentView] = useState<string>('picks');
   const [activeLeague, setActiveLeague] = useState<League>('NFL');
+  const [lockNonce, setLockNonce] = useState(0);
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [hasAccess, setHasAccess] = useState<boolean>(() => {
     try {
@@ -299,7 +300,7 @@ function App() {
       default:
         return (
           <ErrorBoundary fallbackTitle="Signal Feed Anomaly">
-            <Picks league={activeLeague} currentContent={leaguePicks[activeLeague]} archives={archives} gameSummaries={gameSummaries} propsData={[]} />
+            <Picks lockNonce={lockNonce} league={activeLeague} currentContent={leaguePicks[activeLeague]} archives={archives} gameSummaries={gameSummaries} propsData={[]} />
           </ErrorBoundary>
         );
     }
@@ -317,6 +318,7 @@ function App() {
             onLaunchArby={() => setShowVoiceAgent(true)}
             activeLeague={activeLeague}
             setActiveLeague={setActiveLeague}
+            onLeagueClick={() => setLockNonce(n => n + 1)}
             isPremiumUnlocked={isPremiumUnlocked}
             onOpenSettings={() => setIsSettingsOpen(true)}
           />
