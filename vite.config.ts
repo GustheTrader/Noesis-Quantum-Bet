@@ -27,6 +27,8 @@ function proxyApiDev(): Plugin {
   const routes = [
     { prefix: '/api/novig', module: '/api/novig.ts' },
     { prefix: '/api/cfb', module: '/api/cfb.ts' },
+    { prefix: '/api/rundown', module: '/api/rundown.ts' },
+    { prefix: '/api/espn', module: '/api/espn.ts' },
   ];
   return {
     name: 'quantumbets-api-dev',
@@ -48,6 +50,7 @@ function proxyApiDev(): Plugin {
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     if (env.ANTHROPIC_API_KEY) process.env.ANTHROPIC_API_KEY = env.ANTHROPIC_API_KEY;
+    if (env.THERUNDOWN_API_KEY) process.env.THERUNDOWN_API_KEY = env.THERUNDOWN_API_KEY;
     return {
       server: {
         port: 3000,

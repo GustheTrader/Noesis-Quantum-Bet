@@ -6,6 +6,7 @@ import { League } from '../types';
 import { getLiveWeek, type CfbGame } from '../lib/cfb';
 import { fetchNflScoreboard, type NflGame } from '../lib/nfl';
 import { getNovigLeague, matchNovigEvent, probToAmerican, fairPrice, type NovigBook } from '../lib/novig';
+import { getLeagueEvents, indexEvents, matchEvent, buildConsensus, fmtAmerican } from '../lib/odds';
 
 interface GameOdd {
   id: string;
@@ -188,7 +189,34 @@ const nflOddsFromGames = (games: NflGame[]): GameOdd[] =>
       };
     });
 
-const loadNflOdds = async (): Promise<GameOdd[]> => nflOddsFromGames((await fetchNflScoreboard()).games);
+/**
+ * NFL strip: ESPN for state, TheRundown for price. A game with no quote keeps 'NL' and
+ * lineUnavailable, so a missing book never reads as a zero line.
+ */
+const loadNflOdds = async (): Promise<GameOdd[]> => {
+  const rows = nflOddsFromGames((await fetchNflScoreboard()).games);
+  let index: Map<string, any> | null = null;
+  try {
+    index = indexEvents(await getLeagueEvents('NFL', { days: 2 }));
+  } catch {
+    index = null;
+  }
+  if (!index) return rows;
+
+  return rows.map((row) => {
+    const event = matchEvent(index as Map<string, any>, row.homeTeam, row.awayTeam);
+    const consensus = event ? buildConsensus(event.books) : null;
+    if (!consensus) return row;
+    return {
+      ...row,
+      spread: consensus.spread,
+      total: consensus.total,
+      homeMl: row.homeResult ? row.homeMl : consensus.mlHome,
+      awayMl: row.awayResult ? row.awayMl : consensus.mlAway,
+      lineUnavailable: false,
+    };
+  });
+};
 
 const loadCfbOdds = async (): Promise<GameOdd[]> => {
   const live = await getLiveWeek();

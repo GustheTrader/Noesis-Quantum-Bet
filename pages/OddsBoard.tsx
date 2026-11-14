@@ -10,11 +10,13 @@ import {
 import { clsx } from 'clsx';
 import { askClaude } from "../lib/claude";
 import { League } from '../types';
-import { NflLiveBoard } from '../components/NflLiveBoard';
 import { footerProviderLabel } from '../lib/nfl';
 import { getSeasonGames, getLiveWeek, availableWeeks, settleSpread, settleTotal, LIVE_SEASON, ARCHIVE_SEASON, type CfbGame, type CfbWeek } from '../lib/cfb';
 import { CfbArchiveDrawer } from '../components/CfbArchiveDrawer';
 import { NovigBoard } from '../components/NovigBoard';
+import { CrossVenuePanel } from '../components/CrossVenuePanel';
+import { CrossVenueBoard } from '../components/CrossVenueBoard';
+import { applyOddsToGames, eventsToSlate, getLeagueEvents, LEAGUE_CODES, fmtAmerican, type OddsAttachResult } from '../lib/odds';
 import { getNovigLeague, matchNovigEvent, fairPrice, probToAmerican, probToPercent, teamKey, type NovigBook, type NovigEvent, type NovigPrice } from '../lib/novig';
 
 // --- CONFIGURATION ---
@@ -25,6 +27,9 @@ interface BookData {
     total: string;
     mlHome: string;
     mlAway: string;
+    spreadPrice?: string;
+    overPrice?: string;
+    underPrice?: string;
 }
 
 interface Matchup {
@@ -180,8 +185,10 @@ const parseCfbLive = async (): Promise<CfbBoard> => {
         book = undefined;
     }
     const priced = live.games.map(g => novigRow(g, book ? matchNovigEvent(g, book) : undefined));
+    // Exchange first, retail books only for rows the exchange has no market on.
+    const filled = await applyOddsToGames(priced, 'CFB');
     return {
-        games: priced.sort((a, b) => a.date.getTime() - b.date.getTime()),
+        games: filled.games.sort((a, b) => a.date.getTime() - b.date.getTime()),
         weeks,
         week: live.weekLabel,
         season,
@@ -509,9 +516,7 @@ const LiveIntelDrawer: React.FC<{ game: Matchup; onClose: () => void }> = ({ gam
                 return;
             }
 
-            const targetUrl = `https://site.api.espn.com/apis/site/v2/sports/${config.espnPath}/scoreboard`;
-            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-            const res = await fetch(proxyUrl);
+            const res = await fetch(`/api/espn?path=${encodeURIComponent(`${config.espnPath}/scoreboard`)}`);
             if (!res.ok) throw new Error("Scoreboard API fetch error");
             const data = await res.json();
             const espnGame = data.events?.find((e: any) => 
@@ -530,9 +535,7 @@ const LiveIntelDrawer: React.FC<{ game: Matchup; onClose: () => void }> = ({ gam
                     detail: espnGame.status.type.detail
                 });
 
-                const summaryUrl = `https://site.api.espn.com/apis/site/v2/sports/${config.espnPath}/summary?event=${espnGame.id}`;
-                const summaryProxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(summaryUrl)}`;
-                const detailRes = await fetch(summaryProxyUrl);
+                const detailRes = await fetch(`/api/espn?path=${encodeURIComponent(`${config.espnPath}/summary?event=${espnGame.id}`)}`);
                 if (detailRes.ok) {
                     const detailData = await detailRes.json();
                     const allPlays = detailData.plays || detailData.drives?.current?.plays || detailData.drives?.previous?.flatMap((d: any) => d.plays) || [];
@@ -738,6 +741,7 @@ export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
     const [loading, setLoading] = useState(true);
     const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
     const [upstreamState, setUpstreamState] = useState<'ONLINE' | 'STALE' | 'UNAVAILABLE' | 'FALLBACK' | 'IDLE'>('IDLE');
+    const [oddsFeed, setOddsFeed] = useState<OddsAttachResult & { source: 'therundown' | 'none' }>({ live: false, priced: 0, books: 0, source: 'none' });
     const [view, setView] = useState<'SPREAD' | 'TOTAL' | 'ML'>('SPREAD');
     const [isVerifying, setIsVerifying] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -775,24 +779,13 @@ export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
             }
             return;
         }
-        if (activeLeague === 'NFL') {
-            setGames([]);
-            setLoading(false);
-            return;
-        }
         try {
             let parsedGames: Matchup[] = [];
             
             // Try fetching from public ESPN scoreboard API
             if (config.espnPath && activeLeague !== 'HORSE' && activeLeague !== 'VELOCITY') {
                 try {
-                    const targetUrl = `https://site.api.espn.com/apis/site/v2/sports/${config.espnPath}/scoreboard`;
-                    let res = await fetch(targetUrl);
-                    if (!res.ok) {
-                        // Try AllOrigins as proxy
-                        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-                        res = await fetch(proxyUrl);
-                    }
+                    const res = await fetch(`/api/espn?path=${encodeURIComponent(`${config.espnPath}/scoreboard`)}`);
                     
                     if (res.ok) {
                         const data = await res.json();
@@ -850,6 +843,27 @@ export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
                 }
             }
             
+            // Prices and, where ESPN has no slate, the fixtures themselves come from
+            // Odds API. Rows keep their own names/logos; only prices are merged in.
+            if (LEAGUE_CODES[activeLeague]) {
+                try {
+                    if (parsedGames.length === 0) {
+                        const events = await getLeagueEvents(activeLeague, { days: 3 });
+                        if (events.length > 0) {
+                            parsedGames = eventsToSlate(events, activeLeague) as unknown as Matchup[];
+                        }
+                    }
+                    if (parsedGames.length > 0) {
+                        const { games: priced, result } = await applyOddsToGames(parsedGames, activeLeague);
+                        parsedGames = priced;
+                        setOddsFeed({ ...result, source: 'therundown' });
+                    }
+                } catch (err) {
+                    console.warn('TheRundown merge failed', err);
+                    setOddsFeed({ live: false, priced: 0, books: 0, source: 'none' });
+                }
+            }
+
             setUpstreamState(parsedGames.length > 0 ? 'ONLINE' : 'FALLBACK');
             // If we fetched nothing (offseason, error, or custom leagues HORSE/VELOCITY), load custom curated fallback matches
             if (parsedGames.length === 0) {
@@ -1088,10 +1102,22 @@ export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
 
             {/* One row per event in an exchange has no single spread to print, so the priced
                 market for the current week gets its own card above the game rows. */}
+            {/* Four prediction exchanges on the same instrument, priced after each fee. */}
+            {(activeLeague === 'NFL' || (activeLeague === 'CFB' && cfbLive)) && (
+                <CrossVenueBoard league={activeLeague} />
+            )}
+
             {activeLeague === 'CFB' && cfbLive && <NovigBoard />}
 
+            {/* Four exchanges, one outcome. Only rendered where every venue actually
+                prices the same claim; the panel reports each venue's health. */}
+            {(activeLeague === 'NFL' || activeLeague === 'CFB') && (
+                <div className="mb-8">
+                    <CrossVenuePanel activeLeague={activeLeague} />
+                </div>
+            )}
+
             {/* Main Odds Table */}
-            {activeLeague === 'NFL' ? <NflLiveBoard onHealth={setUpstreamState} /> : (
             <div className="bg-[#05070a] rounded-[56px] overflow-hidden border border-white/5 relative shadow-[0_40px_120px_rgba(0,0,0,0.6)]">
                 <div className="grid grid-cols-12 bg-[#0a0e17] border-b border-white/5 sticky top-0 z-20">
                     <div className="col-span-3 p-10 text-[12px] font-black text-slate-500 uppercase tracking-[0.5em]">Protocol Node // Matchup</div>
@@ -1249,9 +1275,19 @@ export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
                                             {game.bookOdds[book.id] ? (
                                                 <div className="text-center group-hover/cell:scale-110 transition-transform duration-500">
                                                     <div className={clsx("text-xl font-black font-mono", book.color)}>
-                                                        {view === 'SPREAD' ? game.bookOdds[book.id].spread : view === 'TOTAL' ? game.bookOdds[book.id].total : game.bookOdds[book.id].mlAway}
+                                                        {view === 'SPREAD'
+                                                            ? game.bookOdds[book.id].spread
+                                                            : view === 'TOTAL'
+                                                            ? game.bookOdds[book.id].total
+                                                            : fmtAmerican(Number(game.bookOdds[book.id].mlAway))}
                                                     </div>
-                                                    <div className="text-[11px] text-slate-600 font-black mt-1 opacity-60">-110</div>
+                                                    <div className="text-[11px] text-slate-600 font-black mt-1 opacity-60">
+                                                        {view === 'SPREAD'
+                                                            ? game.bookOdds[book.id].spreadPrice || 'NL'
+                                                            : view === 'TOTAL'
+                                                            ? game.bookOdds[book.id].overPrice || 'NL'
+                                                            : fmtAmerican(Number(game.bookOdds[book.id].mlHome))}
+                                                    </div>
                                                 </div>
                                             ) : (
                                                 <span className="text-[11px] text-slate-800 font-black uppercase tracking-widest opacity-20">OFFLINE</span>
@@ -1275,7 +1311,6 @@ export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
                     )}
                 </div>
             </div>
-            )}
 
             {/* LIVE INTEL DRAWER */}
             {detailGame && detailGame.league === 'CFB' && detailGame.finalScore && !detailGame.live ? (
@@ -1311,6 +1346,26 @@ export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
                     <div className="flex items-center gap-3 group cursor-help">
                         <ShieldCheck size={18} className="text-emerald-500 group-hover:scale-110 transition-transform" />
                         <span>{footerProviderLabel(activeLeague) ? 'NFL model: unavailable' : 'Validation: Claude Opus 5.5'}</span>
+                    </div>
+                    <div className="flex items-center gap-3 group cursor-help" title="Bookmaker prices from api.odds-api.net">
+                        <Radio size={18} className={clsx(oddsFeed.live && oddsFeed.priced > 0 ? 'text-cyan-400' : 'text-slate-700')} />
+                        <span className={clsx(oddsFeed.live && oddsFeed.priced > 0 ? 'text-cyan-400' : 'text-slate-600')}>
+                            {LEAGUE_CODES[activeLeague]
+                                ? oddsFeed.live && oddsFeed.priced > 0
+                                    ? `TheRundown · ${oddsFeed.priced} priced · ${oddsFeed.books} books`
+                                    : 'TheRundown · key needed'
+                                : 'TheRundown · no feed'}
+                        </span>
+                    </div>
+                    <div className={clsx("flex items-center gap-3 group cursor-help", oddsFeed.live ? "text-emerald-500" : "text-slate-600")}>
+                        <Fingerprint size={18} className="group-hover:scale-110 transition-transform" />
+                        <span>
+                            {oddsFeed.live
+                                ? <>TheRundown: {oddsFeed.priced} priced · {oddsFeed.books} books</>
+                                : oddsFeed.source === 'none'
+                                    ? <>TheRundown: {LEAGUE_CODES[activeLeague] ? 'no key' : 'not covered'}</>
+                                    : <>TheRundown: no line</>}
+                        </span>
                     </div>
                 </div>
                 <div className="flex items-center gap-8 bg-[#0a0e17] px-10 py-4 rounded-[20px] border border-white/5 shadow-2xl">

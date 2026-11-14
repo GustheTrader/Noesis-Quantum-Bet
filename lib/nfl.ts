@@ -1,4 +1,8 @@
-export const NFL_LIVE_BASE = 'https://herb.zo.space/api/picks';
+// ESPN scoreboards are read through our own /api/espn proxy: ESPN sends no CORS header, and
+// the Zo-hosted endpoint this used to call rejected browser origins outright, so every NFL
+// surface failed with "Failed to fetch".
+export const ESPN_PROXY = '/api/espn?path=';
+export const NFL_ESPN_PATH = 'football/nfl';
 export const NFL_FUTURE_SKEW_MS = 60_000;
 
 export type NflTeam = { abbr: string; name: string; score: number; logo: string | null };
@@ -133,16 +137,21 @@ export async function fetchJsonWithTimeout(url: string, timeoutMs = 8000): Promi
 }
 
 export async function fetchNflScoreboard(): Promise<NflBoard> {
-  return fetchJsonWithTimeout(`${NFL_LIVE_BASE}/nfl-live?kind=scoreboard`) as Promise<NflBoard>;
+  const json = await fetchJsonWithTimeout(`${ESPN_PROXY}${encodeURIComponent(`${NFL_ESPN_PATH}/scoreboard`)}`);
+  return parseNflScoreboard(json, new Date());
 }
 
 export async function fetchNflEvent(eventId: string): Promise<any> {
   if (!isEspnEventId(eventId)) throw new Error('invalid_event_id');
-  return fetchJsonWithTimeout(`${NFL_LIVE_BASE}/nfl-live?kind=event&event=${eventId}`);
+  const json = await fetchJsonWithTimeout(
+    `${ESPN_PROXY}${encodeURIComponent(`${NFL_ESPN_PATH}/summary?event=${eventId}`)}`
+  );
+  return json;
 }
 
+/** No NFL model service is wired up, so this reports that honestly instead of inventing one. */
 export async function fetchNflModels(): Promise<NflModelStatus> {
-  return fetchJsonWithTimeout(`${NFL_LIVE_BASE}/nfl-models`) as Promise<NflModelStatus>;
+  return NO_MODEL_UNAVAILABLE as NflModelStatus;
 }
 
 export function simulationAllowed(league: string): { allowed: boolean; reason: string | null } {
@@ -162,5 +171,5 @@ export function formatNflStatus(g: { state: string; detail: string; period?: num
 
 export function footerProviderLabel(league: string): string | null {
   if (league !== 'NFL') return null;
-  return 'Source: ESPN schedule & scores (no odds feed) · sharp odds: unavailable · NFL model: unavailable (no_running_nfl_model)';
+  return 'Source: ESPN schedule & scores · prices: TheRundown (Pinnacle, Circa, DraftKings, FanDuel, Caesars) · NFL model: unavailable (no_running_nfl_model)';
 }
