@@ -1,14 +1,17 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { 
-  RefreshCw, Clock, Activity, Calendar, ShieldCheck, AlertTriangle, 
-  Wifi, WifiOff, Sparkles, Search, CheckCircle, Zap, CheckCircle2, 
-  AlertCircle, TrendingUp, Trophy, ExternalLink, Eye, X, 
+import {
+  RefreshCw, Clock, Activity, Calendar, ShieldCheck, AlertTriangle,
+  Wifi, WifiOff, Sparkles, Search, CheckCircle, Zap, CheckCircle2,
+  AlertCircle, TrendingUp, Trophy, ExternalLink, Eye, X,
   ChevronRight, Play, Info, BarChart3, Radio, Target, History,
   Maximize2, ArrowUpRight, Flame, Fingerprint, Cpu, Satellite
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { askClaude } from "../lib/claude";
+import { getEvents, getLatestOddsByEvent, readerConfigFromEnv, todayIn, formatSpread, EspnReadError } from '../lib/espn/reader';
+import { toBoardMatchups, toLeagueKey, latestCapturedAt, latestEventUpdate, type BoardBook, type BoardMatchup } from '../lib/espn/boardModel';
+
 import { League } from '../types';
 import { NflLiveBoard } from '../components/NflLiveBoard';
 import { footerProviderLabel } from '../lib/nfl';
@@ -18,7 +21,8 @@ import { NovigBoard } from '../components/NovigBoard';
 import { getNovigLeague, matchNovigEvent, fairPrice, probToAmerican, probToPercent, teamKey, type NovigBook, type NovigEvent, type NovigPrice } from '../lib/novig';
 
 // --- CONFIGURATION ---
-const SPORTSDATA_KEY = 'fecb349a85264f47b853aa08e87cc860';
+const USE_MOCKS = ((import.meta as unknown as { env?: Record<string, unknown> }).env?.VITE_USE_MOCKS) === 'true';
+const POLL_MS = 60_000;
 
 interface BookData {
     spread: string;
@@ -28,6 +32,7 @@ interface BookData {
 }
 
 interface Matchup {
+    readerRow?: BoardMatchup;
     id: string;
     league: League;
     date: Date;
@@ -191,7 +196,7 @@ const parseCfbLive = async (): Promise<CfbBoard> => {
 
 const BOOKS = [
     { id: 'pinnacle', name: 'Pinnacle', color: 'text-orange-500', bg: 'bg-orange-500/10', url: 'https://www.pinnacle.com/' },
-    { id: 'circa', name: 'Circa', color: 'text-indigo-400', bg: 'bg-indigo-500/10', url: 'https://www.circasports.com/' }, 
+    { id: 'circa', name: 'Circa', color: 'text-indigo-400', bg: 'bg-indigo-500/10', url: 'https://www.circasports.com/' },
     { id: 'dk', name: 'DraftKings', color: 'text-green-500', bg: 'bg-green-500/10', url: 'https://sportsbook.draftkings.com/' },
     { id: 'fd', name: 'FanDuel', color: 'text-blue-500', bg: 'bg-blue-500/10', url: 'https://sportsbook.fanduel.com/' },
     { id: 'czr', name: 'Caesars', color: 'text-amber-300', bg: 'bg-amber-900/40', url: 'https://caesars.com/sportsbook-and-casino' },
@@ -212,7 +217,7 @@ const LEAGUE_CONFIG = {
     VELOCITY: { accent: 'fuchsia', color: '#d946ef', espnPath: 'crypto', label: 'Velocity Crypto' }
 };
 
-const FALLBACK_MATCHUPS: Record<League, Array<{ homeTeam: string; homeAbr: string; homeLogo: string; awayTeam: string; awayAbr: string; awayLogo: string }>> = {
+const FALLBACK_MATCHUPS: Partial<Record<League, Array<{ homeTeam: string; homeAbr: string; homeLogo: string; awayTeam: string; awayAbr: string; awayLogo: string }>>> = {
     NFL: [
         { homeTeam: 'Kansas City Chiefs', homeAbr: 'KC', homeLogo: 'https://a.espncdn.com/i/teamlogos/nfl/500/kc.png', awayTeam: 'San Francisco 49ers', awayAbr: 'SF', awayLogo: 'https://a.espncdn.com/i/teamlogos/nfl/500/sf.png' },
         { homeTeam: 'Buffalo Bills', homeAbr: 'BUF', homeLogo: 'https://a.espncdn.com/i/teamlogos/nfl/500/buf.png', awayTeam: 'New York Jets', awayAbr: 'NYJ', awayLogo: 'https://a.espncdn.com/i/teamlogos/nfl/500/nyj.png' },
@@ -289,12 +294,12 @@ const getDeterministicLines = (seedId: string, league: string, homeName: string,
     for (let i = 0; i < seedId.length; i++) {
         seed += seedId.charCodeAt(i);
     }
-    
+
     let baseSpread = 0;
     let baseTotal = 45;
     let overUnderStr = "45.0";
     let spreadStr = "-3.0";
-    
+
     if (espnOdd && espnOdd.details) {
         const detailsStr = espnOdd.details.toString();
         if (detailsStr.toLowerCase() === 'even' || detailsStr.toLowerCase() === 'pk') {
@@ -313,7 +318,7 @@ const getDeterministicLines = (seedId: string, league: string, homeName: string,
         if (seed % 2 === 0) baseSpread = -baseSpread;
         spreadStr = baseSpread > 0 ? `+${baseSpread}` : `${baseSpread}`;
     }
-    
+
     if (espnOdd && espnOdd.overUnder) {
         baseTotal = espnOdd.overUnder;
         overUnderStr = baseTotal.toFixed(1);
@@ -339,19 +344,19 @@ const getDeterministicLines = (seedId: string, league: string, homeName: string,
         }
         overUnderStr = baseTotal.toFixed(1);
     }
-    
+
     let homeMl = -110;
     let awayMl = -110;
     if (baseSpread !== 0) {
-        const sign = baseSpread < 0 ? -1 : 1; 
+        const sign = baseSpread < 0 ? -1 : 1;
         const absSpread = Math.abs(baseSpread);
         const mlMap: Record<number, number> = {
-            0.5: 115, 1.5: 125, 2.5: 140, 3.5: 165, 4.5: 190, 5.5: 220, 6.5: 250, 
+            0.5: 115, 1.5: 125, 2.5: 140, 3.5: 165, 4.5: 190, 5.5: 220, 6.5: 250,
             7.5: 300, 8.5: 350, 9.5: 400, 10.5: 450, 11.5: 500, 12.5: 550, 13.5: 600
         };
         const rounded = Math.round(absSpread * 2) / 2;
         const mlVal = mlMap[rounded] || (absSpread > 13 ? 700 : 110 + (absSpread * 35));
-        
+
         if (sign < 0) {
             homeMl = -mlVal;
             awayMl = mlVal;
@@ -360,29 +365,29 @@ const getDeterministicLines = (seedId: string, league: string, homeName: string,
             awayMl = -mlVal;
         }
     }
-    
+
     const mlHomeStr = homeMl > 0 ? `+${Math.round(homeMl)}` : `${Math.round(homeMl)}`;
     const mlAwayStr = awayMl > 0 ? `+${Math.round(awayMl)}` : `${Math.round(awayMl)}`;
-    
+
     const bookOdds: Record<string, BookData> = {};
     const docBooks = ['pinnacle', 'circa', 'dk', 'fd', 'czr'];
-    
+
     docBooks.forEach((book, idx) => {
         const spreadVar = ((seed + idx) % 3 - 1) * 0.5;
         const finalSpread = baseSpread === 0 ? 0 : baseSpread + spreadVar;
         const bookSpreadStr = finalSpread === 0 ? "PK" : (finalSpread > 0 ? `+${finalSpread}` : `${finalSpread}`);
-        
+
         const totalVar = ((seed + idx + 2) % 3 - 1) * 0.5;
         const finalTotal = baseTotal + totalVar;
         const bookTotalStr = finalTotal.toFixed(1);
-        
+
         const mlVar = ((seed + idx + 5) % 5 - 2) * 10;
         const bookHomeMl = homeMl < 0 ? homeMl - mlVar : homeMl + mlVar;
         const bookAwayMl = awayMl < 0 ? awayMl - mlVar : awayMl + mlVar;
-        
+
         const bookMlHomeStr = bookHomeMl > 0 ? `+${Math.round(bookHomeMl)}` : `${Math.round(bookHomeMl)}`;
         const bookMlAwayStr = bookAwayMl > 0 ? `+${Math.round(bookAwayMl)}` : `${Math.round(bookAwayMl)}`;
-        
+
         bookOdds[book] = {
             spread: bookSpreadStr,
             total: bookTotalStr,
@@ -390,7 +395,7 @@ const getDeterministicLines = (seedId: string, league: string, homeName: string,
             mlAway: bookMlAwayStr
         };
     });
-    
+
     return {
         spread: spreadStr,
         total: overUnderStr,
@@ -400,6 +405,55 @@ const getDeterministicLines = (seedId: string, league: string, homeName: string,
     };
 };
 
+const flipSpread = (s: string) => {
+    const n = parseFloat(s);
+    return Number.isFinite(n) ? formatSpread(-n) : s;
+};
+
+const mockBook = (b: BookData, capturedAt: string): BoardBook => ({
+    spreadAway: b.spread, spreadHome: flipSpread(b.spread), total: b.total, mlAway: b.mlAway, mlHome: b.mlHome, capturedAt,
+});
+
+// DEV ONLY (VITE_USE_MOCKS=true): synthetic matchups with fake lines.
+const buildMockMatchups = (league: League) => {
+    const now = new Date().toISOString();
+    const fallbacks = FALLBACK_MATCHUPS[league] || FALLBACK_MATCHUPS.NFL;
+    return fallbacks.map((f, idx) => {
+        const id = `syn-${league}-${idx}`;
+        const l = getDeterministicLines(id, league, f.homeTeam, f.awayTeam);
+        const main = mockBook({ spread: l.spread, total: l.total, mlHome: l.mlHome, mlAway: l.mlAway }, now);
+        const bookOdds: Record<string, BoardBook> = {};
+        Object.entries(l.bookOdds).forEach(([k, b]) => { bookOdds[k] = mockBook(b, now); });
+        return {
+            id, league, date: new Date(Date.now() + idx * 2 * 3600 * 1000),
+            status: idx === 0 ? 'Live in Progress' : 'Scheduled', statusState: idx === 0 ? 'in' : 'pre',
+            homeTeam: f.homeTeam, homeAbr: f.homeAbr, homeLogo: f.homeLogo, homeScore: null,
+            awayTeam: f.awayTeam, awayAbr: f.awayAbr, awayLogo: f.awayLogo, awayScore: null,
+            open: main, market: main, marketProvider: 'MOCK', bookOdds, aiStatus: 'IDLE' as const,
+        };
+    });
+};
+
+const fromReader = (m: BoardMatchup, league: League): Matchup => ({
+    ...m, league, readerRow: m, aiStatus: 'IDLE',
+    openSpread: m.open?.spreadAway, openTotal: m.open?.total,
+    consensusSpread: m.market?.spreadAway, consensusTotal: m.market?.total,
+    consensusMlHome: m.market?.mlHome, consensusMlAway: m.market?.mlAway,
+    bookOdds: Object.fromEntries(Object.entries(m.bookOdds).map(([id, b]) => [id, { ...b, spread: b.spreadAway }])),
+});
+type ViewMode = 'SPREAD' | 'TOTAL' | 'ML';
+
+/** [away row, home row] for a book in the current view. */
+const cellPair = (b: BoardBook | null | undefined, view: ViewMode): [string, string] => {
+    if (!b) return ['', ''];
+    if (view === 'SPREAD') return [b.spreadAway, b.spreadHome];
+    if (view === 'TOTAL') return [b.total ? `O ${b.total}` : '', b.total ? `U ${b.total}` : ''];
+    return [b.mlAway, b.mlHome];
+};
+
+const fmtAsOf = (iso: string | null) =>
+    iso ? new Date(iso).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }) : '—';
+
 // --- PLAY BY PLAY INTEL DRAWER ---
 const LiveIntelDrawer: React.FC<{ game: Matchup; onClose: () => void }> = ({ game, onClose }) => {
     const [plays, setPlays] = useState<any[]>([]);
@@ -407,10 +461,10 @@ const LiveIntelDrawer: React.FC<{ game: Matchup; onClose: () => void }> = ({ gam
     const [scores, setScores] = useState({ home: '0', away: '0', clock: '--', detail: 'Connecting...' });
     const config = LEAGUE_CONFIG[game.league];
 
-    const fetchLiveDetails = async () => {
+    const fetchLiveDetails = () => {
         try {
-            if (game.id.startsWith('syn-') || game.id.startsWith('cfb-')) {
-                const syntheticPlaysMap: Record<League, string[]> = {
+            if (USE_MOCKS && game.id.startsWith('syn-')) {
+                const syntheticPlaysMap: Partial<Record<League, string[]>> = {
                     NFL: [
                         "Touchdown! Mahomes connects with Kelce for a spectacular 24-yard score in the corner of the end zone.",
                         "Mahomes passes short right to Rice for 8 yards, tackled by Warner.",
@@ -431,14 +485,6 @@ const LiveIntelDrawer: React.FC<{ game: Matchup; onClose: () => void }> = ({ gam
                         "Penalties! Pastrnak sits for 2 minute boarding. Power Play coming up.",
                         "Heavy hit along the boards by Marchand, bringing down Nugent-Hopkins.",
                         "Exceptional glove save by Swayman to deny Hyman on a point-blank rebound.",
-                    ],
-                    CFB: [
-                        "Touchdown! Troy Smith finds Ted Ginn Jr. on a 24-yard strike to the corner of the end zone.",
-                        "The Wolverines convert on 4th & 1 at midfield, keeping the drive alive with 9:40 left in the half.",
-                        "Interception! The Buckeye secondary jumps a curl route at the 35-yard line.",
-                        "Field goal is GOOD from 47 yards out — the kicker had plenty of leg on that one.",
-                        "Sack! A false start backs the offense up, then the defensive end gets home for a 9-yard loss.",
-                        "Fourth quarter: a freshman running back breaks a 40-yard touchdown run up the right sideline.",
                     ],
                     MLB: [
                         "HOME RUN! Aaron Judge blasts a 430-foot shot deep into the left field bleachers!",
@@ -509,51 +555,15 @@ const LiveIntelDrawer: React.FC<{ game: Matchup; onClose: () => void }> = ({ gam
                 return;
             }
 
-            const targetUrl = `https://site.api.espn.com/apis/site/v2/sports/${config.espnPath}/scoreboard`;
-            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-            const res = await fetch(proxyUrl);
-            if (!res.ok) throw new Error("Scoreboard API fetch error");
-            const data = await res.json();
-            const espnGame = data.events?.find((e: any) => 
-                e.id === game.id || e.competitors?.some((c: any) => c.team.abbreviation === game.homeAbr || c.team.name.includes(game.homeTeam))
-            );
-
-            if (espnGame) {
-                const comp = espnGame.competitions[0];
-                const homeComp = comp.competitors.find((c: any) => c.homeAway === 'home');
-                const awayComp = comp.competitors.find((c: any) => c.homeAway === 'away');
-                
-                setScores({
-                    home: homeComp.score,
-                    away: awayComp.score,
-                    clock: espnGame.status.displayClock || '',
-                    detail: espnGame.status.type.detail
-                });
-
-                const summaryUrl = `https://site.api.espn.com/apis/site/v2/sports/${config.espnPath}/summary?event=${espnGame.id}`;
-                const summaryProxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(summaryUrl)}`;
-                const detailRes = await fetch(summaryProxyUrl);
-                if (detailRes.ok) {
-                    const detailData = await detailRes.json();
-                    const allPlays = detailData.plays || detailData.drives?.current?.plays || detailData.drives?.previous?.flatMap((d: any) => d.plays) || [];
-                    setPlays(allPlays.reverse().slice(0, 40));
-                }
-            } else {
-                setScores(prev => ({ ...prev, detail: 'Market Offline (Pre-game/Final)' }));
-            }
-        } catch (e) {
-            console.error("Live Intel Sync Error", e);
+            // Real data: scores/status come from the espn data store (no direct ESPN/proxy calls).
+            // Play-by-play is not ingested yet, so the log shows an explicit empty state.
             setScores({
-                home: '14',
-                away: '10',
-                clock: 'FINAL',
-                detail: 'Simulation Node Active'
+                home: game.readerRow?.homeScore != null ? String(game.readerRow.homeScore) : game.finalScore?.home ?? '-',
+                away: game.readerRow?.awayScore != null ? String(game.readerRow.awayScore) : game.finalScore?.away ?? '-',
+                clock: game.readerRow?.statusState === 'in' ? 'LIVE' : game.readerRow?.statusState === 'post' ? 'FINAL' : 'PRE',
+                detail: game.status,
             });
-            setPlays([{
-                scoringPlay: false,
-                clock: { displayValue: '0:00' },
-                text: 'Market telemetry synchronized. Core data backup active.'
-            }]);
+            setPlays([]);
         } finally {
             setLoading(false);
         }
@@ -561,14 +571,12 @@ const LiveIntelDrawer: React.FC<{ game: Matchup; onClose: () => void }> = ({ gam
 
     useEffect(() => {
         fetchLiveDetails();
-        const timer = setInterval(fetchLiveDetails, 10000); // Fast 10s polling for "Intel" feel
-        return () => clearInterval(timer);
     }, [game]);
 
     return (
         <>
             {/* Backdrop */}
-            <div 
+            <div
                 className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90] animate-in fade-in duration-300"
                 onClick={onClose}
             ></div>
@@ -577,9 +585,9 @@ const LiveIntelDrawer: React.FC<{ game: Matchup; onClose: () => void }> = ({ gam
                 {/* Visual Artifacts */}
                 <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%] pointer-events-none z-50"></div>
                 <div className="absolute top-0 left-0 right-0 h-1 bg-cyan-500/20 z-[60] animate-scanline"></div>
-                
+
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(99,102,241,0.1),transparent_70%)] pointer-events-none"></div>
-                
+
                 {/* Header Section */}
                 <div className="p-8 border-b border-white/10 flex justify-between items-center relative z-10 bg-[#080a0f]/80 backdrop-blur-md">
                     <div className="flex items-center gap-5">
@@ -651,7 +659,7 @@ const LiveIntelDrawer: React.FC<{ game: Matchup; onClose: () => void }> = ({ gam
                 {/* Event Stream */}
                 <div className="flex-grow overflow-y-auto custom-scrollbar p-8 space-y-6 relative z-10 bg-[#020408]">
                     <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none"></div>
-                    
+
                     <div className="flex items-center gap-3 mb-6 sticky top-0 bg-[#020408]/80 backdrop-blur-sm py-2 z-20">
                         <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
                         <span className="text-[11px] font-black text-white uppercase tracking-[0.4em]">Synchronized Play-By-Play Log</span>
@@ -666,8 +674,8 @@ const LiveIntelDrawer: React.FC<{ game: Matchup; onClose: () => void }> = ({ gam
                         plays.map((play, idx) => (
                             <div key={idx} className={clsx(
                                 "relative pl-10 py-6 border-l transition-all duration-500 group animate-in fade-in slide-in-from-right-4",
-                                play.scoringPlay 
-                                    ? "border-emerald-500 bg-emerald-500/10 rounded-r-3xl shadow-[inset_0_0_30px_rgba(16,185,129,0.1)]" 
+                                play.scoringPlay
+                                    ? "border-emerald-500 bg-emerald-500/10 rounded-r-3xl shadow-[inset_0_0_30px_rgba(16,185,129,0.1)]"
                                     : "border-slate-800 hover:bg-white/[0.02]"
                             )} style={{ animationDelay: `${idx * 30}ms` }}>
                                 {/* Play Marker */}
@@ -700,7 +708,7 @@ const LiveIntelDrawer: React.FC<{ game: Matchup; onClose: () => void }> = ({ gam
                         <div className="py-40 flex flex-col items-center justify-center text-slate-800 text-center px-10">
                             <Satellite size={80} strokeWidth={1} className="opacity-10 mb-6" />
                             <p className="text-sm font-black uppercase tracking-[0.4em] opacity-40">Telemetry Unavailable</p>
-                            <p className="text-xs font-medium mt-4 text-slate-700">Market session not currently broadcasting detailed payloads.</p>
+                            <p className="text-xs font-medium mt-4 text-slate-700">Play-by-play is not in the data store yet. Scores and status above come from the ESPN feed in Supabase.</p>
                         </div>
                     )}
                 </div>
@@ -718,7 +726,7 @@ const LiveIntelDrawer: React.FC<{ game: Matchup; onClose: () => void }> = ({ gam
                         <div className="flex flex-col items-end">
                             <div className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Stream Source</div>
                             <div className="flex items-center gap-2">
-                                <span className="text-xs font-black text-white">ESPN_G14</span>
+                                <span className="text-xs font-black text-white">ESPN → SUPABASE</span>
                                 <ExternalLink size={12} className="text-indigo-400" />
                             </div>
                         </div>
@@ -736,6 +744,10 @@ interface OddsBoardProps {
 export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
     const [games, setGames] = useState<Matchup[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadState, setLoadState] = useState<'loading' | 'ready' | 'empty' | 'unsupported' | 'error'>('loading');
+    const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [dataAsOf, setDataAsOf] = useState<string | null>(null);
+    const [eventsAsOf, setEventsAsOf] = useState<string | null>(null);
     const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
     const [upstreamState, setUpstreamState] = useState<'ONLINE' | 'STALE' | 'UNAVAILABLE' | 'FALLBACK' | 'IDLE'>('IDLE');
     const [view, setView] = useState<'SPREAD' | 'TOTAL' | 'ML'>('SPREAD');
@@ -754,161 +766,85 @@ export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
 
     const config = LEAGUE_CONFIG[activeLeague] || LEAGUE_CONFIG.NFL;
 
-    const fetchData = async () => {
-        setLoading(true);
+    const requestId = useRef(0);
+
+    const fetchData = async (isPoll = true) => {
+        const id = ++requestId.current;
+        if (!isPoll) {
+            setLoading(true);
+            setLoadState('loading');
+            setGames([]);
+            setDataAsOf(null); setEventsAsOf(null); setErrorMsg(null);
+        }
         if (activeLeague === 'CFB') {
             const view = cfbRef.current;
             try {
                 const board = view.live ? await parseCfbLive() : await parseCfbBoard(view.season, view.week);
+                if (id !== requestId.current || view !== cfbRef.current) return;
                 cfbRef.current = { live: board.live, season: board.season, week: board.week };
                 setGames(board.games);
+                setLoadState(board.games.length ? 'ready' : 'empty');
+                setDataAsOf(new Date().toISOString());
+                setErrorMsg(null);
                 setCfbWeeks(board.weeks);
                 setCfbWeek(board.week);
                 setCfbSeason(board.season);
                 setCfbLive(board.live);
                 setLastUpdate(new Date());
             } catch (e) {
+                if (id !== requestId.current) return;
                 console.error('CFB board load failed', e);
-                setGames([]);
+                setErrorMsg('Could not load CFB board.'); setLoadState('error');
             } finally {
-                setLoading(false);
+                if (id === requestId.current) setLoading(false);
             }
-            return;
-        }
-        if (activeLeague === 'NFL') {
-            setGames([]);
-            setLoading(false);
             return;
         }
         try {
-            let parsedGames: Matchup[] = [];
-            
-            // Try fetching from public ESPN scoreboard API
-            if (config.espnPath && activeLeague !== 'HORSE' && activeLeague !== 'VELOCITY') {
-                try {
-                    const targetUrl = `https://site.api.espn.com/apis/site/v2/sports/${config.espnPath}/scoreboard`;
-                    let res = await fetch(targetUrl);
-                    if (!res.ok) {
-                        // Try AllOrigins as proxy
-                        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-                        res = await fetch(proxyUrl);
-                    }
-                    
-                    if (res.ok) {
-                        const data = await res.json();
-                        if (data && data.events && data.events.length > 0) {
-                            parsedGames = data.events.map((event: any) => {
-                                const comp = event.competitions?.[0];
-                                const homeComp = comp?.competitors?.find((c: any) => c.homeAway === 'home');
-                                const awayComp = comp?.competitors?.find((c: any) => c.homeAway === 'away');
-                                
-                                const homeTeam = homeComp?.team?.displayName || homeComp?.team?.name || 'Home TBD';
-                                const awayTeam = awayComp?.team?.displayName || awayComp?.team?.name || 'Away TBD';
-                                const homeAbr = homeComp?.team?.abbreviation || homeComp?.team?.shortDisplayName || 'HOME';
-                                const awayAbr = awayComp?.team?.abbreviation || awayComp?.team?.shortDisplayName || 'AWAY';
-                                const homeLogo = homeComp?.team?.logo || 'https://a.espncdn.com/i/teamlogos/default-team-logo-500.png';
-                                const awayLogo = awayComp?.team?.logo || 'https://a.espncdn.com/i/teamlogos/default-team-logo-500.png';
-                                
-                                const eventId = event.id ? event.id.toString() : Math.random().toString();
-                                const espnOdd = comp?.odds?.[0];
-                                
-                                const statusDetail = event.status?.type?.detail || event.status?.type?.description || 'Scheduled';
-                                
-                                const { spread, total, mlHome, mlAway, bookOdds } = getDeterministicLines(
-                                    eventId,
-                                    activeLeague,
-                                    homeTeam,
-                                    awayTeam,
-                                    espnOdd
-                                );
-                                
-                                return {
-                                    id: eventId,
-                                    league: activeLeague,
-                                    date: new Date(event.date || comp?.date || Date.now()),
-                                    status: statusDetail,
-                                    homeTeam,
-                                    homeAbr,
-                                    homeLogo,
-                                    awayTeam,
-                                    awayAbr,
-                                    awayLogo,
-                                    openSpread: spread,
-                                    openTotal: total,
-                                    consensusSpread: spread,
-                                    consensusTotal: total,
-                                    consensusMlHome: mlHome,
-                                    consensusMlAway: mlAway,
-                                    bookOdds,
-                                    aiStatus: 'IDLE' as const
-                                };
-                            });
-                        }
-                    }
-                } catch (err) {
-                    console.error("ESPN Live Fetch Error, falling back...", err);
-                }
+            if (USE_MOCKS) {
+                setGames(buildMockMatchups(activeLeague).map(m => fromReader(m, activeLeague)));
+                setDataAsOf(new Date().toISOString());
+                setLoadState('ready');
+                return;
             }
-            
-            setUpstreamState(parsedGames.length > 0 ? 'ONLINE' : 'FALLBACK');
-            // If we fetched nothing (offseason, error, or custom leagues HORSE/VELOCITY), load custom curated fallback matches
-            if (parsedGames.length === 0) {
-                const fallbacks = FALLBACK_MATCHUPS[activeLeague] || FALLBACK_MATCHUPS.NFL;
-                parsedGames = fallbacks.map((f, idx) => {
-                    const synId = `syn-${activeLeague}-${idx}`;
-                    const statusDetail = idx === 0 ? 'Live in Progress' : 'Scheduled';
-                    
-                    const { spread, total, mlHome, mlAway, bookOdds } = getDeterministicLines(
-                        synId,
-                        activeLeague,
-                        f.homeTeam,
-                        f.awayTeam
-                    );
-                    
-                    return {
-                        id: synId,
-                        league: activeLeague,
-                        date: new Date(Date.now() + (idx * 2 * 3600 * 1000)), // dynamic future dates
-                        status: statusDetail,
-                        homeTeam: f.homeTeam,
-                        homeAbr: f.homeAbr,
-                        homeLogo: f.homeLogo,
-                        awayTeam: f.awayTeam,
-                        awayAbr: f.awayAbr,
-                        awayLogo: f.awayLogo,
-                        openSpread: spread,
-                        openTotal: total,
-                        consensusSpread: spread,
-                        consensusTotal: total,
-                        consensusMlHome: mlHome,
-                        consensusMlAway: mlAway,
-                        bookOdds,
-                        aiStatus: 'IDLE' as const
-                    };
-                });
+            const leagueKey = toLeagueKey(activeLeague);
+            if (!leagueKey) {
+                setGames([]);
+                setDataAsOf(null);
+                setEventsAsOf(null);
+                setLoadState('unsupported');
+                return;
             }
-            
-            setGames(parsedGames);
-            setLastUpdate(new Date());
+            const cfg = readerConfigFromEnv();
+            const events = await getEvents(cfg, { league: leagueKey, date: todayIn(), days: leagueKey === 'nfl' ? 7 : 2 });
+            const odds = await getLatestOddsByEvent(cfg, events.map(e => e.espn_id));
+            if (id !== requestId.current) return;
+            const parsed: Matchup[] = toBoardMatchups(events, odds).map(m => fromReader(m, activeLeague));
+            setGames(parsed);
+            setDataAsOf(latestCapturedAt(odds));
+            setEventsAsOf(latestEventUpdate(events));
+            setErrorMsg(null);
+            setLoadState(parsed.length > 0 ? 'ready' : 'empty');
         } catch (e) {
-            setGames([]);
+            if (id !== requestId.current) return;
+            console.error('OddsBoard read error', e);
+            setErrorMsg(e instanceof EspnReadError ? e.message : 'Unexpected error loading odds.');
+            if (!isPoll) setGames([]);
+            setLoadState('error');
         } finally {
-            setLoading(false);
+            if (id === requestId.current) setLoading(false);
         }
     };
 
     useEffect(() => {
         if (activeLeague === 'CFB') cfbRef.current = { live: true, season: LIVE_SEASON, week: '' };
-        fetchData();
-        // A live CFB week moves; a finished week and the archive do not.
-        const poll = setInterval(() => {
-            if (activeLeague === 'CFB' && !cfbRef.current.live) return;
-            fetchData();
-        }, activeLeague === 'CFB' ? 60000 : 600000);
-        return () => clearInterval(poll);
+        fetchData(false);
+        const poll = setInterval(() => { if (activeLeague !== 'CFB' || cfbRef.current.live) void fetchData(true); }, POLL_MS);
+        return () => { ++requestId.current; clearInterval(poll); };
     }, [activeLeague]);
 
     const selectCfbWeek = async (label: string) => {
+        const id = ++requestId.current;
         const season = cfbRef.current.season;
         cfbRef.current = { live: false, season, week: label };
         setCfbWeek(label);
@@ -916,17 +852,22 @@ export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
         setLoading(true);
         try {
             const board = await parseCfbBoard(season, label);
+            if (id !== requestId.current) return;
+            setLoadState(board.games.length ? 'ready' : 'empty');
+            setDataAsOf(new Date().toISOString());
             setGames(board.games);
             setCfbWeeks(board.weeks);
         } catch (e) {
+            if (id !== requestId.current) return;
+            setErrorMsg('Could not load CFB week.');
             console.error('CFB week switch failed', e);
         } finally {
-            setLoading(false);
-            setLastUpdate(new Date());
+            if (id === requestId.current) { setLoading(false); setLastUpdate(new Date()); }
         }
     };
 
     const selectCfbSeason = async (season: number) => {
+        const id = ++requestId.current;
         const live = season === LIVE_SEASON;
         cfbRef.current = { live, season, week: '' };
         setCfbSeason(season);
@@ -935,16 +876,19 @@ export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
         setLoading(true);
         try {
             const board = live ? await parseCfbLive() : await parseCfbBoard(season);
+            if (id !== requestId.current) return;
+            setLoadState(board.games.length ? 'ready' : 'empty');
+            setDataAsOf(new Date().toISOString());
             setGames(board.games);
             setCfbWeeks(board.weeks);
             setCfbWeek(board.week);
             setCfbLive(board.live);
         } catch (e) {
+            if (id !== requestId.current) return;
+            setErrorMsg('Could not load CFB season.');
             console.error('CFB season switch failed', e);
-            setGames([]);
         } finally {
-            setLoading(false);
-            setLastUpdate(new Date());
+            if (id === requestId.current) { setLoading(false); setLastUpdate(new Date()); }
         }
     };
 
@@ -953,17 +897,18 @@ export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
         const updatedGames = [...games];
         for (let i = 0; i < updatedGames.length; i++) {
             const game = updatedGames[i];
+            if (game.id.startsWith('cfb-') || (USE_MOCKS && game.id.startsWith('syn-'))) continue;
             setGames(prev => prev.map((g, idx) => idx === i ? { ...g, aiStatus: 'VERIFYING' } : g));
             try {
                 const text = await askClaude({ task: 'verify_odds', league: game.league, awayTeam: game.awayTeam, homeTeam: game.homeTeam });
                 if (text) {
                     const spreadMatch = text.match(/SPREAD:\s*([^|]+)/i);
                     const totalMatch = text.match(/TOTAL:\s*(.+)/i);
-                    updatedGames[i] = { 
-                        ...game, 
-                        aiVerifiedLine: spreadMatch ? spreadMatch[1].trim() : 'N/A', 
-                        aiVerifiedTotal: totalMatch ? totalMatch[1].trim() : 'N/A', 
-                        aiStatus: 'VERIFIED' 
+                    updatedGames[i] = {
+                        ...game,
+                        aiVerifiedLine: spreadMatch ? spreadMatch[1].trim() : 'N/A',
+                        aiVerifiedTotal: totalMatch ? totalMatch[1].trim() : 'N/A',
+                        aiStatus: 'VERIFIED'
                     };
                 }
             } catch (err) {
@@ -975,15 +920,15 @@ export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
     };
 
     const filteredGames = useMemo(() => {
-        return games.filter(game => 
-            game.homeTeam.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        return games.filter(game =>
+            game.homeTeam.toLowerCase().includes(searchTerm.toLowerCase()) ||
             game.awayTeam.toLowerCase().includes(searchTerm.toLowerCase())
         );
     }, [games, searchTerm]);
 
     return (
         <div className="max-w-[1800px] mx-auto px-6 py-10 animate-in fade-in duration-1000">
-            
+
             {/* Header Strategy View */}
             <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end mb-16 gap-10 border-b border-white/5 pb-10">
                 <div className="max-w-3xl">
@@ -993,41 +938,41 @@ export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
                         </div>
                         <div className="flex items-center gap-2">
                              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)]"></div>
-                             <span className="text-[10px] text-slate-500 font-mono uppercase tracking-[0.2em]">Alpha Nodes: LINKED</span>
+                             <span className="text-[10px] text-slate-500 font-mono uppercase tracking-[0.2em]" data-testid="data-as-of">{USE_MOCKS && activeLeague !== 'CFB' ? 'MOCK DATA (DEV)' : dataAsOf ? `Odds data as of ${fmtAsOf(dataAsOf)}` : eventsAsOf ? `No odds yet · events as of ${fmtAsOf(eventsAsOf)}` : 'No data loaded'}</span>
                         </div>
                     </div>
                     <h1 className="text-7xl font-black text-white uppercase tracking-tighter leading-none mb-8">
                         {activeLeague} <span className={clsx(`text-${config.accent}-500`)}>{config.label.split(' ')[0]}</span> <span className="text-slate-700">{config.label.split(' ')[1]}</span>
                     </h1>
                 </div>
-                
+
                 <div className="flex flex-wrap items-center gap-4 bg-[#0a0e17] p-2.5 rounded-[40px] border border-white/5 shadow-2xl">
                     <div className="relative group w-80">
                         <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-white transition-colors" size={20} />
-                        <input 
-                            type="text" 
-                            placeholder={`Filter ${activeLeague} pairs...`} 
+                        <input
+                            type="text"
+                            placeholder={`Filter ${activeLeague} pairs...`}
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="w-full bg-black/60 border border-white/5 rounded-[30px] pl-16 pr-8 py-5 text-sm text-white focus:outline-none focus:border-white/20 transition-all placeholder:text-slate-700"
                         />
                     </div>
-                    <button 
-                        onClick={runNeuralSync} 
-                        disabled={isVerifying || loading || isArchive} 
+                    <button
+                        onClick={runNeuralSync}
+                        disabled={isVerifying || loading || isArchive}
                         title={isArchive ? 'ESPN carries no CFB closing lines, so there is nothing to verify against' : 'Verify the listed lines against the model'}
                         className="flex items-center gap-3 px-12 py-5 bg-indigo-600 hover:bg-indigo-500 border border-indigo-400/30 rounded-[30px] text-white text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-xl disabled:opacity-30 group"
                     >
-                        <Sparkles size={20} className={clsx("group-hover:rotate-12 transition-transform", isVerifying && "animate-spin")} /> 
+                        <Sparkles size={20} className={clsx("group-hover:rotate-12 transition-transform", isVerifying && "animate-spin")} />
                         {isVerifying ? "VERIFYING..." : "NEURAL SYNC"}
                     </button>
                     <div className="flex bg-black p-1.5 rounded-[30px] border border-white/5">
                         {(['SPREAD', 'TOTAL', 'ML'] as const).map(v => (
-                            <button 
-                                key={v} 
-                                onClick={() => setView(v)} 
+                            <button
+                                key={v}
+                                onClick={() => setView(v)}
                                 className={clsx(
-                                    "px-10 py-3 rounded-[24px] text-[10px] font-black uppercase tracking-widest transition-all", 
+                                    "px-10 py-3 rounded-[24px] text-[10px] font-black uppercase tracking-widest transition-all",
                                     view === v ? "bg-white text-black shadow-lg" : "text-slate-600 hover:text-white"
                                 )}
                             >
@@ -1090,8 +1035,10 @@ export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
                 market for the current week gets its own card above the game rows. */}
             {activeLeague === 'CFB' && cfbLive && <NovigBoard />}
 
+            {errorMsg && games.length > 0 && <p className="mb-4 text-sm text-amber-400">Refresh failed: {errorMsg} Showing last available data.</p>}
             {/* Main Odds Table */}
-            {activeLeague === 'NFL' ? <NflLiveBoard onHealth={setUpstreamState} /> : (
+            {activeLeague === 'NFL' && <NflLiveBoard onHealth={setUpstreamState} />}
+            {(
             <div className="bg-[#05070a] rounded-[56px] overflow-hidden border border-white/5 relative shadow-[0_40px_120px_rgba(0,0,0,0.6)]">
                 <div className="grid grid-cols-12 bg-[#0a0e17] border-b border-white/5 sticky top-0 z-20">
                     <div className="col-span-3 p-10 text-[12px] font-black text-slate-500 uppercase tracking-[0.5em]">Protocol Node // Matchup</div>
@@ -1125,18 +1072,18 @@ export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
                     {filteredGames.length > 0 ? (
                         filteredGames.map(game => (
                             <div key={game.id} className="grid grid-cols-12 hover:bg-white/[0.02] transition-colors relative group/row items-stretch">
-                                <div 
+                                <div
                                     className="col-span-3 p-10 flex flex-col justify-center cursor-pointer active:scale-[0.99] transition-transform"
                                     onClick={() => setDetailGame(game)}
                                 >
                                     <div className="flex items-center justify-between mb-8">
                                         <span className="text-[11px] text-slate-500 font-mono flex items-center gap-4 bg-white/5 px-5 py-2 rounded-2xl border border-white/5">
-                                            <Calendar size={16} className={clsx(`text-${config.accent}-400`)} /> 
+                                            <Calendar size={16} className={clsx(`text-${config.accent}-400`)} />
                                             {game.historical
                                                 ? game.date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })
                                                 : game.date.toLocaleTimeString([], {weekday: 'short', hour: 'numeric', minute:'2-digit'})}
                                         </span>
-                                        <button 
+                                        <button
                                             onClick={(e) => { e.stopPropagation(); setDetailGame(game); }}
                                             className={clsx(
                                                 "p-3 rounded-[20px] transition-all flex items-center gap-3 text-[10px] font-black uppercase tracking-widest border group/btn",
@@ -1168,7 +1115,7 @@ export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
                                             {game.live ? 'LIVE' : 'FINAL'}
                                         </div>
                                     ) : (
-                                        <div className="opacity-50">{view === 'SPREAD' ? game.openSpread : game.openTotal}</div>
+                                        <div className="opacity-50">{game.readerRow ? cellPair(game.readerRow.open, view).map((v, i) => <div key={i}>{v || 'OFF'}</div>) : (view === 'SPREAD' ? game.openSpread : game.openTotal)}</div>
                                     )}
                                 </div>
 
@@ -1208,10 +1155,10 @@ export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
                                     ) : (
                                         <>
                                             <div className="h-1/2 flex items-center justify-center text-xl text-white font-black font-mono">
-                                                {view === 'ML' ? game.consensusMlAway : (view === 'SPREAD' ? game.consensusSpread : game.consensusTotal)}
+                                                {game.readerRow ? cellPair(game.readerRow.market, view)[0] || 'OFF' : (view === 'ML' ? game.consensusMlAway : (view === 'SPREAD' ? game.consensusSpread : game.consensusTotal))}
                                             </div>
                                             <div className="h-1/2 flex items-center justify-center text-xl text-white font-black font-mono border-t border-white/5">
-                                                {view === 'ML' ? game.consensusMlHome : (view === 'SPREAD' ? (game.consensusSpread?.includes('+') ? game.consensusSpread.replace('+', '-') : game.consensusSpread?.replace('-', '+')) : game.consensusTotal)}
+                                                {game.readerRow ? cellPair(game.readerRow.market, view)[1] || 'OFF' : (view === 'ML' ? game.consensusMlHome : (view === 'SPREAD' ? (game.consensusSpread?.includes('+') ? game.consensusSpread.replace('+', '-') : game.consensusSpread?.replace('-', '+')) : game.consensusTotal))}
                                             </div>
                                         </>
                                     )}
@@ -1249,9 +1196,9 @@ export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
                                             {game.bookOdds[book.id] ? (
                                                 <div className="text-center group-hover/cell:scale-110 transition-transform duration-500">
                                                     <div className={clsx("text-xl font-black font-mono", book.color)}>
-                                                        {view === 'SPREAD' ? game.bookOdds[book.id].spread : view === 'TOTAL' ? game.bookOdds[book.id].total : game.bookOdds[book.id].mlAway}
+                                                        {game.readerRow ? cellPair(game.readerRow.bookOdds[book.id], view)[0] || 'OFF' : (view === 'SPREAD' ? game.bookOdds[book.id].spread : view === 'TOTAL' ? game.bookOdds[book.id].total : game.bookOdds[book.id].mlAway)}
                                                     </div>
-                                                    <div className="text-[11px] text-slate-600 font-black mt-1 opacity-60">-110</div>
+                                                    <div className="text-[11px] text-slate-600 font-black mt-1 opacity-60">{game.readerRow ? cellPair(game.readerRow.bookOdds[book.id], view)[1] || 'OFF' : 'NL'}</div>
                                                 </div>
                                             ) : (
                                                 <span className="text-[11px] text-slate-800 font-black uppercase tracking-widest opacity-20">OFFLINE</span>
@@ -1267,9 +1214,31 @@ export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
                              <div className="w-32 h-32 rounded-full bg-white/5 flex items-center justify-center border border-white/5 shadow-inner">
                                  <Search size={48} className="text-slate-800 animate-pulse" />
                              </div>
-                             <div>
-                                <p className="font-black uppercase tracking-[0.6em] text-sm text-slate-700">Awaiting Market Liquidity</p>
-                                <p className="text-[11px] text-slate-800 font-mono mt-3 uppercase tracking-widest">Connecting to Global Exchange Nodes...</p>
+                             <div data-testid={`board-${loadState}`}>
+                                {loadState === 'loading' ? (
+                                    <>
+                                        <p className="font-black uppercase tracking-[0.6em] text-sm text-slate-700">Loading Odds</p>
+                                        <p className="text-[11px] text-slate-800 font-mono mt-3 uppercase tracking-widest">Reading the ESPN data store...</p>
+                                    </>
+                                ) : loadState === 'error' ? (
+                                    <>
+                                        <p className="font-black uppercase tracking-[0.6em] text-sm text-rose-500 flex items-center justify-center gap-3"><AlertTriangle size={18} /> Odds Unavailable</p>
+                                        <p className="text-[11px] text-slate-500 font-mono mt-3 tracking-widest">{errorMsg}</p>
+                                        <button onClick={() => fetchData()} className="mt-6 px-8 py-3 rounded-[20px] border border-white/10 text-[10px] font-black uppercase tracking-widest text-slate-300 hover:bg-white/5">Retry</button>
+                                    </>
+                                ) : loadState === 'unsupported' ? (
+                                    <>
+                                        <p className="font-black uppercase tracking-[0.6em] text-sm text-slate-700">{activeLeague} Not Ingested Yet</p>
+                                        <p className="text-[11px] text-slate-800 font-mono mt-3 uppercase tracking-widest">Live odds are available for NFL, NBA, NHL and MLB.</p>
+                                    </>
+                                ) : games.length > 0 ? (
+                                    <p className="font-black uppercase tracking-[0.6em] text-sm text-slate-700">No Matches For "{searchTerm}"</p>
+                                ) : (
+                                    <>
+                                        <p className="font-black uppercase tracking-[0.6em] text-sm text-slate-700">No {activeLeague} Events</p>
+                                        <p className="text-[11px] text-slate-800 font-mono mt-3 uppercase tracking-widest">Nothing scheduled in the data store for the next {activeLeague === 'NFL' ? '7 days' : '2 days'}.</p>
+                                    </>
+                                )}
                              </div>
                         </div>
                     )}
@@ -1295,7 +1264,7 @@ export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
             ) : (
                 detailGame && (
                     <LiveIntelDrawer
-                        game={detailGame.league === 'CFB' ? { ...detailGame, id: detailGame.id.replace(/^cfb-/, '') } : detailGame}
+                        game={games.find(g => g.id === detailGame.id) ?? detailGame}
                         onClose={() => setDetailGame(null)}
                     />
                 )
@@ -1306,21 +1275,21 @@ export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
                 <div className="flex items-center gap-10">
                     <div className="flex items-center gap-3 group cursor-help">
                         <BarChart3 size={18} className="text-indigo-500 group-hover:rotate-12 transition-transform" />
-                        <span>{footerProviderLabel(activeLeague) ?? 'Infrastructure: SportsData.io L3 Core'}</span>
+                        <span>{activeLeague === 'CFB' ? (footerProviderLabel(activeLeague) ?? 'ESPN CFB · Novig') : 'Source: ESPN feed → Supabase'}</span>
                     </div>
                     <div className="flex items-center gap-3 group cursor-help">
                         <ShieldCheck size={18} className="text-emerald-500 group-hover:scale-110 transition-transform" />
-                        <span>{footerProviderLabel(activeLeague) ? 'NFL model: unavailable' : 'Validation: Claude Opus 5.5'}</span>
+                        <span>Validation: Claude</span>
                     </div>
                 </div>
                 <div className="flex items-center gap-8 bg-[#0a0e17] px-10 py-4 rounded-[20px] border border-white/5 shadow-2xl">
-                    <span className={clsx("flex items-center gap-3 font-black", upstreamState === 'ONLINE' ? "text-emerald-500" : "text-amber-400")}>
-                        <div className={clsx("w-2 h-2 rounded-full", upstreamState === 'ONLINE' ? "bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" : "bg-amber-400")}></div>
-                        UPSTREAM {upstreamState}
+                    <span className={clsx("flex items-center gap-3 font-black", loadState === 'ready' ? "text-emerald-500" : "text-amber-400")}>
+                        <div className={clsx("w-2 h-2 rounded-full", loadState === 'ready' ? "bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" : "bg-amber-400")}></div>
+                        {loadState === 'error' ? 'UPSTREAM ERROR' : USE_MOCKS ? 'MOCK DATA' : loadState === 'ready' ? 'UPSTREAM ONLINE' : loadState.toUpperCase()}
                     </span>
                     <span className="flex items-center gap-3 opacity-60">
-                        <Clock size={16} /> 
-                        Last Sync: {lastUpdate.toLocaleTimeString()}
+                        <Clock size={16} />
+                        Data as of: {fmtAsOf(dataAsOf ?? eventsAsOf)}
                     </span>
                 </div>
             </div>
