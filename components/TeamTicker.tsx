@@ -27,31 +27,31 @@ const TEAMS: Record<League, string[]> = {
     'NYJ', 'PHI', 'PIT', 'SEA', 'SF', 'TB', 'TEN', 'WSH'
   ],
   NBA: [
-    'ATL', 'BOS', 'BKN', 'CHA', 'CHI', 'CLE', 'DAL', 'DEN', 
-    'DET', 'GS', 'HOU', 'IND', 'LAC', 'LAL', 'MEM', 'MIA', 
-    'MIL', 'MIN', 'NO', 'NYK', 'OKC', 'ORL', 'PHI', 'PHX', 
+    'ATL', 'BOS', 'BKN', 'CHA', 'CHI', 'CLE', 'DAL', 'DEN',
+    'DET', 'GS', 'HOU', 'IND', 'LAC', 'LAL', 'MEM', 'MIA',
+    'MIL', 'MIN', 'NO', 'NYK', 'OKC', 'ORL', 'PHI', 'PHX',
     'POR', 'SAC', 'SAS', 'TOR', 'UTA', 'WAS'
   ],
   NHL: [
-    'ANA', 'BOS', 'BUF', 'CGY', 'CAR', 'CHI', 'COL', 'CBJ', 
-    'DAL', 'DET', 'EDM', 'FLA', 'LA', 'MIN', 'MTL', 'NSH', 
-    'NJ', 'NYI', 'NYR', 'OTT', 'PHI', 'PIT', 'SJ', 'SEA', 
+    'ANA', 'BOS', 'BUF', 'CGY', 'CAR', 'CHI', 'COL', 'CBJ',
+    'DAL', 'DET', 'EDM', 'FLA', 'LA', 'MIN', 'MTL', 'NSH',
+    'NJ', 'NYI', 'NYR', 'OTT', 'PHI', 'PIT', 'SJ', 'SEA',
     'STL', 'TB', 'TOR', 'VAN', 'VGK', 'WSH', 'WPG', 'UTA'
   ],
   MLB: [
-    'ARI', 'ATL', 'BAL', 'BOS', 'CHC', 'CWS', 'CIN', 'CLE', 
-    'COL', 'DET', 'HOU', 'KC', 'LAA', 'LAD', 'MIA', 'MIL', 
-    'MIN', 'NYM', 'NYY', 'OAK', 'PHI', 'PIT', 'SD', 'SF', 
+    'ARI', 'ATL', 'BAL', 'BOS', 'CHC', 'CWS', 'CIN', 'CLE',
+    'COL', 'DET', 'HOU', 'KC', 'LAA', 'LAD', 'MIA', 'MIL',
+    'MIN', 'NYM', 'NYY', 'OAK', 'PHI', 'PIT', 'SD', 'SF',
     'SEA', 'STL', 'TB', 'TEX', 'TOR', 'WSH'
   ],
   MLS: [
-    'ATL', 'CLT', 'CHI', 'COL', 'CLB', 'DC', 'HOU', 'LAFC', 
-    'LA', 'MIA', 'MIN', 'MTL', 'NSH', 'NE', 'NYC', 'NY', 
-    'ORL', 'PHI', 'POR', 'RSL', 'SJ', 'SEA', 'SKC', 'STL', 
+    'ATL', 'CLT', 'CHI', 'COL', 'CLB', 'DC', 'HOU', 'LAFC',
+    'LA', 'MIA', 'MIN', 'MTL', 'NSH', 'NE', 'NYC', 'NY',
+    'ORL', 'PHI', 'POR', 'RSL', 'SJ', 'SEA', 'SKC', 'STL',
     'TOR', 'VAN'
   ],
   SOCCER: [
-    'ARG', 'BRA', 'FRA', 'ENG', 'GER', 'ESP', 'ITA', 'POR', 
+    'ARG', 'BRA', 'FRA', 'ENG', 'GER', 'ESP', 'ITA', 'POR',
     'NED', 'BEL', 'CRO', 'MEX', 'USA', 'JPN', 'MAR', 'SEN'
   ],
   MMA: [
@@ -66,12 +66,25 @@ const TEAMS: Record<League, string[]> = {
   VELOCITY: [
     'BTC', 'ETH', 'SOL', 'AAVE', 'LINK', 'UNI', 'MKR', 'SNX'
   ],
+  CFB: [
+    '194', '130', '251', '201', '30', '333', '57', '2', '99', '87',
+    '213', '275', '2294', '61', '2633', '25', '2483', '96', '97', '8'
+  ],
   CFL: [
     'MTL', 'WPG', 'TOR', 'HAM', 'BC', 'CGY', 'EDM', 'SSK', 'OTT'
   ]
 };
 
+// ESPN publishes FBS logos under numeric team ids; keep a readable label for the hover tag.
+const TEAM_LABELS: Record<string, string> = {
+  '194': 'OSU', '130': 'MICH', '251': 'TEX', '201': 'OU', '30': 'USC', '333': 'LSU',
+  '57': 'FLA', '2': 'AUB', '99': 'ALA', '87': 'ND', '213': 'PSU', '275': 'WIS',
+  '2294': 'IOWA', '61': 'UGA', '2633': 'TENN', '25': 'CAL', '2483': 'ORE', '96': 'WVU',
+  '97': 'LOU', '8': 'ARK'
+};
+
 const leaguePathFor = (activeLeague: League) =>
+  activeLeague === 'CFB' ? 'ncaa' :
   activeLeague === 'SOCCER' ? 'soccer' :
   activeLeague === 'MMA' ? 'mma' :
   activeLeague === 'HORSE' ? 'horse' :
@@ -128,7 +141,7 @@ export const TeamTicker: React.FC<TeamTickerProps> = ({ activeLeague }) => {
       {/* Gradient Masks to fade edges */}
       <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-[#0a0a0a] to-transparent z-10"></div>
       <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-[#0a0a0a] to-transparent z-10"></div>
-      
+
       {/* Ticker Container */}
       <div className="flex w-[200%] animate-scroll hover:[animation-play-state:paused]">
         {/* First Set */}
@@ -136,9 +149,9 @@ export const TeamTicker: React.FC<TeamTickerProps> = ({ activeLeague }) => {
           {currentTeams.map((t) => (
             <div key={t.abbr} className="group relative flex flex-col items-center justify-center cursor-pointer opacity-50 hover:opacity-100 transition-opacity duration-300">
                <div className="w-12 h-12 relative flex items-center justify-center filter drop-shadow-[0_0_5px_rgba(255,255,255,0.1)] group-hover:drop-shadow-[0_0_15px_rgba(0,255,255,0.6)] transition-all">
-                  <img 
-                    src={logoFor(t)} 
-                    alt={t.abbr} 
+                  <img
+                    src={logoFor(t)}
+                    alt={TEAM_LABELS[t.abbr] || t.abbr}
                     className="w-full h-full object-contain grayscale group-hover:grayscale-0 transition-all duration-300"
                     loading="lazy"
                     onError={(e) => {
@@ -147,7 +160,7 @@ export const TeamTicker: React.FC<TeamTickerProps> = ({ activeLeague }) => {
                     }}
                   />
                </div>
-               <span className="text-[9px] font-mono text-slate-500 mt-1 opacity-0 group-hover:opacity-100 transition-opacity absolute -bottom-4 tracking-widest">{t.abbr}</span>
+               <span className="text-[9px] font-mono text-slate-500 mt-1 opacity-0 group-hover:opacity-100 transition-opacity absolute -bottom-4 tracking-widest">{TEAM_LABELS[t.abbr] || t.abbr}</span>
             </div>
           ))}
         </div>
@@ -157,14 +170,14 @@ export const TeamTicker: React.FC<TeamTickerProps> = ({ activeLeague }) => {
           {currentTeams.map((t) => (
             <div key={`${t.abbr}-dup`} className="group relative flex flex-col items-center justify-center cursor-pointer opacity-50 hover:opacity-100 transition-opacity duration-300">
                <div className="w-12 h-12 relative flex items-center justify-center filter drop-shadow-[0_0_5px_rgba(255,255,255,0.1)] group-hover:drop-shadow-[0_0_15px_rgba(0,255,255,0.6)] transition-all">
-                  <img 
-                    src={logoFor(t)} 
-                    alt={t.abbr} 
+                  <img
+                    src={logoFor(t)}
+                    alt={TEAM_LABELS[t.abbr] || t.abbr}
                     className="w-full h-full object-contain grayscale group-hover:grayscale-0 transition-all duration-300"
                     loading="lazy"
                   />
                </div>
-               <span className="text-[9px] font-mono text-slate-500 mt-1 opacity-0 group-hover:opacity-100 transition-opacity absolute -bottom-4 tracking-widest">{t.abbr}</span>
+               <span className="text-[9px] font-mono text-slate-500 mt-1 opacity-0 group-hover:opacity-100 transition-opacity absolute -bottom-4 tracking-widest">{TEAM_LABELS[t.abbr] || t.abbr}</span>
             </div>
           ))}
         </div>

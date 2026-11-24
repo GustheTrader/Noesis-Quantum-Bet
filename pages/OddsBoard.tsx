@@ -1,20 +1,26 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  RefreshCw, Clock, Activity, Calendar, ShieldCheck, AlertTriangle, 
-  Wifi, WifiOff, Sparkles, Search, CheckCircle, Zap, CheckCircle2, 
-  AlertCircle, TrendingUp, Trophy, ExternalLink, Eye, X, 
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import {
+  RefreshCw, Clock, Activity, Calendar, ShieldCheck, AlertTriangle,
+  Wifi, WifiOff, Sparkles, Search, CheckCircle, Zap, CheckCircle2,
+  AlertCircle, TrendingUp, Trophy, ExternalLink, Eye, X,
   ChevronRight, Play, Info, BarChart3, Radio, Target, History,
   Maximize2, ArrowUpRight, Flame, Fingerprint, Cpu, Satellite
 } from 'lucide-react';
 import { clsx } from 'clsx';
-import { GoogleGenAI } from "@google/genai";
-import { League } from '../types';
+import { askClaude } from "../lib/claude";
 import { getEvents, getLatestOddsByEvent, readerConfigFromEnv, todayIn, formatSpread, EspnReadError } from '../lib/espn/reader';
 import { toBoardMatchups, toLeagueKey, latestCapturedAt, latestEventUpdate, type BoardBook, type BoardMatchup } from '../lib/espn/boardModel';
 
+import { League } from '../types';
+import { NflLiveBoard } from '../components/NflLiveBoard';
+import { footerProviderLabel } from '../lib/nfl';
+import { getSeasonGames, getLiveWeek, availableWeeks, settleSpread, settleTotal, LIVE_SEASON, ARCHIVE_SEASON, type CfbGame, type CfbWeek } from '../lib/cfb';
+import { CfbArchiveDrawer } from '../components/CfbArchiveDrawer';
+import { NovigBoard } from '../components/NovigBoard';
+import { getNovigLeague, matchNovigEvent, fairPrice, probToAmerican, probToPercent, teamKey, type NovigBook, type NovigEvent, type NovigPrice } from '../lib/novig';
+
 // --- CONFIGURATION ---
-// Mock/synthetic data is only used when explicitly enabled (VITE_USE_MOCKS=true), never as a silent fallback.
 const USE_MOCKS = ((import.meta as unknown as { env?: Record<string, unknown> }).env?.VITE_USE_MOCKS) === 'true';
 const POLL_MS = 60_000;
 
@@ -25,16 +31,172 @@ interface BookData {
     mlAway: string;
 }
 
-interface Matchup extends BoardMatchup {
+interface Matchup {
+    readerRow?: BoardMatchup;
+    id: string;
     league: League;
+    date: Date;
+    homeTeam: string;
+    homeAbr: string;
+    homeLogo?: string;
+    awayTeam: string;
+    awayAbr: string;
+    awayLogo?: string;
+    status: string;
+    openSpread?: string;
+    openTotal?: string;
+    consensusSpread?: string;
+    consensusTotal?: string;
+    consensusMlHome?: string;
+    consensusMlAway?: string;
+    bookOdds: Record<string, BookData>;
     aiVerifiedLine?: string;
     aiVerifiedTotal?: string;
     aiStatus?: 'IDLE' | 'VERIFYING' | 'VERIFIED' | 'ERROR';
+    historical?: boolean;
+    live?: boolean;
+    finalScore?: { away: string; home: string };
 }
+
+type ParsedBoard =
+    | { kind: 'live'; games: Matchup[] }
+    | { kind: 'archive'; games: Matchup[] };
+
+// ESPN carries no prices, so a CFB row shows the game state and says NL rather than
+// inventing a spread the grader would then score as real. Live weeks get their prices
+// from the Novig exchange book instead (see novigRow).
+const cfbRow = (g: CfbGame): Matchup => {
+    const awayScore = String(g.away.score ?? '0');
+    const homeScore = String(g.home.score ?? '0');
+    const live = !g.completed;
+    return {
+        id: `cfb-${g.id}`,
+        league: 'CFB',
+        date: new Date(g.kickoff || g.date),
+        homeTeam: g.home.name,
+        homeAbr: g.home.abr,
+        homeLogo: g.home.logo,
+        awayTeam: g.away.name,
+        awayAbr: g.away.abr,
+        awayLogo: g.away.logo,
+        status: `${g.status}${g.neutralSite ? ' · Neutral' : ''}`,
+        openSpread: 'NL',
+        openTotal: 'NL',
+        consensusSpread: 'NL',
+        consensusTotal: 'NL',
+        consensusMlHome: g.completed ? (g.home.winner ? 'W' : 'L') : '—',
+        consensusMlAway: g.completed ? (g.away.winner ? 'W' : 'L') : '—',
+        bookOdds: {
+            historical: {
+                spread: 'NO LINE',
+                total: 'NO LINE',
+                mlHome: g.completed ? (g.home.winner ? 'W' : 'L') : '—',
+                mlAway: g.completed ? (g.away.winner ? 'W' : 'L') : '—',
+            },
+        },
+        aiStatus: 'IDLE' as const,
+        historical: g.completed,
+        live,
+        finalScore: { away: awayScore, home: homeScore },
+    };
+};
+
+/**
+ * A CFB row priced by the Novig exchange. Novig quotes probabilities (0-1), not point
+ * spreads, so the "spread" cell carries the market's fair line in American odds and the
+ * total carries the implied probability. An unpriced market says NL — never a guess.
+ */
+const novigRow = (g: CfbGame, ev: NovigEvent | undefined): Matchup => {
+    const row = cfbRow(g);
+    if (!ev) return row;
+
+    const spreadMkt = ev.markets.find(m => m.marketType === 'SPREAD');
+    const moneyMkt = ev.markets.find(m => m.marketType === 'MONEY');
+    const totalMkt = ev.markets.find(m => m.marketType === 'TOTAL');
+    const sideFor = (market: NovigPrice | undefined) =>
+        market?.outcomes.find(o => teamKey(o.name.split(/\s/)[0]) === teamKey(g.home.name));
+    const homeSpread = sideFor(spreadMkt);
+    const homeMoney = sideFor(moneyMkt === undefined ? spreadMkt : moneyMkt) ?? sideFor(spreadMkt);
+    const fair = spreadMkt ? fairPrice(spreadMkt) : undefined;
+    const totalFair = totalMkt ? fairPrice(totalMkt) : undefined;
+    const bookId = 'novig';
+
+    return {
+        ...row,
+        openSpread: homeSpread ? probToAmerican(homeSpread.price) : 'NL',
+        openTotal: totalFair != null ? probToPercent(totalFair) : 'NL',
+        consensusSpread: fair != null && spreadMkt
+            ? `${spreadMkt.outcomes[0].price >= spreadMkt.outcomes[1].price ? g.home.abr : g.away.abr} ${probToAmerican(fair)}`
+            : 'NL',
+        consensusTotal: totalMkt?.strike != null ? `${totalMkt.strike}` : 'NL',
+        consensusMlHome: probToAmerican(homeMoney?.price),
+        consensusMlAway: probToAmerican(sideFor(moneyMkt) ? sideFor(moneyMkt)!.price : spreadMkt?.outcomes.find(o => teamKey(o.name.split(/\s/)[0]) !== teamKey(g.home.name))?.price),
+        bookOdds: {
+            ...row.bookOdds,
+            [bookId]: {
+                spread: homeSpread ? probToAmerican(homeSpread.price) : 'NL',
+                total: totalFair != null ? probToPercent(totalFair) : 'NL',
+                mlHome: probToAmerican(homeMoney?.price),
+                mlAway: probToAmerican(sideFor(moneyMkt)?.price),
+            },
+        },
+    };
+};
+
+export interface CfbBoard {
+    games: Matchup[];
+    weeks: CfbWeek[];
+    week: string;
+    season: number;
+    live: boolean;
+}
+
+// One week of a season. `live` means the week is the one currently being played, so the
+// board polls; a finished week (or the 2006 archive) is static.
+const parseCfbBoard = async (season: number, weekLabelSel?: string): Promise<CfbBoard> => {
+    const all = await getSeasonGames(season);
+    const weeks = availableWeeks(all);
+    if (!weeks.length) return { games: [], weeks: [], week: '', season, live: false };
+    const chosen = weeks.find(w => w.label === weekLabelSel) || weeks[weeks.length - 1];
+    const inWeek = all.filter(g => g.week === chosen.label);
+    return {
+        games: inWeek.map(cfbRow).sort((a, b) => a.date.getTime() - b.date.getTime()),
+        weeks,
+        week: chosen.label,
+        season,
+        live: false,
+    };
+};
+
+// The slate on the board right now: ESPN's undated scoreboard is the current week of the
+// current season, including games that have not kicked off.
+const parseCfbLive = async (): Promise<CfbBoard> => {
+    const live = await getLiveWeek();
+    const season = live.season;
+    // ESPN only serves the current week for a season still being played, so there is no
+    // season-wide pull to build week chips from. The live board is the current week.
+    const weeks: CfbWeek[] = [];
+    // The exchange book is the price source. If it is unreachable the board still shows
+    // ESPN's game state with NL prices, which is the honest fallback.
+    let book: NovigBook | undefined;
+    try {
+        book = await getNovigLeague('NCAAF');
+    } catch {
+        book = undefined;
+    }
+    const priced = live.games.map(g => novigRow(g, book ? matchNovigEvent(g, book) : undefined));
+    return {
+        games: priced.sort((a, b) => a.date.getTime() - b.date.getTime()),
+        weeks,
+        week: live.weekLabel,
+        season,
+        live: true,
+    };
+};
 
 const BOOKS = [
     { id: 'pinnacle', name: 'Pinnacle', color: 'text-orange-500', bg: 'bg-orange-500/10', url: 'https://www.pinnacle.com/' },
-    { id: 'circa', name: 'Circa', color: 'text-indigo-400', bg: 'bg-indigo-500/10', url: 'https://www.circasports.com/' }, 
+    { id: 'circa', name: 'Circa', color: 'text-indigo-400', bg: 'bg-indigo-500/10', url: 'https://www.circasports.com/' },
     { id: 'dk', name: 'DraftKings', color: 'text-green-500', bg: 'bg-green-500/10', url: 'https://sportsbook.draftkings.com/' },
     { id: 'fd', name: 'FanDuel', color: 'text-blue-500', bg: 'bg-blue-500/10', url: 'https://sportsbook.fanduel.com/' },
     { id: 'czr', name: 'Caesars', color: 'text-amber-300', bg: 'bg-amber-900/40', url: 'https://caesars.com/sportsbook-and-casino' },
@@ -42,6 +204,7 @@ const BOOKS = [
 
 const LEAGUE_CONFIG = {
     NFL: { accent: 'emerald', color: '#10b981', espnPath: 'football/nfl', label: 'Gridiron Alpha' },
+    CFB: { accent: 'violet', color: '#8b5cf6', espnPath: 'football/college-football', label: 'College Gridiron' },
     NBA: { accent: 'orange', color: '#f97316', espnPath: 'basketball/nba', label: 'Hardwood Edge' },
     NHL: { accent: 'cyan', color: '#06b6d4', espnPath: 'hockey/nhl', label: 'Ice Parity' },
     MLB: { accent: 'blue', color: '#3b82f6', espnPath: 'baseball/mlb', label: 'Diamond Edge' },
@@ -54,7 +217,7 @@ const LEAGUE_CONFIG = {
     VELOCITY: { accent: 'fuchsia', color: '#d946ef', espnPath: 'crypto', label: 'Velocity Crypto' }
 };
 
-const FALLBACK_MATCHUPS: Record<League, Array<{ homeTeam: string; homeAbr: string; homeLogo: string; awayTeam: string; awayAbr: string; awayLogo: string }>> = {
+const FALLBACK_MATCHUPS: Partial<Record<League, Array<{ homeTeam: string; homeAbr: string; homeLogo: string; awayTeam: string; awayAbr: string; awayLogo: string }>>> = {
     NFL: [
         { homeTeam: 'Kansas City Chiefs', homeAbr: 'KC', homeLogo: 'https://a.espncdn.com/i/teamlogos/nfl/500/kc.png', awayTeam: 'San Francisco 49ers', awayAbr: 'SF', awayLogo: 'https://a.espncdn.com/i/teamlogos/nfl/500/sf.png' },
         { homeTeam: 'Buffalo Bills', homeAbr: 'BUF', homeLogo: 'https://a.espncdn.com/i/teamlogos/nfl/500/buf.png', awayTeam: 'New York Jets', awayAbr: 'NYJ', awayLogo: 'https://a.espncdn.com/i/teamlogos/nfl/500/nyj.png' },
@@ -110,6 +273,13 @@ const FALLBACK_MATCHUPS: Record<League, Array<{ homeTeam: string; homeAbr: strin
         { homeTeam: 'Bitcoin Bull Run', homeAbr: 'BTC', homeLogo: 'https://assets.coingecko.com/coins/images/1/large/bitcoin.png', awayTeam: 'Ethereum Gas War', awayAbr: 'ETH', awayLogo: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png' },
         { homeTeam: 'Solana Breakdown', homeAbr: 'SOL', homeLogo: 'https://assets.coingecko.com/coins/images/4128/large/solana.png', awayTeam: 'Cardano Ghost', awayAbr: 'ADA', awayLogo: 'https://assets.coingecko.com/coins/images/975/large/cardano.png' }
     ],
+    CFB: [
+        { homeTeam: 'Ohio State Buckeyes', homeAbr: 'OSU', homeLogo: 'https://a.espncdn.com/i/teamlogos/ncaa/500/194.png', awayTeam: 'Michigan Wolverines', awayAbr: 'MICH', awayLogo: 'https://a.espncdn.com/i/teamlogos/ncaa/500/130.png' },
+        { homeTeam: 'Texas Longhorns', homeAbr: 'TEX', homeLogo: 'https://a.espncdn.com/i/teamlogos/ncaa/500/251.png', awayTeam: 'Oklahoma Sooners', awayAbr: 'OU', awayLogo: 'https://a.espncdn.com/i/teamlogos/ncaa/500/201.png' },
+        { homeTeam: 'USC Trojans', homeAbr: 'USC', homeLogo: 'https://a.espncdn.com/i/teamlogos/ncaa/500/30.png', awayTeam: 'Notre Dame Fighting Irish', awayAbr: 'ND', awayLogo: 'https://a.espncdn.com/i/teamlogos/ncaa/500/87.png' },
+        { homeTeam: 'Florida Gators', homeAbr: 'FLA', homeLogo: 'https://a.espncdn.com/i/teamlogos/ncaa/500/57.png', awayTeam: 'LSU Tigers', awayAbr: 'LSU', awayLogo: 'https://a.espncdn.com/i/teamlogos/ncaa/500/333.png' },
+        { homeTeam: 'Auburn Tigers', homeAbr: 'AUB', homeLogo: 'https://a.espncdn.com/i/teamlogos/ncaa/500/2.png', awayTeam: 'Alabama Crimson Tide', awayAbr: 'ALA', awayLogo: 'https://a.espncdn.com/i/teamlogos/ncaa/500/99.png' }
+    ],
     CFL: [
         { homeTeam: 'Montreal Alouettes', homeAbr: 'MTL', homeLogo: 'https://a.espncdn.com/i/teamlogos/cfl/500/mtl.png', awayTeam: 'Winnipeg Blue Bombers', awayAbr: 'WPG', awayLogo: 'https://a.espncdn.com/i/teamlogos/cfl/500/wpg.png' },
         { homeTeam: 'Hamilton Tiger-Cats', homeAbr: 'HAM', homeLogo: 'https://a.espncdn.com/i/teamlogos/cfl/500/ham.png', awayTeam: 'Toronto Argonauts', awayAbr: 'TOR', awayLogo: 'https://a.espncdn.com/i/teamlogos/cfl/500/tor.png' },
@@ -124,12 +294,12 @@ const getDeterministicLines = (seedId: string, league: string, homeName: string,
     for (let i = 0; i < seedId.length; i++) {
         seed += seedId.charCodeAt(i);
     }
-    
+
     let baseSpread = 0;
     let baseTotal = 45;
     let overUnderStr = "45.0";
     let spreadStr = "-3.0";
-    
+
     if (espnOdd && espnOdd.details) {
         const detailsStr = espnOdd.details.toString();
         if (detailsStr.toLowerCase() === 'even' || detailsStr.toLowerCase() === 'pk') {
@@ -148,7 +318,7 @@ const getDeterministicLines = (seedId: string, league: string, homeName: string,
         if (seed % 2 === 0) baseSpread = -baseSpread;
         spreadStr = baseSpread > 0 ? `+${baseSpread}` : `${baseSpread}`;
     }
-    
+
     if (espnOdd && espnOdd.overUnder) {
         baseTotal = espnOdd.overUnder;
         overUnderStr = baseTotal.toFixed(1);
@@ -157,6 +327,8 @@ const getDeterministicLines = (seedId: string, league: string, homeName: string,
             baseTotal = 40.5 + (seed % 14);
         } else if (league === 'CFL') {
             baseTotal = 46.5 + (seed % 10);
+        } else if (league === 'CFB') {
+            baseTotal = 44.5 + (seed % 17);
         } else if (league === 'NBA') {
             baseTotal = 210.5 + (seed % 25);
         } else if (league === 'NHL') {
@@ -172,19 +344,19 @@ const getDeterministicLines = (seedId: string, league: string, homeName: string,
         }
         overUnderStr = baseTotal.toFixed(1);
     }
-    
+
     let homeMl = -110;
     let awayMl = -110;
     if (baseSpread !== 0) {
-        const sign = baseSpread < 0 ? -1 : 1; 
+        const sign = baseSpread < 0 ? -1 : 1;
         const absSpread = Math.abs(baseSpread);
         const mlMap: Record<number, number> = {
-            0.5: 115, 1.5: 125, 2.5: 140, 3.5: 165, 4.5: 190, 5.5: 220, 6.5: 250, 
+            0.5: 115, 1.5: 125, 2.5: 140, 3.5: 165, 4.5: 190, 5.5: 220, 6.5: 250,
             7.5: 300, 8.5: 350, 9.5: 400, 10.5: 450, 11.5: 500, 12.5: 550, 13.5: 600
         };
         const rounded = Math.round(absSpread * 2) / 2;
         const mlVal = mlMap[rounded] || (absSpread > 13 ? 700 : 110 + (absSpread * 35));
-        
+
         if (sign < 0) {
             homeMl = -mlVal;
             awayMl = mlVal;
@@ -193,29 +365,29 @@ const getDeterministicLines = (seedId: string, league: string, homeName: string,
             awayMl = -mlVal;
         }
     }
-    
+
     const mlHomeStr = homeMl > 0 ? `+${Math.round(homeMl)}` : `${Math.round(homeMl)}`;
     const mlAwayStr = awayMl > 0 ? `+${Math.round(awayMl)}` : `${Math.round(awayMl)}`;
-    
+
     const bookOdds: Record<string, BookData> = {};
     const docBooks = ['pinnacle', 'circa', 'dk', 'fd', 'czr'];
-    
+
     docBooks.forEach((book, idx) => {
         const spreadVar = ((seed + idx) % 3 - 1) * 0.5;
         const finalSpread = baseSpread === 0 ? 0 : baseSpread + spreadVar;
         const bookSpreadStr = finalSpread === 0 ? "PK" : (finalSpread > 0 ? `+${finalSpread}` : `${finalSpread}`);
-        
+
         const totalVar = ((seed + idx + 2) % 3 - 1) * 0.5;
         const finalTotal = baseTotal + totalVar;
         const bookTotalStr = finalTotal.toFixed(1);
-        
+
         const mlVar = ((seed + idx + 5) % 5 - 2) * 10;
         const bookHomeMl = homeMl < 0 ? homeMl - mlVar : homeMl + mlVar;
         const bookAwayMl = awayMl < 0 ? awayMl - mlVar : awayMl + mlVar;
-        
+
         const bookMlHomeStr = bookHomeMl > 0 ? `+${Math.round(bookHomeMl)}` : `${Math.round(bookHomeMl)}`;
         const bookMlAwayStr = bookAwayMl > 0 ? `+${Math.round(bookAwayMl)}` : `${Math.round(bookAwayMl)}`;
-        
+
         bookOdds[book] = {
             spread: bookSpreadStr,
             total: bookTotalStr,
@@ -223,7 +395,7 @@ const getDeterministicLines = (seedId: string, league: string, homeName: string,
             mlAway: bookMlAwayStr
         };
     });
-    
+
     return {
         spread: spreadStr,
         total: overUnderStr,
@@ -243,7 +415,7 @@ const mockBook = (b: BookData, capturedAt: string): BoardBook => ({
 });
 
 // DEV ONLY (VITE_USE_MOCKS=true): synthetic matchups with fake lines.
-const buildMockMatchups = (league: League): Matchup[] => {
+const buildMockMatchups = (league: League) => {
     const now = new Date().toISOString();
     const fallbacks = FALLBACK_MATCHUPS[league] || FALLBACK_MATCHUPS.NFL;
     return fallbacks.map((f, idx) => {
@@ -262,6 +434,13 @@ const buildMockMatchups = (league: League): Matchup[] => {
     });
 };
 
+const fromReader = (m: BoardMatchup, league: League): Matchup => ({
+    ...m, league, readerRow: m, aiStatus: 'IDLE',
+    openSpread: m.open?.spreadAway, openTotal: m.open?.total,
+    consensusSpread: m.market?.spreadAway, consensusTotal: m.market?.total,
+    consensusMlHome: m.market?.mlHome, consensusMlAway: m.market?.mlAway,
+    bookOdds: Object.fromEntries(Object.entries(m.bookOdds).map(([id, b]) => [id, { ...b, spread: b.spreadAway }])),
+});
 type ViewMode = 'SPREAD' | 'TOTAL' | 'ML';
 
 /** [away row, home row] for a book in the current view. */
@@ -285,7 +464,7 @@ const LiveIntelDrawer: React.FC<{ game: Matchup; onClose: () => void }> = ({ gam
     const fetchLiveDetails = () => {
         try {
             if (USE_MOCKS && game.id.startsWith('syn-')) {
-                const syntheticPlaysMap: Record<League, string[]> = {
+                const syntheticPlaysMap: Partial<Record<League, string[]>> = {
                     NFL: [
                         "Touchdown! Mahomes connects with Kelce for a spectacular 24-yard score in the corner of the end zone.",
                         "Mahomes passes short right to Rice for 8 yards, tackled by Warner.",
@@ -379,9 +558,9 @@ const LiveIntelDrawer: React.FC<{ game: Matchup; onClose: () => void }> = ({ gam
             // Real data: scores/status come from the espn data store (no direct ESPN/proxy calls).
             // Play-by-play is not ingested yet, so the log shows an explicit empty state.
             setScores({
-                home: game.homeScore !== null ? String(game.homeScore) : '-',
-                away: game.awayScore !== null ? String(game.awayScore) : '-',
-                clock: game.statusState === 'in' ? 'LIVE' : game.statusState === 'post' ? 'FINAL' : 'PRE',
+                home: game.readerRow?.homeScore != null ? String(game.readerRow.homeScore) : game.finalScore?.home ?? '-',
+                away: game.readerRow?.awayScore != null ? String(game.readerRow.awayScore) : game.finalScore?.away ?? '-',
+                clock: game.readerRow?.statusState === 'in' ? 'LIVE' : game.readerRow?.statusState === 'post' ? 'FINAL' : 'PRE',
                 detail: game.status,
             });
             setPlays([]);
@@ -397,7 +576,7 @@ const LiveIntelDrawer: React.FC<{ game: Matchup; onClose: () => void }> = ({ gam
     return (
         <>
             {/* Backdrop */}
-            <div 
+            <div
                 className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90] animate-in fade-in duration-300"
                 onClick={onClose}
             ></div>
@@ -406,9 +585,9 @@ const LiveIntelDrawer: React.FC<{ game: Matchup; onClose: () => void }> = ({ gam
                 {/* Visual Artifacts */}
                 <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%] pointer-events-none z-50"></div>
                 <div className="absolute top-0 left-0 right-0 h-1 bg-cyan-500/20 z-[60] animate-scanline"></div>
-                
+
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(99,102,241,0.1),transparent_70%)] pointer-events-none"></div>
-                
+
                 {/* Header Section */}
                 <div className="p-8 border-b border-white/10 flex justify-between items-center relative z-10 bg-[#080a0f]/80 backdrop-blur-md">
                     <div className="flex items-center gap-5">
@@ -480,7 +659,7 @@ const LiveIntelDrawer: React.FC<{ game: Matchup; onClose: () => void }> = ({ gam
                 {/* Event Stream */}
                 <div className="flex-grow overflow-y-auto custom-scrollbar p-8 space-y-6 relative z-10 bg-[#020408]">
                     <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none"></div>
-                    
+
                     <div className="flex items-center gap-3 mb-6 sticky top-0 bg-[#020408]/80 backdrop-blur-sm py-2 z-20">
                         <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
                         <span className="text-[11px] font-black text-white uppercase tracking-[0.4em]">Synchronized Play-By-Play Log</span>
@@ -495,8 +674,8 @@ const LiveIntelDrawer: React.FC<{ game: Matchup; onClose: () => void }> = ({ gam
                         plays.map((play, idx) => (
                             <div key={idx} className={clsx(
                                 "relative pl-10 py-6 border-l transition-all duration-500 group animate-in fade-in slide-in-from-right-4",
-                                play.scoringPlay 
-                                    ? "border-emerald-500 bg-emerald-500/10 rounded-r-3xl shadow-[inset_0_0_30px_rgba(16,185,129,0.1)]" 
+                                play.scoringPlay
+                                    ? "border-emerald-500 bg-emerald-500/10 rounded-r-3xl shadow-[inset_0_0_30px_rgba(16,185,129,0.1)]"
                                     : "border-slate-800 hover:bg-white/[0.02]"
                             )} style={{ animationDelay: `${idx * 30}ms` }}>
                                 {/* Play Marker */}
@@ -569,22 +748,61 @@ export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [dataAsOf, setDataAsOf] = useState<string | null>(null);
     const [eventsAsOf, setEventsAsOf] = useState<string | null>(null);
-    const [view, setView] = useState<ViewMode>('SPREAD');
+    const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+    const [upstreamState, setUpstreamState] = useState<'ONLINE' | 'STALE' | 'UNAVAILABLE' | 'FALLBACK' | 'IDLE'>('IDLE');
+    const [view, setView] = useState<'SPREAD' | 'TOTAL' | 'ML'>('SPREAD');
     const [isVerifying, setIsVerifying] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [detailGame, setDetailGame] = useState<Matchup | null>(null);
+    const [cfbWeeks, setCfbWeeks] = useState<CfbWeek[]>([]);
+    const [cfbWeek, setCfbWeek] = useState<string>('');
+    const [cfbSeason, setCfbSeason] = useState<number>(LIVE_SEASON);
+    const [cfbLive, setCfbLive] = useState<boolean>(true);
+    const isArchive = activeLeague === 'CFB' && !cfbLive;
+    const bookLevel: 'paper' | 'production' = (import.meta as any)?.env?.VITE_NOVIG_HOST?.includes('api.novig.com') ? 'production' : 'paper';
+    // The board's own view of where it is. The 60s poll reads this instead of re-deriving
+    // it from state, so a season/week switch cannot be undone by an in-flight refresh.
+    const cfbRef = useRef({ live: true, season: LIVE_SEASON, week: '' });
 
     const config = LEAGUE_CONFIG[activeLeague] || LEAGUE_CONFIG.NFL;
 
-    const fetchData = async (isPoll = false) => {
+    const requestId = useRef(0);
+
+    const fetchData = async (isPoll = true) => {
+        const id = ++requestId.current;
         if (!isPoll) {
             setLoading(true);
             setLoadState('loading');
             setGames([]);
+            setDataAsOf(null); setEventsAsOf(null); setErrorMsg(null);
+        }
+        if (activeLeague === 'CFB') {
+            const view = cfbRef.current;
+            try {
+                const board = view.live ? await parseCfbLive() : await parseCfbBoard(view.season, view.week);
+                if (id !== requestId.current || view !== cfbRef.current) return;
+                cfbRef.current = { live: board.live, season: board.season, week: board.week };
+                setGames(board.games);
+                setLoadState(board.games.length ? 'ready' : 'empty');
+                setDataAsOf(new Date().toISOString());
+                setErrorMsg(null);
+                setCfbWeeks(board.weeks);
+                setCfbWeek(board.week);
+                setCfbSeason(board.season);
+                setCfbLive(board.live);
+                setLastUpdate(new Date());
+            } catch (e) {
+                if (id !== requestId.current) return;
+                console.error('CFB board load failed', e);
+                setErrorMsg('Could not load CFB board.'); setLoadState('error');
+            } finally {
+                if (id === requestId.current) setLoading(false);
+            }
+            return;
         }
         try {
             if (USE_MOCKS) {
-                setGames(buildMockMatchups(activeLeague));
+                setGames(buildMockMatchups(activeLeague).map(m => fromReader(m, activeLeague)));
                 setDataAsOf(new Date().toISOString());
                 setLoadState('ready');
                 return;
@@ -600,50 +818,97 @@ export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
             const cfg = readerConfigFromEnv();
             const events = await getEvents(cfg, { league: leagueKey, date: todayIn(), days: leagueKey === 'nfl' ? 7 : 2 });
             const odds = await getLatestOddsByEvent(cfg, events.map(e => e.espn_id));
-            const parsed: Matchup[] = toBoardMatchups(events, odds).map(m => ({ ...m, league: activeLeague, aiStatus: 'IDLE' as const }));
+            if (id !== requestId.current) return;
+            const parsed: Matchup[] = toBoardMatchups(events, odds).map(m => fromReader(m, activeLeague));
             setGames(parsed);
             setDataAsOf(latestCapturedAt(odds));
             setEventsAsOf(latestEventUpdate(events));
             setErrorMsg(null);
             setLoadState(parsed.length > 0 ? 'ready' : 'empty');
         } catch (e) {
+            if (id !== requestId.current) return;
             console.error('OddsBoard read error', e);
             setErrorMsg(e instanceof EspnReadError ? e.message : 'Unexpected error loading odds.');
             if (!isPoll) setGames([]);
             setLoadState('error');
         } finally {
-            setLoading(false);
+            if (id === requestId.current) setLoading(false);
         }
     };
 
     useEffect(() => {
-        fetchData();
-        const poll = setInterval(() => fetchData(true), POLL_MS);
-        return () => clearInterval(poll);
+        if (activeLeague === 'CFB') cfbRef.current = { live: true, season: LIVE_SEASON, week: '' };
+        fetchData(false);
+        const poll = setInterval(() => { if (activeLeague !== 'CFB' || cfbRef.current.live) void fetchData(true); }, POLL_MS);
+        return () => { ++requestId.current; clearInterval(poll); };
     }, [activeLeague]);
+
+    const selectCfbWeek = async (label: string) => {
+        const id = ++requestId.current;
+        const season = cfbRef.current.season;
+        cfbRef.current = { live: false, season, week: label };
+        setCfbWeek(label);
+        setCfbLive(false);
+        setLoading(true);
+        try {
+            const board = await parseCfbBoard(season, label);
+            if (id !== requestId.current) return;
+            setLoadState(board.games.length ? 'ready' : 'empty');
+            setDataAsOf(new Date().toISOString());
+            setGames(board.games);
+            setCfbWeeks(board.weeks);
+        } catch (e) {
+            if (id !== requestId.current) return;
+            setErrorMsg('Could not load CFB week.');
+            console.error('CFB week switch failed', e);
+        } finally {
+            if (id === requestId.current) { setLoading(false); setLastUpdate(new Date()); }
+        }
+    };
+
+    const selectCfbSeason = async (season: number) => {
+        const id = ++requestId.current;
+        const live = season === LIVE_SEASON;
+        cfbRef.current = { live, season, week: '' };
+        setCfbSeason(season);
+        setCfbWeek('');
+        setCfbLive(live);
+        setLoading(true);
+        try {
+            const board = live ? await parseCfbLive() : await parseCfbBoard(season);
+            if (id !== requestId.current) return;
+            setLoadState(board.games.length ? 'ready' : 'empty');
+            setDataAsOf(new Date().toISOString());
+            setGames(board.games);
+            setCfbWeeks(board.weeks);
+            setCfbWeek(board.week);
+            setCfbLive(board.live);
+        } catch (e) {
+            if (id !== requestId.current) return;
+            setErrorMsg('Could not load CFB season.');
+            console.error('CFB season switch failed', e);
+        } finally {
+            if (id === requestId.current) { setLoading(false); setLastUpdate(new Date()); }
+        }
+    };
 
     const runNeuralSync = async () => {
         setIsVerifying(true);
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const updatedGames = [...games];
         for (let i = 0; i < updatedGames.length; i++) {
             const game = updatedGames[i];
+            if (game.id.startsWith('cfb-') || (USE_MOCKS && game.id.startsWith('syn-'))) continue;
             setGames(prev => prev.map((g, idx) => idx === i ? { ...g, aiStatus: 'VERIFYING' } : g));
             try {
-                const response = await ai.models.generateContent({
-                    model: 'gemini-3.5-flash',
-                    contents: `Verify current ${game.league} odds for ${game.awayTeam} vs ${game.homeTeam}. Return SPREAD: [val] | TOTAL: [val]`,
-                    config: { tools: [{ googleSearch: {} }] },
-                });
-                if (response.text) {
-                    const text = response.text;
+                const text = await askClaude({ task: 'verify_odds', league: game.league, awayTeam: game.awayTeam, homeTeam: game.homeTeam });
+                if (text) {
                     const spreadMatch = text.match(/SPREAD:\s*([^|]+)/i);
                     const totalMatch = text.match(/TOTAL:\s*(.+)/i);
-                    updatedGames[i] = { 
-                        ...game, 
-                        aiVerifiedLine: spreadMatch ? spreadMatch[1].trim() : 'N/A', 
-                        aiVerifiedTotal: totalMatch ? totalMatch[1].trim() : 'N/A', 
-                        aiStatus: 'VERIFIED' 
+                    updatedGames[i] = {
+                        ...game,
+                        aiVerifiedLine: spreadMatch ? spreadMatch[1].trim() : 'N/A',
+                        aiVerifiedTotal: totalMatch ? totalMatch[1].trim() : 'N/A',
+                        aiStatus: 'VERIFIED'
                     };
                 }
             } catch (err) {
@@ -655,15 +920,15 @@ export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
     };
 
     const filteredGames = useMemo(() => {
-        return games.filter(game => 
-            game.homeTeam.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        return games.filter(game =>
+            game.homeTeam.toLowerCase().includes(searchTerm.toLowerCase()) ||
             game.awayTeam.toLowerCase().includes(searchTerm.toLowerCase())
         );
     }, [games, searchTerm]);
 
     return (
         <div className="max-w-[1800px] mx-auto px-6 py-10 animate-in fade-in duration-1000">
-            
+
             {/* Header Strategy View */}
             <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end mb-16 gap-10 border-b border-white/5 pb-10">
                 <div className="max-w-3xl">
@@ -673,42 +938,41 @@ export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
                         </div>
                         <div className="flex items-center gap-2">
                              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)]"></div>
-                             <span className="text-[10px] text-slate-500 font-mono uppercase tracking-[0.2em]" data-testid="data-as-of">
-                                 {USE_MOCKS ? 'MOCK DATA (DEV)' : dataAsOf ? `Odds data as of ${fmtAsOf(dataAsOf)}` : eventsAsOf ? `No odds yet · events as of ${fmtAsOf(eventsAsOf)}` : 'No data loaded'}
-                             </span>
+                             <span className="text-[10px] text-slate-500 font-mono uppercase tracking-[0.2em]" data-testid="data-as-of">{USE_MOCKS && activeLeague !== 'CFB' ? 'MOCK DATA (DEV)' : dataAsOf ? `Odds data as of ${fmtAsOf(dataAsOf)}` : eventsAsOf ? `No odds yet · events as of ${fmtAsOf(eventsAsOf)}` : 'No data loaded'}</span>
                         </div>
                     </div>
                     <h1 className="text-7xl font-black text-white uppercase tracking-tighter leading-none mb-8">
                         {activeLeague} <span className={clsx(`text-${config.accent}-500`)}>{config.label.split(' ')[0]}</span> <span className="text-slate-700">{config.label.split(' ')[1]}</span>
                     </h1>
                 </div>
-                
+
                 <div className="flex flex-wrap items-center gap-4 bg-[#0a0e17] p-2.5 rounded-[40px] border border-white/5 shadow-2xl">
                     <div className="relative group w-80">
                         <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-white transition-colors" size={20} />
-                        <input 
-                            type="text" 
-                            placeholder={`Filter ${activeLeague} pairs...`} 
+                        <input
+                            type="text"
+                            placeholder={`Filter ${activeLeague} pairs...`}
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="w-full bg-black/60 border border-white/5 rounded-[30px] pl-16 pr-8 py-5 text-sm text-white focus:outline-none focus:border-white/20 transition-all placeholder:text-slate-700"
                         />
                     </div>
-                    <button 
-                        onClick={runNeuralSync} 
-                        disabled={isVerifying || loading} 
+                    <button
+                        onClick={runNeuralSync}
+                        disabled={isVerifying || loading || isArchive}
+                        title={isArchive ? 'ESPN carries no CFB closing lines, so there is nothing to verify against' : 'Verify the listed lines against the model'}
                         className="flex items-center gap-3 px-12 py-5 bg-indigo-600 hover:bg-indigo-500 border border-indigo-400/30 rounded-[30px] text-white text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-xl disabled:opacity-30 group"
                     >
-                        <Sparkles size={20} className={clsx("group-hover:rotate-12 transition-transform", isVerifying && "animate-spin")} /> 
+                        <Sparkles size={20} className={clsx("group-hover:rotate-12 transition-transform", isVerifying && "animate-spin")} />
                         {isVerifying ? "VERIFYING..." : "NEURAL SYNC"}
                     </button>
                     <div className="flex bg-black p-1.5 rounded-[30px] border border-white/5">
                         {(['SPREAD', 'TOTAL', 'ML'] as const).map(v => (
-                            <button 
-                                key={v} 
-                                onClick={() => setView(v)} 
+                            <button
+                                key={v}
+                                onClick={() => setView(v)}
                                 className={clsx(
-                                    "px-10 py-3 rounded-[24px] text-[10px] font-black uppercase tracking-widest transition-all", 
+                                    "px-10 py-3 rounded-[24px] text-[10px] font-black uppercase tracking-widest transition-all",
                                     view === v ? "bg-white text-black shadow-lg" : "text-slate-600 hover:text-white"
                                 )}
                             >
@@ -719,15 +983,84 @@ export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
                 </div>
             </div>
 
+            {activeLeague === 'CFB' && (
+                <div className="mb-4 flex flex-wrap items-center gap-3">
+                    <div className="flex bg-[#0a0e17] p-1.5 rounded-[22px] border border-white/5">
+                        {[LIVE_SEASON, ARCHIVE_SEASON].map(season => (
+                            <button
+                                key={season}
+                                onClick={() => selectCfbSeason(season)}
+                                className={clsx(
+                                    "px-6 py-2.5 rounded-[16px] text-[10px] font-black uppercase tracking-widest transition-all",
+                                    cfbSeason === season
+                                        ? "bg-white text-black shadow-lg"
+                                        : "text-slate-500 hover:text-white"
+                                )}
+                            >
+                                {season}{season === LIVE_SEASON ? ' Live' : ' Archive'}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="flex items-center gap-2 px-4 py-2 bg-violet-500/10 border border-violet-500/20 rounded-full">
+                        <div className={clsx("w-2 h-2 rounded-full", cfbLive ? "bg-emerald-400 animate-pulse" : "bg-slate-600")}></div>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-violet-300">
+                            {cfbLive ? `${cfbSeason} ${cfbWeek} · live feed` : `${cfbSeason} ${cfbWeek} · final`}
+                        </span>
+                    </div>
+                </div>
+            )}
+
+            {activeLeague === 'CFB' && cfbWeeks.length > 0 && (
+                <div className="mb-8 flex flex-wrap gap-2 bg-[#0a0e17] p-3 rounded-[28px] border border-white/5">
+                    {cfbWeeks.map(w => (
+                        <button
+                            key={w.label}
+                            onClick={() => selectCfbWeek(w.label)}
+                            className={clsx(
+                                "px-5 py-2.5 rounded-[18px] text-[10px] font-black uppercase tracking-widest transition-all border",
+                                cfbWeek === w.label
+                                    ? "bg-violet-500 text-black border-violet-400 shadow-[0_0_20px_rgba(139,92,246,0.4)]"
+                                    : "text-slate-500 border-white/5 hover:text-white hover:border-white/20"
+                            )}
+                            title={`${w.games} games · first ${w.firstDate}`}
+                        >
+                            {w.label.replace('Postseason - ', '')}
+                            <span className="ml-2 text-[9px] opacity-60">{w.games}</span>
+                        </button>
+                    ))}
+                </div>
+            )}
+
+            {/* One row per event in an exchange has no single spread to print, so the priced
+                market for the current week gets its own card above the game rows. */}
+            {activeLeague === 'CFB' && cfbLive && <NovigBoard />}
+
+            {errorMsg && games.length > 0 && <p className="mb-4 text-sm text-amber-400">Refresh failed: {errorMsg} Showing last available data.</p>}
             {/* Main Odds Table */}
+            {activeLeague === 'NFL' && <NflLiveBoard onHealth={setUpstreamState} />}
+            {(
             <div className="bg-[#05070a] rounded-[56px] overflow-hidden border border-white/5 relative shadow-[0_40px_120px_rgba(0,0,0,0.6)]">
                 <div className="grid grid-cols-12 bg-[#0a0e17] border-b border-white/5 sticky top-0 z-20">
                     <div className="col-span-3 p-10 text-[12px] font-black text-slate-500 uppercase tracking-[0.5em]">Protocol Node // Matchup</div>
                     <div className="col-span-1 p-10 flex items-center justify-center text-[10px] font-black text-slate-600 uppercase border-l border-white/5">Open</div>
                     <div className="col-span-1 p-10 flex items-center justify-center text-[10px] font-black text-indigo-400 uppercase border-l border-white/5 bg-indigo-950/10">AI Edge</div>
-                    <div className="col-span-1 p-10 flex items-center justify-center text-[10px] font-black text-slate-600 uppercase border-l border-white/5">Market</div>
-                    <div className="col-span-6 grid grid-cols-5 h-full">
-                        {BOOKS.map(book => (
+                    <div className="col-span-1 p-10 flex items-center justify-center text-[10px] font-black text-slate-600 uppercase border-l border-white/5">
+                        {activeLeague === 'CFB' ? 'Score' : 'Market'}
+                    </div>
+                    <div className={clsx("col-span-6 h-full", activeLeague === 'CFB' ? "grid grid-cols-3" : "grid grid-cols-5")}>
+                        {activeLeague === 'CFB' ? (
+                            <div className="grid grid-cols-3">
+                                <div className="border-l border-white/5 flex items-center justify-center p-2 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400 bg-emerald-950/20">
+                                    Novig Exchange
+                                </div>
+                                <div className="border-l border-white/5 flex items-center justify-center p-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">
+                                    {cfbLive ? 'Live Score' : 'Final'}
+                                </div>
+                                <div className="border-l border-white/5 flex items-center justify-center p-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">
+                                    {bookLevel === 'production' ? 'Real' : 'Paper'}
+                                </div>
+                            </div>
+                        ) : BOOKS.map(book => (
                             <div key={book.id} className="border-l border-white/5 flex flex-col items-center justify-center p-2">
                                 <div className={`text-[10px] font-black uppercase tracking-[0.2em] ${book.color}`}>{book.name}</div>
                             </div>
@@ -739,23 +1072,25 @@ export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
                     {filteredGames.length > 0 ? (
                         filteredGames.map(game => (
                             <div key={game.id} className="grid grid-cols-12 hover:bg-white/[0.02] transition-colors relative group/row items-stretch">
-                                <div 
+                                <div
                                     className="col-span-3 p-10 flex flex-col justify-center cursor-pointer active:scale-[0.99] transition-transform"
                                     onClick={() => setDetailGame(game)}
                                 >
                                     <div className="flex items-center justify-between mb-8">
                                         <span className="text-[11px] text-slate-500 font-mono flex items-center gap-4 bg-white/5 px-5 py-2 rounded-2xl border border-white/5">
-                                            <Calendar size={16} className={clsx(`text-${config.accent}-400`)} /> 
-                                            {game.date.toLocaleTimeString([], {weekday: 'short', hour: 'numeric', minute:'2-digit'})}
+                                            <Calendar size={16} className={clsx(`text-${config.accent}-400`)} />
+                                            {game.historical
+                                                ? game.date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })
+                                                : game.date.toLocaleTimeString([], {weekday: 'short', hour: 'numeric', minute:'2-digit'})}
                                         </span>
-                                        <button 
+                                        <button
                                             onClick={(e) => { e.stopPropagation(); setDetailGame(game); }}
                                             className={clsx(
                                                 "p-3 rounded-[20px] transition-all flex items-center gap-3 text-[10px] font-black uppercase tracking-widest border group/btn",
                                                 `bg-${config.accent}-500/10 border-${config.accent}-500/20 text-${config.accent}-400 hover:bg-${config.accent}-500 hover:text-white shadow-xl`
                                             )}
                                         >
-                                            <Radio size={16} className="animate-pulse" /> LIVE INTEL
+                                            <Radio size={16} className={clsx(!game.historical && "animate-pulse")} /> {game.historical ? 'BOX SCORE' : 'LIVE INTEL'}
                                         </button>
                                     </div>
                                     <div className="space-y-6">
@@ -775,18 +1110,24 @@ export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
                                 </div>
 
                                 <div className="col-span-1 border-l border-white/5 bg-black/20 flex flex-col justify-center p-6 text-center text-base text-slate-500 font-mono font-black">
-                                    {game.open ? (
-                                        <>
-                                            <div className="opacity-50">{cellPair(game.open, view)[0]}</div>
-                                            <div className="opacity-50 mt-2">{cellPair(game.open, view)[1]}</div>
-                                        </>
-                                    ) : <div className="opacity-20 text-[11px]">—</div>}
+                                    {game.historical ? (
+                                        <div className="opacity-40 text-[10px] uppercase tracking-[0.25em]">
+                                            {game.live ? 'LIVE' : 'FINAL'}
+                                        </div>
+                                    ) : (
+                                        <div className="opacity-50">{game.readerRow ? cellPair(game.readerRow.open, view).map((v, i) => <div key={i}>{v || 'OFF'}</div>) : (view === 'SPREAD' ? game.openSpread : game.openTotal)}</div>
+                                    )}
                                 </div>
 
                                 <div className={clsx(
                                     "col-span-1 border-l border-white/5 flex flex-col justify-center p-6 text-center relative",
                                     game.aiStatus === 'VERIFIED' ? "bg-emerald-950/10" : "bg-indigo-950/10"
                                 )}>
+                                    {game.historical ? (
+                                        <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-700 leading-relaxed">
+                                            NO LINE<br />IN FEED
+                                        </div>
+                                    ) : (<>
                                     {game.aiStatus === 'VERIFYING' ? (
                                         <div className="flex flex-col items-center gap-3">
                                             <RefreshCw size={28} className="animate-spin text-indigo-400" />
@@ -798,37 +1139,74 @@ export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
                                             <div className="text-[10px] text-emerald-600 font-black uppercase mt-1 tracking-widest">CONFIRMED</div>
                                         </div>
                                     ) : <div className="text-[11px] text-slate-800 italic font-mono tracking-[0.3em]">-----</div>}
+                                    </>)}
                                 </div>
 
                                 <div className="col-span-1 border-l border-white/5 bg-black/20 flex flex-col justify-center p-6 text-center relative">
-                                    {game.market ? (
+                                    {game.historical ? (
                                         <>
-                                            <div className="h-1/2 flex items-center justify-center text-xl text-white font-black font-mono">
-                                                {cellPair(game.market, view)[0]}
+                                            <div className={clsx("h-1/2 flex items-center justify-center text-xl font-mono font-black", game.finalScore && Number(game.finalScore.away) > Number(game.finalScore.home) ? "text-white" : "text-slate-600")}>
+                                                {game.finalScore?.away ?? '-'}
                                             </div>
-                                            <div className="h-1/2 flex items-center justify-center text-xl text-white font-black font-mono border-t border-white/5">
-                                                {cellPair(game.market, view)[1]}
+                                            <div className={clsx("h-1/2 flex items-center justify-center border-t border-white/5 text-xl font-mono font-black", game.finalScore && Number(game.finalScore.home) > Number(game.finalScore.away) ? "text-white" : "text-slate-600")}>
+                                                {game.finalScore?.home ?? '-'}
                                             </div>
                                         </>
-                                    ) : <span className="text-[11px] text-slate-700 font-black uppercase tracking-widest">NO LINE</span>}
+                                    ) : (
+                                        <>
+                                            <div className="h-1/2 flex items-center justify-center text-xl text-white font-black font-mono">
+                                                {game.readerRow ? cellPair(game.readerRow.market, view)[0] || 'OFF' : (view === 'ML' ? game.consensusMlAway : (view === 'SPREAD' ? game.consensusSpread : game.consensusTotal))}
+                                            </div>
+                                            <div className="h-1/2 flex items-center justify-center text-xl text-white font-black font-mono border-t border-white/5">
+                                                {game.readerRow ? cellPair(game.readerRow.market, view)[1] || 'OFF' : (view === 'ML' ? game.consensusMlHome : (view === 'SPREAD' ? (game.consensusSpread?.includes('+') ? game.consensusSpread.replace('+', '-') : game.consensusSpread?.replace('-', '+')) : game.consensusTotal))}
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
 
+                                {game.historical ? (
+                                    <div className="col-span-6 border-l border-white/5 flex items-center justify-center gap-10 px-10">
+                                        <div className="text-center">
+                                            <div className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-600 mb-1">Margin</div>
+                                            <div className="text-2xl font-black font-mono text-white">
+                                                {game.finalScore ? Math.abs(Number(game.finalScore.home) - Number(game.finalScore.away)) : '-'}
+                                            </div>
+                                        </div>
+                                        <div className="text-center">
+                                            <div className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-600 mb-1">Total Pts</div>
+                                            <div className="text-2xl font-black font-mono text-white">
+                                                {game.finalScore ? Number(game.finalScore.home) + Number(game.finalScore.away) : '-'}
+                                            </div>
+                                        </div>
+                                        <div className="text-center">
+                                            <div className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-600 mb-1">Winner</div>
+                                            <div className="text-xl font-black font-mono text-emerald-400 uppercase">
+                                                {game.finalScore && Number(game.finalScore.home) > Number(game.finalScore.away) ? game.homeAbr : game.awayAbr}
+                                            </div>
+                                        </div>
+                                        <div className="text-center">
+                                            <div className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-600 mb-1">Status</div>
+                                            <div className="text-[11px] font-black font-mono text-slate-500 uppercase tracking-widest">{game.status}</div>
+                                        </div>
+                                    </div>
+                                ) : (
                                 <div className="col-span-6 grid grid-cols-5">
                                     {BOOKS.map(book => (
                                         <div key={book.id} className="border-l border-white/5 flex flex-col h-full items-center justify-center group/cell hover:bg-white/5 transition-all relative overflow-hidden">
                                             {game.bookOdds[book.id] ? (
                                                 <div className="text-center group-hover/cell:scale-110 transition-transform duration-500">
                                                     <div className={clsx("text-xl font-black font-mono", book.color)}>
-                                                        {cellPair(game.bookOdds[book.id], view)[0]}
+                                                        {game.readerRow ? cellPair(game.readerRow.bookOdds[book.id], view)[0] || 'OFF' : (view === 'SPREAD' ? game.bookOdds[book.id].spread : view === 'TOTAL' ? game.bookOdds[book.id].total : game.bookOdds[book.id].mlAway)}
                                                     </div>
-                                                    <div className="text-[11px] text-slate-600 font-black mt-1 opacity-60">{cellPair(game.bookOdds[book.id], view)[1]}</div>
+                                                    <div className="text-[11px] text-slate-600 font-black mt-1 opacity-60">{game.readerRow ? cellPair(game.readerRow.bookOdds[book.id], view)[1] || 'OFF' : 'NL'}</div>
                                                 </div>
                                             ) : (
-                                                <span className="text-[11px] text-slate-800 font-black uppercase tracking-widest opacity-20">NO LINE</span>
+                                                <span className="text-[11px] text-slate-800 font-black uppercase tracking-widest opacity-20">OFFLINE</span>
                                             )}
                                         </div>
                                     ))}
                                 </div>
+                                )}
                             </div>
                         ))
                     ) : (
@@ -866,30 +1244,52 @@ export const OddsBoard: React.FC<OddsBoardProps> = ({ activeLeague }) => {
                     )}
                 </div>
             </div>
+            )}
 
             {/* LIVE INTEL DRAWER */}
-            {detailGame && <LiveIntelDrawer game={games.find(g => g.id === detailGame.id) ?? detailGame} onClose={() => setDetailGame(null)} />}
+            {detailGame && detailGame.league === 'CFB' && detailGame.finalScore && !detailGame.live ? (
+                <CfbArchiveDrawer
+                    game={{
+                        id: detailGame.id.replace(/^cfb-/, ''),
+                        league: 'CFB',
+                        homeTeam: detailGame.homeTeam,
+                        awayTeam: detailGame.awayTeam,
+                        homeLogo: detailGame.homeLogo || '',
+                        awayLogo: detailGame.awayLogo || '',
+                        finalScore: detailGame.finalScore,
+                    }}
+                    accent={config.accent}
+                    onClose={() => setDetailGame(null)}
+                />
+            ) : (
+                detailGame && (
+                    <LiveIntelDrawer
+                        game={games.find(g => g.id === detailGame.id) ?? detailGame}
+                        onClose={() => setDetailGame(null)}
+                    />
+                )
+            )}
 
             {/* Dashboard Footer Meta */}
             <div className="mt-16 flex flex-col md:flex-row justify-between items-center gap-10 text-[11px] text-slate-600 font-mono uppercase tracking-[0.3em]">
                 <div className="flex items-center gap-10">
                     <div className="flex items-center gap-3 group cursor-help">
                         <BarChart3 size={18} className="text-indigo-500 group-hover:rotate-12 transition-transform" />
-                        <span>Source: ESPN feed → Supabase</span>
+                        <span>{activeLeague === 'CFB' ? (footerProviderLabel(activeLeague) ?? 'ESPN CFB · Novig') : 'Source: ESPN feed → Supabase'}</span>
                     </div>
                     <div className="flex items-center gap-3 group cursor-help">
                         <ShieldCheck size={18} className="text-emerald-500 group-hover:scale-110 transition-transform" />
-                        <span>Validation: Gemini 3.0 Pro Edge</span>
+                        <span>Validation: Claude</span>
                     </div>
                 </div>
                 <div className="flex items-center gap-8 bg-[#0a0e17] px-10 py-4 rounded-[20px] border border-white/5 shadow-2xl">
-                    <span className={clsx("flex items-center gap-3 font-black", loadState === 'error' ? "text-rose-500" : "text-emerald-500")}>
-                        <div className={clsx("w-2 h-2 rounded-full animate-pulse", loadState === 'error' ? "bg-rose-500" : "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]")}></div>
-                        {loadState === 'error' ? 'UPSTREAM ERROR' : USE_MOCKS ? 'MOCK DATA' : 'UPSTREAM ONLINE'}
+                    <span className={clsx("flex items-center gap-3 font-black", loadState === 'ready' ? "text-emerald-500" : "text-amber-400")}>
+                        <div className={clsx("w-2 h-2 rounded-full", loadState === 'ready' ? "bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" : "bg-amber-400")}></div>
+                        {loadState === 'error' ? 'UPSTREAM ERROR' : USE_MOCKS ? 'MOCK DATA' : loadState === 'ready' ? 'UPSTREAM ONLINE' : loadState.toUpperCase()}
                     </span>
                     <span className="flex items-center gap-3 opacity-60">
-                        <Clock size={16} /> 
-                        Data as of: {fmtAsOf(dataAsOf)}
+                        <Clock size={16} />
+                        Data as of: {fmtAsOf(dataAsOf ?? eventsAsOf)}
                     </span>
                 </div>
             </div>

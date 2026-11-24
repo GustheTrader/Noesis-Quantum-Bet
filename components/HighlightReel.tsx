@@ -24,8 +24,9 @@ export const HighlightReel: React.FC<HighlightReelProps> = ({ activeLeague }) =>
     const fetchNews = async () => {
       setLoading(true);
       try {
-        const leagueMap: Record<League, string> = {
+        const leagueMap: Partial<Record<League, string>> = {
             NFL: 'football/nfl',
+            CFB: 'football/college-football',
             CFL: 'football/cfl',
             NBA: 'basketball/nba',
             NHL: 'hockey/nhl',
@@ -39,7 +40,7 @@ export const HighlightReel: React.FC<HighlightReelProps> = ({ activeLeague }) =>
         };
 
         const path = leagueMap[activeLeague] || 'football/nfl';
-        
+
         // If VELOCITY, we might want to skip the specific ESPN fetch as it doesn't exist
         if (activeLeague === 'VELOCITY') {
             throw new Error("Velocity news handled by fallback");

@@ -1,5 +1,5 @@
 
-import { createClient } from '@supabase/supabase-js';
+import type { createClient as SupabaseCreateClient } from '@supabase/supabase-js';
 
 // Config comes from the build env (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY); no hardcoded fallback.
 // NOTE: the previously hardcoded cloud URL/anon key were removed from source (incl. the pages/Admin.tsx code sample) but remain in git history.
@@ -16,8 +16,40 @@ if ((!SUPABASE_URL || !SUPABASE_ANON_KEY) && !USE_MOCKS) {
   );
 }
 
-// In mock mode without config, point at an unroutable placeholder so imports still work; real calls will fail loudly.
-export const supabase = createClient(SUPABASE_URL || 'http://supabase.invalid', SUPABASE_ANON_KEY || 'mock-anon-key');
+type SupabaseClient = ReturnType<typeof SupabaseCreateClient>;
+
+// The SDK (~198 kB, most of it auth) is imported on first use, so it stays out
+// of the initial JS payload. Callers keep using `supabase` unchanged; it proxies
+// to the real client once that load resolves.
+let client: SupabaseClient | null = null;
+let loading: Promise<SupabaseClient> | null = null;
+
+export function loadSupabase(): Promise<SupabaseClient> {
+  if (client) return Promise.resolve(client);
+  if (!loading) {
+    loading = import('@supabase/supabase-js').then(({ createClient }) => {
+      // Placeholder only in mock mode (env vars already required otherwise).
+      client = createClient(SUPABASE_URL || 'http://supabase.invalid', SUPABASE_ANON_KEY || 'mock-anon-key');
+      return client;
+    });
+  }
+  return loading;
+}
+
+// Tables stay a plain promise (`await supabase.from(...)`) so request builders
+// keep resolving as before; everything else is a namespaced sub-client whose
+// members resolve through the loaded client.
+export const supabase: any = new Proxy({} as any, {
+  get(_target, prop) {
+    if (prop === 'from') {
+      return (...args: any[]) => loadSupabase().then((c: any) => c.from(...args));
+    }
+    return new Proxy({}, {
+      get: (_t, member) => (...args: any[]) =>
+        loadSupabase().then((c: any) => c[prop][member](...args)),
+    });
+  },
+});
 
 /* 
 ================================================================

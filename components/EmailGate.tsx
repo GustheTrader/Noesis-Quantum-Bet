@@ -3,8 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { ArrowRight, Loader2, ShieldCheck, Zap, CheckCircle, Map, Mic, Target, Cpu, Lock, Terminal } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { clsx } from 'clsx';
-import quantumBetsLogoImg from '../src/assets/images/quantum_bets_logo_1783566041207.jpg';
-import gnoesisLabsLogoImg from '../src/assets/images/gnoesis_labs_logo_1783566057128.jpg';
+const quantumBetsLogoImg = '/img/quantum-bets-logo-96.webp';
+const gnoesisLabsLogoImg = '/img/gnoesis-labs-72.webp';
 
 interface EmailGateProps {
     onUnlock: (mode: 'tour' | 'voice' | 'direct') => void;

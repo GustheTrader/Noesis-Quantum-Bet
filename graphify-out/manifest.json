@@ -1,0 +1,482 @@
+{
+  "App.tsx": {
+    "mtime": 1794096456.3225381,
+    "seen": 1794098223.1826193,
+    "ast_hash": "7dc5a7ccc9359a59919abbd12a324297",
+    "semantic_hash": ""
+  },
+  "api/cfb.ts": {
+    "mtime": 1794096665.274735,
+    "seen": 1794098223.182624,
+    "ast_hash": "4d059c632f89d5d20532d16b7b922c27",
+    "semantic_hash": ""
+  },
+  "api/claude.ts": {
+    "mtime": 1792643616.4238112,
+    "seen": 1794098223.182626,
+    "ast_hash": "2c17265aa95fe6ced3b07038bef96a94",
+    "semantic_hash": ""
+  },
+  "clone.js": {
+    "mtime": 1792643335.626658,
+    "seen": 1794098223.1826274,
+    "ast_hash": "f93c47de28f551af69bc3d2ce212cb22",
+    "semantic_hash": ""
+  },
+  "clone2.js": {
+    "mtime": 1792643335.626658,
+    "seen": 1794098223.1826282,
+    "ast_hash": "6d374ab6ce6d1fcd91997fb0f6c1bfe8",
+    "semantic_hash": ""
+  },
+  "components/CfbArchiveDrawer.tsx": {
+    "mtime": 1794095146.9523056,
+    "seen": 1794098223.1826286,
+    "ast_hash": "07c56a40005d5088c02562b7a8dde7d3",
+    "semantic_hash": ""
+  },
+  "components/CfbSlate.tsx": {
+    "mtime": 1794096468.83149,
+    "seen": 1794098223.1826293,
+    "ast_hash": "6acb01e32af3ef3625444ad7ced92e6a",
+    "semantic_hash": ""
+  },
+  "components/ChatBot.tsx": {
+    "mtime": 1792643683.8029006,
+    "seen": 1794098223.1826298,
+    "ast_hash": "f95eb24210450ce0de0dc528e4167591",
+    "semantic_hash": ""
+  },
+  "components/EmailGate.tsx": {
+    "mtime": 1792643335.626658,
+    "seen": 1794098223.1826305,
+    "ast_hash": "035f4f3dcb4ecf2f2a21d13fb0425d95",
+    "semantic_hash": ""
+  },
+  "components/GameCast.tsx": {
+    "mtime": 1792643335.6276581,
+    "seen": 1794098223.1826313,
+    "ast_hash": "1028fdd735d59e855e7db91a95e0984c",
+    "semantic_hash": ""
+  },
+  "components/GnoesisLogo.tsx": {
+    "mtime": 1792643335.6276581,
+    "seen": 1794098223.182632,
+    "ast_hash": "4c4cf87eb07a4d6c644132b981cd021e",
+    "semantic_hash": ""
+  },
+  "components/HighlightReel.tsx": {
+    "mtime": 1794096388.7977977,
+    "seen": 1794098223.1826327,
+    "ast_hash": "48fa478e6a709493ed552ee4862166ae",
+    "semantic_hash": ""
+  },
+  "components/LiveOdds.tsx": {
+    "mtime": 1794096373.5088565,
+    "seen": 1794098223.1826336,
+    "ast_hash": "c4c744f84fff6a4932be2a571aa0e7ec",
+    "semantic_hash": ""
+  },
+  "components/MarketROIHeatmap.tsx": {
+    "mtime": 1792643335.6276581,
+    "seen": 1794098223.1826346,
+    "ast_hash": "f398b7306f4d25852bbd1dda372a70ab",
+    "semantic_hash": ""
+  },
+  "components/MonthlyHeatmap.tsx": {
+    "mtime": 1792643335.628658,
+    "seen": 1794098223.1826353,
+    "ast_hash": "c892bbbe1c4db6e41811860ecf6b200e",
+    "semantic_hash": ""
+  },
+  "components/NavBar.tsx": {
+    "mtime": 1794094833.0025165,
+    "seen": 1794098223.1826358,
+    "ast_hash": "a9c7df5d7596381006a89ddbc9d13b17",
+    "semantic_hash": ""
+  },
+  "components/NflLiveBoard.tsx": {
+    "mtime": 1794097963.1411827,
+    "seen": 1794098223.1826365,
+    "ast_hash": "ffefd954a7d11799501021743ea883e8",
+    "semantic_hash": ""
+  },
+  "components/OnboardingTour.tsx": {
+    "mtime": 1792643335.628658,
+    "seen": 1794098223.1826372,
+    "ast_hash": "c3f46cd3740994f0daea901d89c25270",
+    "semantic_hash": ""
+  },
+  "components/PerformanceChart.tsx": {
+    "mtime": 1792643335.628658,
+    "seen": 1794098223.1826382,
+    "ast_hash": "e4fb548a2d61ec133c32c44d2dcfcddb",
+    "semantic_hash": ""
+  },
+  "components/PipelineVisualizer.tsx": {
+    "mtime": 1792643335.629658,
+    "seen": 1794098223.1826386,
+    "ast_hash": "a63be1f9381851fcb94050f5bef4d65d",
+    "semantic_hash": ""
+  },
+  "components/PremiumGate.tsx": {
+    "mtime": 1792643335.629658,
+    "seen": 1794098223.1826391,
+    "ast_hash": "ad3ec486c7d4cad0167b719a42558bad",
+    "semantic_hash": ""
+  },
+  "components/SummaryCards.tsx": {
+    "mtime": 1792643335.629658,
+    "seen": 1794098223.1826398,
+    "ast_hash": "241e098a199a6882b044a8fdbead9954",
+    "semantic_hash": ""
+  },
+  "components/TeamTicker.tsx": {
+    "mtime": 1794094887.4603064,
+    "seen": 1794098223.1826406,
+    "ast_hash": "caf71872eb5f9585d403e69f5d649b6c",
+    "semantic_hash": ""
+  },
+  "components/VoiceAgent.tsx": {
+    "mtime": 1792643335.6306581,
+    "seen": 1794098223.1826415,
+    "ast_hash": "46dec3976bcccce3a5a659d44fb129fd",
+    "semantic_hash": ""
+  },
+  "components/WeekView.tsx": {
+    "mtime": 1792643335.6306581,
+    "seen": 1794098223.1826422,
+    "ast_hash": "8932c789d54494126dc411b547fe1a9a",
+    "semantic_hash": ""
+  },
+  "constants.ts": {
+    "mtime": 1792643335.6306581,
+    "seen": 1794098223.1826427,
+    "ast_hash": "c6b6b4144852bd6e1e2809ba129d91c9",
+    "semantic_hash": ""
+  },
+  "download.js": {
+    "mtime": 1792643335.6306581,
+    "seen": 1794098223.1826434,
+    "ast_hash": "47c4cf5101abcd9120ee31ecbb45d0f3",
+    "semantic_hash": ""
+  },
+  "index.tsx": {
+    "mtime": 1792643335.6306581,
+    "seen": 1794098223.182644,
+    "ast_hash": "4f9d0a7096ddad7c3bf33fd8d73f7d70",
+    "semantic_hash": ""
+  },
+  "lib/cfb.ts": {
+    "mtime": 1794097145.7896225,
+    "seen": 1794098223.1826448,
+    "ast_hash": "4325b151ef56814ed64d26304074eb39",
+    "semantic_hash": ""
+  },
+  "lib/claude.ts": {
+    "mtime": 1792643619.274815,
+    "seen": 1794098223.1826453,
+    "ast_hash": "7a5c913257961f51372134ff058aedce",
+    "semantic_hash": ""
+  },
+  "lib/nfl.test.ts": {
+    "mtime": 1794098133.5837264,
+    "seen": 1794098223.1826458,
+    "ast_hash": "7fec82a0543c72a16cb3941adedaf6d9",
+    "semantic_hash": ""
+  },
+  "lib/nfl.ts": {
+    "mtime": 1794098175.7283335,
+    "seen": 1794098223.1826465,
+    "ast_hash": "100ca36226d89fbbfd6940204238efaf",
+    "semantic_hash": ""
+  },
+  "lib/supabase.ts": {
+    "mtime": 1792643335.631658,
+    "seen": 1794098223.182647,
+    "ast_hash": "bc2d720db2feaa39f7d8c7bf4aef3080",
+    "semantic_hash": ""
+  },
+  "metadata.json": {
+    "mtime": 1792643335.631658,
+    "seen": 1794098223.1826477,
+    "ast_hash": "613ad1afc67e669f2e13d02a2ff08fba",
+    "semantic_hash": ""
+  },
+  "package.json": {
+    "mtime": 1792643683.8059006,
+    "seen": 1794098223.1826484,
+    "ast_hash": "6ad458134b8879b27ece39106ee6c464",
+    "semantic_hash": ""
+  },
+  "pages/Admin.tsx": {
+    "mtime": 1794094833.0035164,
+    "seen": 1794098223.182649,
+    "ast_hash": "063a678e3c777d6e9f7955a4bb9de174",
+    "semantic_hash": ""
+  },
+  "pages/Blog.tsx": {
+    "mtime": 1792643335.633658,
+    "seen": 1794098223.1826496,
+    "ast_hash": "3234081745ccd01d9eea6732efb80daa",
+    "semantic_hash": ""
+  },
+  "pages/Dashboard.tsx": {
+    "mtime": 1792643335.633658,
+    "seen": 1794098223.18265,
+    "ast_hash": "7e126466827eae2581ef09984b7bc0f9",
+    "semantic_hash": ""
+  },
+  "pages/KellyTool.tsx": {
+    "mtime": 1792643335.633658,
+    "seen": 1794098223.1826506,
+    "ast_hash": "8b310a7670b0210806b612478eaa3a7d",
+    "semantic_hash": ""
+  },
+  "pages/OddsBoard.tsx": {
+    "mtime": 1794098163.1087096,
+    "seen": 1794098223.1826513,
+    "ast_hash": "773a1b127628b770af50d0d828e52e0e",
+    "semantic_hash": ""
+  },
+  "pages/Picks.tsx": {
+    "mtime": 1794096456.3235383,
+    "seen": 1794098223.1826522,
+    "ast_hash": "ea56e1be8463a865850022cbbce21b32",
+    "semantic_hash": ""
+  },
+  "pages/PredictionMarkets.tsx": {
+    "mtime": 1792643335.635658,
+    "seen": 1794098223.182653,
+    "ast_hash": "adf4f9551d99f36b640d3b9f33ad5021",
+    "semantic_hash": ""
+  },
+  "pages/PropAlpha.tsx": {
+    "mtime": 1794098010.5410757,
+    "seen": 1794098223.1826537,
+    "ast_hash": "68991fd7e9207e254b37935fb1b3c928",
+    "semantic_hash": ""
+  },
+  "pages/QuantumEdge.tsx": {
+    "mtime": 1792643335.635658,
+    "seen": 1794098223.1826556,
+    "ast_hash": "29168443af5aa3ff1cff00647f972de3",
+    "semantic_hash": ""
+  },
+  "pages/Results.tsx": {
+    "mtime": 1792643335.635658,
+    "seen": 1794098223.182656,
+    "ast_hash": "6395c6f585cc44625256c16877b13084",
+    "semantic_hash": ""
+  },
+  "pages/StatsEdge.tsx": {
+    "mtime": 1794098010.5407007,
+    "seen": 1794098223.1826568,
+    "ast_hash": "d7d51294e81599584c56f2f5e5fc71d9",
+    "semantic_hash": ""
+  },
+  "pages/Superposition.tsx": {
+    "mtime": 1792643335.636658,
+    "seen": 1794098223.1826572,
+    "ast_hash": "d6b1f139ea6cd61dfcd133f3751506c2",
+    "semantic_hash": ""
+  },
+  "pages/Tools.tsx": {
+    "mtime": 1792643335.636658,
+    "seen": 1794098223.182658,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "pages/TradingDesk.tsx": {
+    "mtime": 1792643335.6376579,
+    "seen": 1794098223.1826587,
+    "ast_hash": "44142a9e11aec765b7e977d73ae3f2e9",
+    "semantic_hash": ""
+  },
+  "pages/WiseRaceTerminal.tsx": {
+    "mtime": 1792643335.6376579,
+    "seen": 1794098223.1826594,
+    "ast_hash": "2c8162f8d570d802376d4af64a99722f",
+    "semantic_hash": ""
+  },
+  "repo-dir/config/defaults.yaml": {
+    "mtime": 1792643335.638658,
+    "seen": 1794098223.1826599,
+    "ast_hash": "b1a800e1eb927cccadb3f1c6a46afa83",
+    "semantic_hash": ""
+  },
+  "repo-dir/execution/__init__.py": {
+    "mtime": 1792643335.638658,
+    "seen": 1794098223.1826606,
+    "ast_hash": "1552746bf4a6c68d08de51057290ea56",
+    "semantic_hash": ""
+  },
+  "repo-dir/feeds/__init__.py": {
+    "mtime": 1792643335.638658,
+    "seen": 1794098223.1826613,
+    "ast_hash": "339025cafc8744779db8c5116ec0fd9a",
+    "semantic_hash": ""
+  },
+  "repo-dir/feeds/kalshi.py": {
+    "mtime": 1792643335.639658,
+    "seen": 1794098223.1826622,
+    "ast_hash": "4507dd2d46c46257303fd20390be6762",
+    "semantic_hash": ""
+  },
+  "repo-dir/feeds/polymarket.py": {
+    "mtime": 1792643335.639658,
+    "seen": 1794098223.1826627,
+    "ast_hash": "8d3d8ff5947efb5d0090e2cbb88ed62b",
+    "semantic_hash": ""
+  },
+  "repo-dir/feeds/pregame.py": {
+    "mtime": 1792643335.639658,
+    "seen": 1794098223.1826632,
+    "ast_hash": "e14258d84692081b6f268d167c64c124",
+    "semantic_hash": ""
+  },
+  "repo-dir/filters/__init__.py": {
+    "mtime": 1792643335.639658,
+    "seen": 1794098223.182664,
+    "ast_hash": "10565f4c51502d951fc8a710c0b0f57e",
+    "semantic_hash": ""
+  },
+  "repo-dir/gates/__init__.py": {
+    "mtime": 1792643335.640658,
+    "seen": 1794098223.1826644,
+    "ast_hash": "db93145d04b98d2428a32f5f8f5f9efa",
+    "semantic_hash": ""
+  },
+  "repo-dir/graph.py": {
+    "mtime": 1792643335.640658,
+    "seen": 1794098223.182665,
+    "ast_hash": "ae244b846b26f089196f7e4e41a0fce5",
+    "semantic_hash": ""
+  },
+  "repo-dir/main.py": {
+    "mtime": 1792643335.640658,
+    "seen": 1794098223.1826658,
+    "ast_hash": "ad20a643c323cc63c66fc007abf64fd1",
+    "semantic_hash": ""
+  },
+  "repo-dir/phases/__init__.py": {
+    "mtime": 1792643335.640658,
+    "seen": 1794098223.1826663,
+    "ast_hash": "0a7b4a8b8f4b4daebb7d3da642667374",
+    "semantic_hash": ""
+  },
+  "repo-dir/sme_agents/__init__.py": {
+    "mtime": 1792643335.6416578,
+    "seen": 1794098223.182667,
+    "ast_hash": "9f7e456c3d2352484549acdaf7a71e7e",
+    "semantic_hash": ""
+  },
+  "repo-dir/smoke_test.py": {
+    "mtime": 1792643335.6416578,
+    "seen": 1794098223.1826677,
+    "ast_hash": "c4d531146dd1ca4ba633ec6908c1c50c",
+    "semantic_hash": ""
+  },
+  "scripts/snapshotCfb.mjs": {
+    "mtime": 1794094935.78712,
+    "seen": 1794098223.1826682,
+    "ast_hash": "cdcba0ebf767bb619ab554ad4d103501",
+    "semantic_hash": ""
+  },
+  "scripts/testCfbFeeds.mjs": {
+    "mtime": 1794095005.279852,
+    "seen": 1794098223.1826692,
+    "ast_hash": "2428311562c2f23b1971000258e547dd",
+    "semantic_hash": ""
+  },
+  "src/assets/cfb/2006.json": {
+    "mtime": 1794094938.4871097,
+    "seen": 1794098223.1826696,
+    "ast_hash": "232268c4280c85b9a07777eb579c8ff6",
+    "semantic_hash": ""
+  },
+  "src/custom-images.d.ts": {
+    "mtime": 1792643335.6486578,
+    "seen": 1794098223.1826704,
+    "ast_hash": "cd4512c0d103783e9abda8dfeac9c18c",
+    "semantic_hash": ""
+  },
+  "src/lib/prediction-market/logic.ts": {
+    "mtime": 1792643335.6496577,
+    "seen": 1794098223.182671,
+    "ast_hash": "1bbf626240eed5a64fb9582af5ee8981",
+    "semantic_hash": ""
+  },
+  "src/lib/prediction-market/pipeline.ts": {
+    "mtime": 1792643335.6496577,
+    "seen": 1794098223.1826715,
+    "ast_hash": "3ece03bf949ca1cf71b0e5c8c9badee4",
+    "semantic_hash": ""
+  },
+  "src/lib/prediction-market/types.ts": {
+    "mtime": 1792643335.6496577,
+    "seen": 1794098223.182672,
+    "ast_hash": "2a85e85d265b5e77ca5f4933f4a5b882",
+    "semantic_hash": ""
+  },
+  "tsconfig.json": {
+    "mtime": 1794098036.8855832,
+    "seen": 1794098223.182673,
+    "ast_hash": "26fa0e64ec7b7e82525c8d02d7b0953f",
+    "semantic_hash": ""
+  },
+  "types.ts": {
+    "mtime": 1794094828.6635332,
+    "seen": 1794098223.1826737,
+    "ast_hash": "998ebf12412bca1b4fa0c2e5516b5e3e",
+    "semantic_hash": ""
+  },
+  "utils.ts": {
+    "mtime": 1792643335.650658,
+    "seen": 1794098223.1826742,
+    "ast_hash": "fd8eedeac54417aa4c3025cb2e60d387",
+    "semantic_hash": ""
+  },
+  "vite.config.ts": {
+    "mtime": 1794096684.2266622,
+    "seen": 1794098223.182675,
+    "ast_hash": "43a82d24aae9fd7b6e5fe18cfc303b75",
+    "semantic_hash": ""
+  },
+  "index.html": {
+    "mtime": 1792643335.6306581,
+    "seen": 1794098223.1826756,
+    "ast_hash": "9eb4c1db9d829eb5933430eae219cdda",
+    "semantic_hash": ""
+  },
+  "repo-dir/README.md": {
+    "mtime": 1792643335.6376579,
+    "seen": 1794098223.1826766,
+    "ast_hash": "84cfad11eab893a1ceb73e31b4da72f0",
+    "semantic_hash": ""
+  },
+  "repo-dir/requirements.txt": {
+    "mtime": 1792643335.6416578,
+    "seen": 1794098223.1826773,
+    "ast_hash": "283a604005c07ab7a23f5cb7cd712b06",
+    "semantic_hash": ""
+  },
+  "src/assets/images/gnoesis_labs_logo_1783566057128.jpg": {
+    "mtime": 1792643335.646658,
+    "seen": 1794098223.182678,
+    "ast_hash": "cfa99beea66de660cc7447e4df98f3b7",
+    "semantic_hash": ""
+  },
+  "src/assets/images/quantum_bets_logo_1783566041207.jpg": {
+    "mtime": 1792643335.6486578,
+    "seen": 1794098223.1826787,
+    "ast_hash": "837a92a8ed1249fdb9165b7d4e4c7fb6",
+    "semantic_hash": ""
+  },
+  "package-lock.json": {
+    "mtime": 1792643683.8059006,
+    "seen": 1794098223.1826797,
+    "ast_hash": "cea1b6a8b667538af88a59cdc95bf2fd",
+    "semantic_hash": ""
+  }
+}

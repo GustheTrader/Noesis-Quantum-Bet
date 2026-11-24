@@ -8,7 +8,7 @@ import {
   Settings, Network, Anchor, Shield, Upload, File
 } from 'lucide-react';
 import { WeekData, GameSummary, League, PickArchiveItem } from '../types';
-import { GoogleGenAI } from "@google/genai";
+import { askClaude } from "../lib/claude";
 import { supabase } from '../lib/supabase';
 import { formatError } from '../utils';
 import { clsx } from 'clsx';
@@ -87,27 +87,16 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
     setIsProcessing(true);
     addLog(`Initializing Quantum OCR for ${fileArray.length} document(s)...`);
 
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    
     for (const file of fileArray) {
       try {
         addLog(`Analyzing: ${file.name} (Buffer: ${(file.size / 1024).toFixed(1)} KB)`);
         
         if (activeTab === 'SLIP_OCR') {
            const base64data = await convertFileToBase64(file);
-           const prompt = `Extract all trading or betting positions from this image slip. Format as a JSON array of Trade objects matching this exact schema: [{ "symbol": string, "side": "BUY" | "SELL", "price": number, "amount": number, "exchange": string }]. Infer the exchange if possible, otherwise use "Unknown". Infer side as BUY or SELL. Price is in cents (e.g. 50 = $0.50) or dollar value depending on context, amount is the total wagered/risked.`;
-           
-           const result = await ai.models.generateContent({
-             model: 'gemini-3.5-flash',
-             contents: [
-                prompt,
-                { inlineData: { data: base64data, mimeType: file.type } }
-             ],
-             config: { responseMimeType: "application/json" }
-           });
-           
-           if (result.text) {
-              const parsed = JSON.parse(result.text);
+           const resultText = await askClaude({ task: 'slip_ocr', image: { data: base64data, mediaType: file.type } });
+
+           if (resultText) {
+              const parsed = JSON.parse(resultText);
               addLog(`SUCCESS: Extracted ${parsed.length} trades from slip.`);
               setManualContent(JSON.stringify(parsed, null, 2));
            }
@@ -116,40 +105,25 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
 
         const text = await file.text();
         
-        let prompt = "";
-        let responseMime = "text/plain";
-
+        let resultText = "";
         if (activeTab === 'POSITIONS') {
-          const typeLabel = positionSubTab === 'TEAM' ? 'Team Single Position' : 'Asymmetrical Parlay';
-          prompt = `Extract betting positions for ${targetLeague}. This is specifically for ${typeLabel} picks. 
-          Format as high-fidelity markdown Alpha Report. 
-          REQUIRED FORMAT PER PICK:
-          - **[Team/Selection Name] [Line]** ([Odds]) | Conf: [1-5] | Units: [X.X]u | EV: [+X.X%] | Sharp: [Sharp Price] | Book: [Book Price] | Risks: [Brief Risk Desc]
-            [Analysis text immediately following on new line with 2 spaces indent]
-          `;
+          resultText = await askClaude({ task: 'positions', league: targetLeague, kind: positionSubTab === 'TEAM' ? 'TEAM' : 'PARLAY', input: text });
         } else if (activeTab === 'PROPS') {
-          prompt = `Extract player prop plays for ${targetLeague}. Find Player, Stat category, Line, Sharp odds (Pinnacle/Circa), and EV calculation. Return as structured markdown compatible with the Alpha Report format.`;
+          resultText = await askClaude({ task: 'props', league: targetLeague, input: text });
         } else if (activeTab === 'RESULTS') {
-          prompt = `Extract performance result JSON matching schema: { "title": string, "date": string, "overallRoi": number, "pools": [ { "name": string, "netProfit": number, "roi": number, "bets": [ { "description": string, "stake": number, "units": number, "odds": string, "result": "WIN"|"LOSS"|"VOID", "profit": number } ] } ] }. Target League: ${targetLeague}.`;
-          responseMime = "application/json";
+          resultText = await askClaude({ task: 'results', league: targetLeague, input: text });
         }
 
-        const result = await ai.models.generateContent({
-          model: 'gemini-3.5-flash',
-          contents: `SYSTEM CONTEXT: QuantumBets Admin terminal. TASK: ${prompt}. INPUT DATA: ${text}`,
-          config: { responseMimeType: responseMime }
-        });
-
-        if (result.text) {
+        if (resultText) {
           if (activeTab === 'RESULTS') {
-            const parsed = JSON.parse(result.text);
+            const parsed = JSON.parse(resultText);
             const entry = { ...parsed, id: `w-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, league: targetLeague, date: new Date().toISOString() };
             const { error } = await supabase.from('weeks').insert(entry);
             if (error) throw error;
             onDataUploaded(entry);
             addLog(`SUCCESS: Performance Ledger updated.`);
           } else {
-            await onUpdatePicks(result.text, file.name, targetLeague);
+            await onUpdatePicks(resultText, file.name, targetLeague);
             addLog(`SUCCESS: ${targetLeague} Alpha Feed Synchronized.`);
           }
         }
@@ -228,14 +202,9 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
     setIsProcessing(true);
     try {
       if (activeTab === 'RESULTS') {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const res = await ai.models.generateContent({
-            model: 'gemini-3.5-flash',
-            contents: `Convert this text to Results Ledger JSON for ${targetLeague}: ${manualContent}`,
-            config: { responseMimeType: "application/json" }
-        });
-        if (res.text) {
-            const parsed = JSON.parse(res.text);
+        const resText = await askClaude({ task: 'results', league: targetLeague, input: manualContent });
+        if (resText) {
+            const parsed = JSON.parse(resText);
             const entry = { ...parsed, id: `w-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, league: targetLeague, date: new Date().toISOString() };
             await supabase.from('weeks').insert(entry);
             onDataUploaded(entry);
@@ -324,7 +293,7 @@ export const Admin: React.FC<AdminProps> = ({ onDataUploaded, weeks, onDeleteRep
 
             <div className="flex items-center gap-4 bg-[#0a0e17] p-2 rounded-full border border-white/5">
                 <div className="flex bg-black/40 rounded-full p-1">
-                    {(['NFL', 'NBA', 'NHL', 'MLB', 'MLS', 'SOCCER', 'MMA', 'HORSE', 'GOLF'] as League[]).map(l => (
+                    {(['NFL', 'CFB', 'NBA', 'NHL', 'MLB', 'MLS', 'SOCCER', 'MMA', 'HORSE', 'GOLF'] as League[]).map(l => (
                         <button key={l} onClick={() => setTargetLeague(l)} className={clsx("px-4 py-2.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all", targetLeague === l ? "bg-white text-black" : "text-slate-600 hover:text-white")}>
                             {l}
                         </button>

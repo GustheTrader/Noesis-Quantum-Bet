@@ -7,6 +7,9 @@ import { getEvents, getLatestOddsByEvent, readerConfigFromEnv, todayIn, EspnRead
 import { toBoardMatchups, toLeagueKey, latestCapturedAt, latestEventUpdate } from '../lib/espn/boardModel';
 import { toLiveOddsRows, OFF, type LiveOddsRow } from '../lib/espn/liveOddsModel';
 
+import { getLiveWeek, type CfbGame } from '../lib/cfb';
+import { getNovigLeague, matchNovigEvent, probToAmerican, fairPrice, type NovigBook } from '../lib/novig';
+
 // Mock/synthetic data is only used when explicitly enabled (VITE_USE_MOCKS=true), never as a silent fallback.
 const USE_MOCKS = ((import.meta as unknown as { env?: Record<string, unknown> }).env?.VITE_USE_MOCKS) === 'true';
 const REFRESH_MS = 60_000;
@@ -16,9 +19,13 @@ interface GameOdd {
   id: string;
   homeTeam: string;
   awayTeam: string;
+  homeLogo?: string;
+  awayLogo?: string;
+  lineUnavailable?: boolean;
   homeScore?: number;
   awayScore?: number;
   status: string;
+  spreadAway?: string;
   spread: string;
   total: string;
   homeMl?: string;
@@ -26,7 +33,7 @@ interface GameOdd {
   isHot?: boolean;
 }
 
-const LEAGUE_MOCK_DATA: Record<League, GameOdd[]> = {
+const LEAGUE_MOCK_DATA: Partial<Record<League, GameOdd[]>> = {
   NFL: [
     { id: 'nfl-1', homeTeam: 'KC', awayTeam: 'BAL', homeScore: 24, awayScore: 20, status: 'LIVE Q4 12:30', spread: 'KC -3.5', total: '51.5', homeMl: '-175', awayMl: '+150', isHot: true },
     { id: 'nfl-2', homeTeam: 'PHI', awayTeam: 'DAL', status: 'SUN 4:25PM', spread: 'PHI -2.5', total: '48.5', homeMl: '-135', awayMl: '+115' },
@@ -95,6 +102,60 @@ const getMockRows = (league: League): LiveOddsRow[] =>
     };
   });
 
+const cfbOddsFromGames = (games: CfbGame[]): GameOdd[] =>
+  [...games]
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+    .map(g => ({
+      id: g.id,
+      homeTeam: g.home.abr,
+      awayTeam: g.away.abr,
+      homeLogo: g.home.logo,
+      awayLogo: g.away.logo,
+      homeScore: Number(g.home.score) || 0,
+      awayScore: Number(g.away.score) || 0,
+      status: `${g.status} · ${g.away.abr} @ ${g.home.abr}`,
+      spread: 'NL',
+      total: 'NL',
+      homeMl: g.completed ? (g.home.winner ? 'W' : 'L') : '—',
+      awayMl: g.completed ? (g.away.winner ? 'W' : 'L') : '—',
+      isHot: false,
+      lineUnavailable: true
+    }));
+
+const loadCfbOdds = async (): Promise<GameOdd[]> => {
+  const live = await getLiveWeek();
+  // Novig's exchange book prices the same games ESPN scores. If the catalog is
+  // unreachable the strip still shows the game state with NL prices.
+  let book: NovigBook | undefined;
+  try {
+    book = await getNovigLeague('NCAAF');
+  } catch {
+    book = undefined;
+  }
+  const rows = cfbOddsFromGames(live.games);
+  if (!book) return rows;
+  return rows.map((row) => {
+    const game = live.games.find((g) => g.id === row.id);
+    const ev = game ? matchNovigEvent(game, book!) : undefined;
+    if (!ev) return row;
+    const spread = ev.markets.find((m) => m.marketType === 'SPREAD');
+    const total = ev.markets.find((m) => m.marketType === 'TOTAL');
+    const money = ev.markets.find((m) => m.marketType === 'MONEY');
+    const fair = spread ? fairPrice(spread) : undefined;
+    return {
+      ...row,
+      spread: fair != null ? probToAmerican(fair) : row.spread,
+      spreadAway: fair != null ? probToAmerican(1 - fair) : 'NL',
+      total: total?.strike != null ? `${total.strike}` : row.total,
+      homeMl: money?.outcomes[0] ? probToAmerican(money.outcomes[0].price) : row.homeMl,
+      awayMl: money?.outcomes[1] ? probToAmerican(money.outcomes[1].price) : row.awayMl,
+      lineUnavailable: fair == null && total?.strike == null && !money?.outcomes.length,
+    };
+  });
+};
+
+type DisplayRow = LiveOddsRow & { lineUnavailable?: boolean };
+
 type LoadState = 'loading' | 'ready' | 'empty' | 'error' | 'unsupported';
 
 const fmtAsOf = (iso: string) =>
@@ -105,7 +166,7 @@ interface LiveOddsProps {
 }
 
 export const LiveOdds: React.FC<LiveOddsProps> = ({ league }) => {
-  const [rows, setRows] = useState<LiveOddsRow[]>([]);
+  const [rows, setRows] = useState<DisplayRow[]>([]);
   const [state, setState] = useState<LoadState>('loading');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [dataAsOf, setDataAsOf] = useState<string | null>(null);
@@ -116,7 +177,7 @@ export const LiveOdds: React.FC<LiveOddsProps> = ({ league }) => {
 
   const fetchOdds = useCallback(async (initial: boolean) => {
     const id = ++reqId.current;
-    if (initial) setState('loading');
+    if (initial) { setRows([]); setErrorMsg(null); setDataAsOf(null); setState('loading'); }
     setRefreshing(true);
     try {
       if (USE_MOCKS) {
@@ -124,6 +185,23 @@ export const LiveOdds: React.FC<LiveOddsProps> = ({ league }) => {
         setErrorMsg(null);
         setDataAsOf(null);
         setState('ready');
+        return;
+      }
+      if (league === 'CFB') {
+        const games = await loadCfbOdds();
+        if (id !== reqId.current) return;
+        setRows(games.map(g => ({
+          id: g.id, homeTeam: g.homeTeam, awayTeam: g.awayTeam,
+          homeLogo: g.homeLogo, awayLogo: g.awayLogo,
+          homeScore: g.homeScore ?? null, awayScore: g.awayScore ?? null,
+          status: g.status, isFinal: /final/i.test(g.status), isLive: /live|quarter|half/i.test(g.status),
+          spreadHome: g.spread, spreadAway: g.spreadAway ?? g.spread, total: g.total,
+          mlHome: g.homeMl || OFF, mlAway: g.awayMl || OFF,
+          provider: 'NOVIG', capturedAt: null, lineUnavailable: g.lineUnavailable,
+        })));
+        setDataAsOf(new Date().toISOString());
+        setErrorMsg(null);
+        setState(games.length ? 'ready' : 'empty');
         return;
       }
       if (!leagueKey) {
@@ -153,7 +231,7 @@ export const LiveOdds: React.FC<LiveOddsProps> = ({ league }) => {
   useEffect(() => {
     void fetchOdds(true);
     const interval = setInterval(() => void fetchOdds(false), REFRESH_MS);
-    return () => clearInterval(interval);
+    return () => { ++reqId.current; clearInterval(interval); };
   }, [fetchOdds]);
 
   const live = !USE_MOCKS && state === 'ready';
@@ -166,9 +244,9 @@ export const LiveOdds: React.FC<LiveOddsProps> = ({ league }) => {
         <div>
             <h3 className="text-cyan-400 font-bold uppercase tracking-widest flex items-center gap-2 text-sm">
             <Activity size={18} className={live ? "animate-pulse" : ""} />
-            Vegas Board
+            {league === 'CFB' ? 'CFB Live Board' : 'Vegas Board'}
             </h3>
-            <span className="text-[10px] text-slate-500 font-mono">{USE_MOCKS ? 'MOCK DATA (DEV)' : 'ESPN CONSENSUS'}</span>
+            <span className="text-[10px] text-slate-500 font-mono">{USE_MOCKS ? 'MOCK DATA (DEV)' : league === 'CFB' ? 'CURRENT WEEK · NOVIG EXCHANGE PRICES' : 'ESPN CONSENSUS'}</span>
         </div>
         <div className="flex items-center gap-2">
             <span className={`text-[10px] uppercase font-mono flex items-center gap-1 ${live ? 'text-emerald-500' : state === 'error' ? 'text-rose-500' : 'text-amber-500'}`}>
@@ -236,7 +314,7 @@ export const LiveOdds: React.FC<LiveOddsProps> = ({ league }) => {
             {/* Status Bar */}
             <div className="flex justify-between items-center mb-2 pb-2 border-b border-slate-800/50">
                 <span className={`text-[9px] font-mono uppercase tracking-wider ${game.isFinal ? 'text-slate-600' : game.isLive ? 'text-rose-500 font-bold' : 'text-slate-400'}`}>
-                    {game.status}
+                    {game.status}{game.lineUnavailable ? ' · NO LINE' : ''}
                 </span>
                 {game.isLive && <TrendingUp size={12} className="text-emerald-500" />}
             </div>
@@ -255,7 +333,7 @@ export const LiveOdds: React.FC<LiveOddsProps> = ({ league }) => {
                     </div>
                     <div className="text-[10px] font-mono text-cyan-300 bg-black/40 px-2 py-1 rounded text-center border border-slate-800">
                         {viewMode === 'SPREAD' && cell(game.spreadAway)}
-                        {viewMode === 'TOTAL' && (game.total === OFF ? OFF : `O ${game.total}`)}
+                        {viewMode === 'TOTAL' && (game.total === 'NL' ? 'NL' : game.total === OFF ? OFF : `O ${game.total}`)}
                         {viewMode === 'ML' && cell(game.mlAway)}
                     </div>
                 </div>
@@ -274,7 +352,7 @@ export const LiveOdds: React.FC<LiveOddsProps> = ({ league }) => {
                     </div>
                     <div className="text-[10px] font-mono text-cyan-300 bg-black/40 px-2 py-1 rounded text-center border border-slate-800">
                         {viewMode === 'SPREAD' && cell(game.spreadHome)}
-                        {viewMode === 'TOTAL' && (game.total === OFF ? OFF : `U ${game.total}`)}
+                        {viewMode === 'TOTAL' && (game.total === 'NL' ? 'NL' : game.total === OFF ? OFF : `U ${game.total}`)}
                         {viewMode === 'ML' && cell(game.mlHome)}
                     </div>
                 </div>
